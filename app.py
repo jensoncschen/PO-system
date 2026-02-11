@@ -150,6 +150,7 @@ elif page == "🔧 後台：管理中心":
             st.info("尚無訂單資料")
 
     # --- Tab 2: 資料庫維護 ---
+   # --- Tab 2: 資料庫維護 ---
     with tab2:
         st.markdown("### 批次資料更新")
         st.markdown("請依照指定格式準備 Excel 檔案 (.xlsx) 並上傳。")
@@ -198,4 +199,15 @@ elif page == "🔧 後台：管理中心":
                     df_new = pd.read_excel(prod_file)
                     # 強制取前四欄，並重新命名
                     df_new = df_new.iloc[:, :4]
-                    df_new.columns = ["
+                    # ★★★ 這裡是原本報錯的地方，請確保這一行是完整的 ★★★
+                    df_new.columns = ["產品編號", "產品名稱", "數量", "單價"]
+                    
+                    st.write("預覽上傳內容：")
+                    st.dataframe(df_new.head(), height=100)
+                    
+                    if st.button("確認更新產品資料"):
+                        st.session_state.df_products = df_new
+                        st.success("✅ 更新成功！")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"檔案格式錯誤: {e}")
