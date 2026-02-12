@@ -5,50 +5,44 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (防爆量版)", layout="wide", page_icon="☁️")
+st.set_page_config(page_title="雲端訂購系統 (進階搜尋版)", layout="wide", page_icon="☁️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- 關鍵修正：加入快取機制 ---
-# ttl=300 代表資料會被暫存 300秒 (5分鐘)
-# 在這 5 分鐘內，不管你怎麼搜尋、篩選，都不會消耗 Google API 額度
+# --- 快取機制 (防爆量) ---
 @st.cache_data(ttl=300) 
 def fetch_all_data():
     try:
-        # 這裡移除 ttl=0，改由上方的 @st.cache_data 控制
         df_cust = conn.read(worksheet="客戶資料")
         df_prod = conn.read(worksheet="產品資料")
         df_sales = conn.read(worksheet="業務資料") 
         df_order = conn.read(worksheet="訂單紀錄")
         
-        # 確保欄位存在 (防呆)
+        # 欄位防呆補強
         if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
+        if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類" # 確保有品牌欄位
         
         return df_cust, df_prod, df_sales, df_order
     except Exception as e:
-        # 如果爆量了，這裡會回傳 None，稍後處理
         return None, None, None, None
 
-# --- 側邊欄：手動更新與導航 ---
+# --- 側邊欄 ---
 st.sidebar.title("☁️ 系統導航")
-
-# 加入手動更新按鈕
 if st.sidebar.button("🔄 強制更新資料"):
-    st.cache_data.clear() # 清除快取
-    st.rerun() # 重新執行
+    st.cache_data.clear()
+    st.rerun()
 
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
-st.sidebar.caption("v5.1 | 防爆量快取版")
+st.sidebar.caption("v5.2 | 搜尋與篩選增強版")
 
-# 載入資料 (現在會優先讀快取)
+# 載入資料
 df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
 
-# 如果因為額度爆了讀不到資料，顯示友善訊息
 if df_customers is None:
-    st.error("⚠️ 讀取太頻繁，Google 暫時限制了連線。請等待 1 分鐘後，按下側邊欄的「🔄 強制更新資料」。")
+    st.error("⚠️ Google 連線忙碌中，請稍候再按側邊欄的更新按鈕。")
     st.stop()
 
 # --- 初始化 Session State ---
@@ -61,39 +55,75 @@ if 'cart_list' not in st.session_state:
 if page == "🛒 前台：下單作業":
     st.title("🛒 業務下單專區")
     
-    # --- 1. 基本資訊 ---
+    # --- 1. 基本資訊 (改良版) ---
     with st.container():
         col_sales, col_cust, col_date = st.columns(3)
         
         with col_sales:
             # 業務選單
             sales_list = df_salespeople["業務名稱"].unique().tolist() if not df_salespeople.empty else []
-            selected_sales_name = st.selectbox("👤 承辦業務", sales_list)
+            selected_sales_name = st.selectbox(
+                "👤 承辦業務", 
+                sales_list,
+                index=None,
+                placeholder="請選擇業務員..."
+            )
 
         with col_cust:
-            # 客戶選單
+            # 【需求1】客戶名稱改成輸入搜尋式
             cust_list = df_customers["客戶名稱"].unique().tolist() if not df_customers.empty else []
-            selected_cust_name = st.selectbox("🏢 客戶名稱", cust_list)
+            selected_cust_name = st.selectbox(
+                "🏢 客戶名稱 (可打字搜尋)", 
+                cust_list,
+                index=None, # 預設為空，強迫使用者選擇或輸入
+                placeholder="請輸入關鍵字或從選單選擇...", # 搜尋提示
+                help="支援模糊搜尋，例如輸入 '台積' 即可找到 '台積電'"
+            )
 
         with col_date:
             order_date = st.date_input("📅 訂單日期", datetime.now())
     
     st.divider()
 
-    # --- 2. 產品列表 ---
+    # --- 2. 產品列表 (新增篩選功能) ---
     st.subheader("📦 產品訂購")
 
-    # 搜尋功能 (現在打字不會消耗額度了)
-    search_term = st.text_input("🔍 搜尋產品名稱", placeholder="輸入關鍵字...")
+    # 【需求2 & 3】搜尋提示與品牌篩選
+    col_search, col_filter = st.columns([2, 1])
     
-    # 準備顯示資料
+    with col_search:
+        # 搜尋框加上提示
+        search_term = st.text_input(
+            "🔍 產品搜尋", 
+            placeholder="請輸入產品名稱關鍵字...", 
+            help="系統會自動篩選名稱包含此關鍵字的產品"
+        )
+        
+    with col_filter:
+        # 品牌篩選器
+        all_brands = df_products["品牌"].unique().tolist() if "品牌" in df_products.columns else []
+        selected_brands = st.multiselect(
+            "🏷️ 品牌篩選 (可多選)", 
+            all_brands,
+            placeholder="請選擇品牌..."
+        )
+
+    # 資料篩選邏輯
     display_df = df_products.copy()
     
+    # A. 先篩選品牌
+    if selected_brands:
+        display_df = display_df[display_df["品牌"].isin(selected_brands)]
+        
+    # B. 再篩選關鍵字
     if search_term:
         display_df = display_df[display_df["產品名稱"].astype(str).str.contains(search_term, case=False)]
 
+    # 顯示設定：只留名稱與輸入框
     display_df = display_df[["產品名稱"]].copy() 
     display_df["訂購數量"] = 0
+
+    st.caption(f"符合條件產品共 {len(display_df)} 筆")
 
     # 互動表格
     edited_df = st.data_editor(
@@ -104,7 +134,7 @@ if page == "🛒 前台：下單作業":
         },
         use_container_width=True,
         hide_index=True,
-        key="product_simple_editor"
+        key="product_filtered_editor"
     )
 
     # --- 3. 加入購物車 ---
@@ -116,23 +146,27 @@ if page == "🛒 前台：下單作業":
             st.info(f"已選擇 {len(items_to_add)} 項產品")
             
         with col_btn:
-            if st.button("⬇️ 加入清單", type="primary", use_container_width=True):
-                for _, row in items_to_add.iterrows():
-                    p_name = row["產品名稱"]
-                    qty = row["訂購數量"]
-                    
-                    original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
-                    
-                    st.session_state.cart_list.append({
-                        "業務名稱": selected_sales_name,
-                        "客戶名稱": selected_cust_name,
-                        "產品編號": original_product.get("產品編號", "N/A"),
-                        "產品名稱": p_name,
-                        "品牌": original_product.get("品牌", ""),
-                        "訂購數量": qty
-                    })
-                st.success("已加入！")
-                st.rerun()
+            # 檢查是否已選擇客戶與業務
+            if not selected_cust_name or not selected_sales_name:
+                st.error("⚠️ 請先選擇「承辦業務」與「客戶名稱」")
+            else:
+                if st.button("⬇️ 加入清單", type="primary", use_container_width=True):
+                    for _, row in items_to_add.iterrows():
+                        p_name = row["產品名稱"]
+                        qty = row["訂購數量"]
+                        
+                        original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
+                        
+                        st.session_state.cart_list.append({
+                            "業務名稱": selected_sales_name,
+                            "客戶名稱": selected_cust_name,
+                            "產品編號": original_product.get("產品編號", "N/A"),
+                            "產品名稱": p_name,
+                            "品牌": original_product.get("品牌", ""),
+                            "訂購數量": qty
+                        })
+                    st.success("已加入！")
+                    st.rerun()
 
     # --- 4. 確認送出 ---
     if len(st.session_state.cart_list) > 0:
@@ -152,15 +186,12 @@ if page == "🛒 前台：下單作業":
         with col_submit:
             if st.button("✅ 確認送出 (儲存至 Google Sheets)", type="primary", use_container_width=True):
                 with st.spinner("正在寫入雲端..."):
-                    # 寫入時我們必須強制取得最新狀態，所以這裡不使用 cache
-                    # 但因為寫入動作不頻繁，所以是安全的
-                    
                     order_id = f"ORD-{datetime.now().strftime('%Y%m%d%H%M%S')}"
                     
-                    # 重新讀取一次訂單紀錄以確保不覆蓋別人的資料 (這次用 ttl=0)
+                    # 取得完整資料庫以查找 ID
                     current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
-
-                    # 查找 ID 邏輯
+                    
+                    # 查找 ID
                     cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
                     c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
                     
@@ -185,9 +216,7 @@ if page == "🛒 前台：下單作業":
                     updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
                     conn.update(worksheet="訂單紀錄", data=updated_history)
                     
-                    # 寫入完畢後，清除快取，讓介面之後能讀到最新的訂單
                     st.cache_data.clear()
-                    
                     st.session_state.cart_list = []
                     st.success("訂單已建立！")
                     time.sleep(1)
@@ -211,7 +240,7 @@ elif page == "🔧 後台：資料管理":
             new_df = pd.read_excel(up_cust).iloc[:, :2]
             new_df.columns = ["客戶編號", "客戶名稱"]
             conn.update(worksheet="客戶資料", data=new_df)
-            st.cache_data.clear() # 更新後清除快取
+            st.cache_data.clear()
             st.success("完成！")
             st.rerun()
 
@@ -222,7 +251,7 @@ elif page == "🔧 後台：資料管理":
             new_df = pd.read_excel(up_prod).iloc[:, :3]
             new_df.columns = ["產品編號", "產品名稱", "品牌"]
             conn.update(worksheet="產品資料", data=new_df)
-            st.cache_data.clear() # 更新後清除快取
+            st.cache_data.clear()
             st.success("完成！")
             st.rerun()
 
@@ -231,12 +260,9 @@ elif page == "🔧 後台：資料管理":
         up_sales = st.file_uploader("上傳業務 Excel", type=['xlsx'], key="up_sales")
         if up_sales:
             if st.button("更新業務資料"):
-                try:
-                    new_df = pd.read_excel(up_sales).iloc[:, :2]
-                    new_df.columns = ["業務編號", "業務名稱"]
-                    conn.update(worksheet="業務資料", data=new_df)
-                    st.cache_data.clear() # 更新後清除快取
-                    st.success("業務資料已更新！")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"錯誤: {e}")
+                new_df = pd.read_excel(up_sales).iloc[:, :2]
+                new_df.columns = ["業務編號", "業務名稱"]
+                conn.update(worksheet="業務資料", data=new_df)
+                st.cache_data.clear()
+                st.success("完成！")
+                st.rerun()
