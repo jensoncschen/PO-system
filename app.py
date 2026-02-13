@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (側邊快捷版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (可編輯重置版)", layout="wide", page_icon="🛍️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -71,14 +71,18 @@ if page == "🛒 前台：下單作業":
     with st.container():
         col_sales, col_cust, col_date = st.columns(3)
         
-        # A. 選擇業務
+        # A. 選擇業務 (加上 key 以便重置)
         with col_sales:
             sales_list = df_salespeople["業務名稱"].unique().tolist() if not df_salespeople.empty else []
             selected_sales_name = st.selectbox(
-                "👤 承辦業務", sales_list, index=None, placeholder="請先選擇業務員..."
+                "👤 承辦業務", 
+                sales_list, 
+                index=None, 
+                placeholder="請先選擇業務員...",
+                key="sb_sales" # 設定 Key
             )
 
-        # B. 選擇客戶
+        # B. 選擇客戶 (加上 key 以便重置)
         with col_cust:
             current_cust_list = []
             placeholder_text = "請先選擇業務員..."
@@ -95,7 +99,8 @@ if page == "🛒 前台：下單作業":
                 "🏢 客戶名稱", 
                 current_cust_list, 
                 index=None, 
-                placeholder=placeholder_text
+                placeholder=placeholder_text,
+                key="sb_cust" # 設定 Key
             )
 
         with col_date:
@@ -103,7 +108,7 @@ if page == "🛒 前台：下單作業":
     
     st.divider()
 
-    # --- 定義送出訂單的核心邏輯 (讓側邊欄與主畫面共用) ---
+    # --- 定義送出訂單的核心邏輯 ---
     def submit_order_logic():
         # 1. 檢查必要欄位
         if not selected_cust_name or not selected_sales_name:
@@ -183,46 +188,40 @@ if page == "🛒 前台：下單作業":
             updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
             conn.update(worksheet="訂單紀錄", data=updated_history)
             
-            # 清理
+            # 清理與重置
             st.cache_data.clear()
             st.session_state.cart_list = []
+            
+            # ★★★ 關鍵修改：強制清除 Selectbox 的狀態，回到初始畫面 ★★★
+            if "sb_sales" in st.session_state:
+                del st.session_state["sb_sales"]
+            if "sb_cust" in st.session_state:
+                del st.session_state["sb_cust"]
+            
             st.balloons()
-            st.success(f"訂單 {final_bill_no} 建立成功！")
+            st.success(f"訂單 {final_bill_no} 建立成功！畫面將在 2 秒後重置...")
             time.sleep(2)
             st.rerun()
 
-    # --- ★★★ 新增：側邊欄購物車快捷區 ★★★ ---
+    # --- 側邊欄購物車快捷區 ---
     st.sidebar.header("🛒 購物車快捷區")
-    
-    # 計算目前總數
     current_cart_count = len(st.session_state.cart_list)
     
     if current_cart_count > 0:
         st.sidebar.info(f"目前已選：{current_cart_count} 項商品")
         
-        # 功能1: 訂購清單 (折疊式)
         with st.sidebar.expander("👀 檢視清單", expanded=True):
             mini_df = pd.DataFrame(st.session_state.cart_list)
-            # 只顯示重點欄位
-            st.dataframe(
-                mini_df[["產品名稱", "訂購數量", "搭贈數量"]], 
-                use_container_width=True, 
-                hide_index=True
-            )
+            st.dataframe(mini_df[["產品名稱", "訂購數量", "搭贈數量"]], use_container_width=True, hide_index=True)
 
-        # 功能2: 送出訂單
-        # 注意: 如果這裡按了，會執行上面的 submit_order_logic
         if st.sidebar.button("✅ 立即送出訂單", type="primary", key="btn_sidebar_submit"):
             submit_order_logic()
 
-        # 功能3: 清除已訂購
         if st.sidebar.button("🗑️ 清除全部商品", key="btn_sidebar_clear"):
             st.session_state.cart_list = []
             st.rerun()
-            
     else:
         st.sidebar.caption("🛒 購物車是空的")
-        st.sidebar.caption("請在右側選擇產品加入...")
 
     # --- 2. 產品列表 (主畫面) ---
     st.subheader("📦 產品訂購")
@@ -318,14 +317,42 @@ if page == "🛒 前台：下單作業":
                     time.sleep(0.5)
                     st.rerun()
 
-    # --- 4. 確認送出區 (主畫面底部，保留給習慣往下捲的人) ---
+    # --- 4. 待送出清單 (可編輯區) ---
     if len(st.session_state.cart_list) > 0:
         st.divider()
-        st.subheader("📋 待送出清單 (主畫面)")
+        st.subheader("📋 待送出清單 (可編輯修改)")
         
+        # 準備顯示用的 DataFrame
         cart_df = pd.DataFrame(st.session_state.cart_list)
-        st.dataframe(cart_df[["產品名稱", "訂購數量", "搭贈數量", "客戶名稱"]], use_container_width=True)
         
+        # ★★★ 關鍵修改：使用 data_editor 讓使用者可以修改與刪除 ★★★
+        st.caption("💡 提示：你可以直接點擊數字修改，或選取該行後按 Delete 鍵刪除。")
+        
+        edited_cart_df = st.data_editor(
+            cart_df,
+            column_config={
+                "產品名稱": st.column_config.TextColumn(disabled=True),
+                "客戶名稱": st.column_config.TextColumn(disabled=True),
+                "業務名稱": st.column_config.TextColumn(disabled=True),
+                "訂購數量": st.column_config.NumberColumn(min_value=0, step=1, required=True),
+                "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1, required=True),
+                "產品編號": st.column_config.TextColumn(disabled=True),
+                "品牌": st.column_config.TextColumn(disabled=True),
+            },
+            # 只顯示需要的欄位
+            column_order=["產品名稱", "訂購數量", "搭贈數量", "客戶名稱"],
+            use_container_width=True,
+            num_rows="dynamic", # 允許刪除行
+            key="cart_editor"
+        )
+        
+        # ★★★ 關鍵邏輯：同步修改回 Session State ★★★
+        # 如果編輯後的長度或內容跟原本不一樣，就更新 Session State
+        # 這樣側邊欄的購物車才會同步更新
+        if not edited_cart_df.equals(cart_df):
+            st.session_state.cart_list = edited_cart_df.to_dict('records')
+            st.rerun() # 立即重新整理以更新側邊欄
+
         col_submit, col_clear = st.columns([4, 1])
         
         with col_clear:
