@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (修復版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (名稱連動版)", layout="wide", page_icon="🛍️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -19,11 +19,18 @@ def fetch_all_data():
         df_sales = conn.read(worksheet="業務資料") 
         df_order = conn.read(worksheet="訂單紀錄")
         
-        # 防呆
+        # 防呆與欄位補全
         if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
         if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
         if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
+        
+        # ★ 重點修改：改用「業務名稱」來做關聯 ★
+        if "業務名稱" not in df_cust.columns: df_cust["業務名稱"] = ""
+        
+        # 強制轉字串並去除前後空白，避免 "王小明 " 和 "王小明" 對不上的問題
+        df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
+        df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
         
         return df_cust, df_prod, df_sales, df_order
     except Exception as e:
@@ -37,7 +44,7 @@ if st.sidebar.button("🔄 強制更新資料"):
 
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
-st.sidebar.caption("v10.1 | 語法修復版")
+st.sidebar.caption("v11.1 | 業務名稱連動版")
 
 # 載入資料
 df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
@@ -56,19 +63,44 @@ if 'cart_list' not in st.session_state:
 if page == "🛒 前台：下單作業":
     st.title("🛒 業務下單專區")
     
-    # --- 1. 基本資訊 ---
+    # --- 1. 基本資訊 (名稱連動核心) ---
     with st.container():
         col_sales, col_cust, col_date = st.columns(3)
+        
+        # A. 選擇業務
         with col_sales:
             sales_list = df_salespeople["業務名稱"].unique().tolist() if not df_salespeople.empty else []
             selected_sales_name = st.selectbox(
-                "👤 承辦業務", sales_list, index=None, placeholder="請選擇業務員..."
+                "👤 承辦業務", sales_list, index=None, placeholder="請先選擇業務員..."
             )
+
+        # B. 選擇客戶 (直接用名稱篩選)
         with col_cust:
-            cust_list = df_customers["客戶名稱"].unique().tolist() if not df_customers.empty else []
+            current_cust_list = []
+            
+            if selected_sales_name:
+                # 直接篩選：客戶資料表中「業務名稱」欄位等於「選定業務」的資料
+                filtered_cust_df = df_customers[df_customers["業務名稱"] == selected_sales_name]
+                current_cust_list = filtered_cust_df["客戶名稱"].unique().tolist()
+                
+                # 防呆：如果該業務名下沒客戶
+                if not current_cust_list:
+                    placeholder_text = f"⚠️ {selected_sales_name} 名下尚無客戶資料"
+                else:
+                    placeholder_text = "請選擇客戶..."
+            else:
+                # 若未選業務，顯示全部 (或提示先選業務)
+                current_cust_list = df_customers["客戶名稱"].unique().tolist()
+                placeholder_text = "請先選擇業務員以載入清單..."
+
             selected_cust_name = st.selectbox(
-                "🏢 客戶名稱", cust_list, index=None, placeholder="請輸入關鍵字搜尋..."
+                "🏢 客戶名稱", 
+                current_cust_list, 
+                index=None, 
+                placeholder=placeholder_text,
+                help="此選單會根據左側選擇的業務員自動篩選"
             )
+
         with col_date:
             order_date = st.date_input("📅 訂單日期", datetime.now())
     
@@ -163,8 +195,6 @@ if page == "🛒 前台：下單作業":
                             p_name = row["產品名稱"]
                             qty = row["訂購數量"]
                             gift_qty = row["搭贈數量"]
-                            
-                            # ★★★ 這裡是原本報錯的地方，已經修正 ★★★
                             original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
                             
                             st.session_state.cart_list.append({
@@ -202,12 +232,13 @@ if page == "🛒 前台：下單作業":
                     current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
                     if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
 
+                    # 取得業務編號 (用來產生單號 PersonID)
                     sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
                     if not sales_row.empty:
                         raw_val = sales_row.iloc[0]["業務編號"]
                         s_str = str(raw_val).strip()
                         if s_str.endswith(".0"): s_str = s_str[:-2]
-                        s_id_2digits = s_str.zfill(2)[-2:] 
+                        s_id_2digits = s_str.zfill(2)[-2:]
                     else:
                         s_id_2digits = "00"
 
@@ -268,7 +299,7 @@ if page == "🛒 前台：下單作業":
                     st.rerun()
 
 # ==========================================
-# 🔧 後台管理 (精簡版：僅顯示訂單與連結)
+# 🔧 後台管理
 # ==========================================
 elif page == "🔧 後台：資料管理":
     st.title("🔧 後台管理")
@@ -281,9 +312,7 @@ elif page == "🔧 後台：資料管理":
         st.info("💡 客戶、產品、業務資料請直接在 Google 試算表 中修改。")
 
     st.divider()
-    
     st.subheader("📊 歷史訂單紀錄")
-    
     st.dataframe(df_order_history, use_container_width=True)
     
     if st.button("🔄 重新整理訂單"):
