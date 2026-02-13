@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (英文欄位版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (訂單編號修正版)", layout="wide", page_icon="🛍️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -19,10 +19,12 @@ def fetch_all_data():
         df_sales = conn.read(worksheet="業務資料") 
         df_order = conn.read(worksheet="訂單紀錄")
         
-        # 防呆：確保基礎資料欄位存在
+        # 防呆
         if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
         if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
+        # 確保 BillNo 欄位存在，避免第一次執行報錯
+        if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
         
         return df_cust, df_prod, df_sales, df_order
     except Exception as e:
@@ -36,7 +38,7 @@ if st.sidebar.button("🔄 強制更新資料"):
 
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
-st.sidebar.caption("v9.0 | 英文欄位資料庫版")
+st.sidebar.caption("v9.1 | 訂單編號邏輯修正")
 
 # 載入資料
 df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
@@ -180,7 +182,7 @@ if page == "🛒 前台：下單作業":
                     time.sleep(0.5)
                     st.rerun()
 
-    # --- 4. 確認送出 (重點修改：寫入英文欄位) ---
+    # --- 4. 確認送出 ---
     if len(st.session_state.cart_list) > 0:
         st.divider()
         st.subheader("📋 待送出清單")
@@ -199,64 +201,81 @@ if page == "🛒 前台：下單作業":
             if st.button("✅ 確認送出 (寫入資料庫)", type="primary", use_container_width=True):
                 with st.spinner("正在處理訂單資料..."):
                     
-                    # 1. 取得歷史紀錄 (注意：現在要讀 BillNo)
+                    # 1. 取得歷史紀錄
                     current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
-                    
-                    # 2. 準備業務編號 (PersonID 2碼)
+                    if "BillNo" not in current_history.columns:
+                        current_history["BillNo"] = ""
+
+                    # ==========================================
+                    # ★ 核心修正：業務編號格式化邏輯 ★
+                    # ==========================================
                     sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
                     if not sales_row.empty:
-                        raw_s_id = str(sales_row.iloc[0]["業務編號"])
-                        s_id_2digits = raw_s_id[-2:].zfill(2) # 取後2碼，這就是 PersonID
-                        s_id_full = raw_s_id
+                        raw_val = sales_row.iloc[0]["業務編號"]
+                        
+                        # 1. 轉字串
+                        s_str = str(raw_val).strip()
+                        
+                        # 2. 如果是浮點數 (如 "5.0")，去掉 .0
+                        if s_str.endswith(".0"):
+                            s_str = s_str[:-2]
+                            
+                        # 3. 補零 (確保至少2位數)
+                        # "5" -> "05", "12" -> "12", "101" -> "01" (取後2碼)
+                        s_id_2digits = s_str.zfill(2)[-2:] 
                     else:
                         s_id_2digits = "00"
-                        s_id_full = "Unknown"
 
-                    # 3. 準備日期 (BillDate 8碼)
-                    date_str_8 = order_date.strftime('%Y%m%d') # 格式: 20231027
+                    # 3. 準備日期 (8碼)
+                    date_str_8 = order_date.strftime('%Y%m%d') # 20231027
 
-                    # 4. 計算流水號 (根據 BillNo 欄位)
+                    # 4. 計算流水號 (3碼)
+                    # 前綴：業務(2) + 日期(8) = 10碼
                     prefix = f"{s_id_2digits}{date_str_8}"
                     
-                    # 檢查 BillNo 欄位是否存在
-                    if "BillNo" in current_history.columns:
-                        existing_ids = current_history["BillNo"].astype(str).tolist()
-                        matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
-                        
-                        if matching_ids:
-                            sequences = []
-                            for oid in matching_ids:
-                                try:
-                                    sequences.append(int(oid[-3:]))
-                                except:
-                                    continue
-                            next_seq = max(sequences) + 1 if sequences else 1
-                        else:
-                            next_seq = 1
+                    # 篩選已存在的單號
+                    existing_ids = current_history["BillNo"].astype(str).tolist()
+                    
+                    # 找出所有 "以這個前綴開頭" 且 "長度為13" 的單號
+                    matching_ids = [
+                        oid for oid in existing_ids 
+                        if oid.startswith(prefix) and len(oid) == 13
+                    ]
+                    
+                    if matching_ids:
+                        sequences = []
+                        for oid in matching_ids:
+                            try:
+                                # 取最後3碼轉數字
+                                seq_num = int(oid[-3:])
+                                sequences.append(seq_num)
+                            except:
+                                continue
+                        next_seq = max(sequences) + 1 if sequences else 1
                     else:
                         next_seq = 1
                     
-                    # 5. 產生 BillNo (13碼)
+                    # 5. 產生最終 BillNo (13碼)
                     final_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
 
-                    # --- 查找客戶ID (CustID) ---
+                    # --- 查找 CustID ---
                     cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
                     c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
 
-                    # --- 建立新資料列 (映射到新欄位名稱) ---
+                    # --- 建立資料 ---
                     new_rows = []
                     for item in st.session_state.cart_list:
                         # 正常品
                         if item["訂購數量"] > 0:
                             new_rows.append({
-                                "BillDate": date_str_8,      # A欄
-                                "BillNo": final_bill_no,     # B欄
-                                "PersonID": s_id_2digits,    # C欄 (2碼)
-                                "PersonName": item["業務名稱"], # D欄
-                                "CustID": c_id,              # E欄
-                                "ProdID": item["產品編號"],    # F欄
-                                "ProdName": item["產品名稱"],  # G欄
-                                "Quantity": item["訂購數量"]   # H欄
+                                "BillDate": date_str_8,
+                                "BillNo": final_bill_no,
+                                "PersonID": s_id_2digits,
+                                "PersonName": item["業務名稱"],
+                                "CustID": c_id,
+                                "ProdID": item["產品編號"],
+                                "ProdName": item["產品名稱"],
+                                "Quantity": item["訂購數量"]
                             })
                         # 搭贈品
                         if item["搭贈數量"] > 0:
@@ -267,7 +286,7 @@ if page == "🛒 前台：下單作業":
                                 "PersonName": item["業務名稱"],
                                 "CustID": c_id,
                                 "ProdID": item["產品編號"],
-                                "ProdName": f"{item['產品名稱']} (搭贈)", # 註記搭贈
+                                "ProdName": f"{item['產品名稱']} (搭贈)", 
                                 "Quantity": item["搭贈數量"]
                             })
 
