@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 (使用 Wide 模式) ---
-st.set_page_config(page_title="雲端訂購系統 (完美單號版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (自動清空版)", layout="wide", page_icon="🛍️")
 
 # --- CSS 樣式注入：讓右側欄位懸浮固定 (Sticky) ---
 st.markdown("""
@@ -45,12 +45,11 @@ def fetch_all_data():
         if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
         if "業務名稱" not in df_cust.columns: df_cust["業務名稱"] = ""
         
-        # 清洗資料 (轉字串並去空白)
+        # 清洗資料
         df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
         df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
         
-        # ★★★ 關鍵修正：讀取 BillNo 時，移除可能存在的單引號 ' ★★★
-        # 這樣下次計算流水號時，才不會因為多了 ' 而判斷錯誤
+        # 移除 BillNo 的單引號
         df_order["BillNo"] = df_order["BillNo"].astype(str).str.replace("'", "", regex=False)
         
         return df_cust, df_prod, df_sales, df_order
@@ -124,7 +123,7 @@ if page == "🛒 前台：下單作業":
     
     st.divider()
 
-    # --- 定義送出訂單邏輯 ---
+    # --- 定義送出訂單邏輯 (含自動清空) ---
     def submit_order_logic():
         if not selected_cust_name or not selected_sales_name:
             st.error("⚠️ 無法送出：請確認已選擇「業務」與「客戶」")
@@ -134,34 +133,26 @@ if page == "🛒 前台：下單作業":
             return
 
         with st.spinner("正在處理訂單資料..."):
-            # 讀取最新歷史紀錄 (並做清洗)
             current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
             if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
-            # 清洗單引號，確保比對正確
             current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
 
-            # ==========================================
-            # ★ 1. 業務編號補零邏輯 (強制轉 2 位數字串) ★
-            # ==========================================
+            # 1. 業務編號處理
             sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
             if not sales_row.empty:
                 raw_val = sales_row.iloc[0]["業務編號"]
                 try:
-                    # 先轉 float 處理 6.0，再轉 int 處理 6，最後轉字串補零
                     val_int = int(float(raw_val))
-                    s_id_2digits = f"{val_int:02d}" # 例如 6 -> "06"
+                    s_id_2digits = f"{val_int:02d}"
                 except:
-                    # 如果不是數字，則退回字串處理 (取後兩碼)
                     s_str = str(raw_val).strip()
                     s_id_2digits = s_str.zfill(2)[-2:]
             else:
                 s_id_2digits = "00"
-            # ==========================================
 
             date_str_8 = order_date.strftime('%Y%m%d')
             prefix = f"{s_id_2digits}{date_str_8}"
             
-            # 計算流水號
             existing_ids = current_history["BillNo"].astype(str).tolist()
             matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
             
@@ -176,11 +167,7 @@ if page == "🛒 前台：下單作業":
             else:
                 next_seq = 1
             
-            # ==========================================
-            # ★ 2. 強制 Google Sheets 顯示開頭 0 的技巧 ★
-            # ==========================================
-            # 在字串最前面加上單引號 ' 
-            # Google Sheets 看到單引號會強制將其視為「文字」，因此不會刪除開頭的 0
+            # 2. 單號加引號
             raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
             final_bill_no_for_sheet = f"'{raw_bill_no}" 
             
@@ -192,7 +179,7 @@ if page == "🛒 前台：下單作業":
                 if item["訂購數量"] > 0:
                     new_rows.append({
                         "BillDate": date_str_8,
-                        "BillNo": final_bill_no_for_sheet, # 寫入帶有 ' 的單號
+                        "BillNo": final_bill_no_for_sheet,
                         "PersonID": s_id_2digits,
                         "PersonName": item["業務名稱"],
                         "CustID": c_id,
@@ -203,7 +190,7 @@ if page == "🛒 前台：下單作業":
                 if item["搭贈數量"] > 0:
                     new_rows.append({
                         "BillDate": date_str_8,
-                        "BillNo": final_bill_no_for_sheet, # 寫入帶有 ' 的單號
+                        "BillNo": final_bill_no_for_sheet,
                         "PersonID": s_id_2digits,
                         "PersonName": item["業務名稱"],
                         "CustID": c_id,
@@ -215,15 +202,27 @@ if page == "🛒 前台：下單作業":
             updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
             conn.update(worksheet="訂單紀錄", data=updated_history)
             
+            # ==========================================
+            # ★★★ 關鍵：強力清空所有欄位狀態 ★★★
+            # ==========================================
+            
+            # 1. 清空快取與購物車
             st.cache_data.clear()
             st.session_state.cart_list = []
             
-            # 重置選項
+            # 2. 清空業務與客戶選單
             if "sb_sales" in st.session_state: del st.session_state["sb_sales"]
             if "sb_cust" in st.session_state: del st.session_state["sb_cust"]
             
+            # 3. 清空「所有產品列表的輸入框」
+            # 我們搜尋所有以 "editor_" 開頭的 key (這是我們給 data_editor 取的名字)
+            # 把這些 key 刪掉，data_editor 就會重置為預設值 (0)
+            keys_to_clear = [key for key in st.session_state.keys() if key.startswith("editor_")]
+            for key in keys_to_clear:
+                del st.session_state[key]
+            
             st.balloons()
-            st.success(f"訂單 {raw_bill_no} 建立成功！") # 顯示給使用者看時，不用顯示單引號
+            st.success(f"訂單 {raw_bill_no} 建立成功！所有欄位已重置。")
             time.sleep(2)
             st.rerun()
 
@@ -325,6 +324,11 @@ if page == "🛒 前台：下單作業":
                                 "訂購數量": qty,
                                 "搭贈數量": gift_qty
                             })
+                    # 加入後也要清除編輯器輸入
+                    keys_to_clear = [key for key in st.session_state.keys() if key.startswith("editor_")]
+                    for key in keys_to_clear:
+                        del st.session_state[key]
+                    
                     st.toast("✅ 已加入購物車！")
                     time.sleep(0.5)
                     st.rerun()
