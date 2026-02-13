@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (預設折疊版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (FAB版)", layout="wide", page_icon="🛍️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -46,9 +46,8 @@ if df_customers is None:
 if 'cart_list' not in st.session_state:
     st.session_state.cart_list = []
 if 'current_step' not in st.session_state:
-    st.session_state.current_step = 1 # 1:選購頁, 2:結帳頁
+    st.session_state.current_step = 1 
 
-# --- 初始化「確認後」的訂單資訊 ---
 if 'confirmed_sales' not in st.session_state: st.session_state.confirmed_sales = ""
 if 'confirmed_cust' not in st.session_state: st.session_state.confirmed_cust = ""
 if 'confirmed_date' not in st.session_state: st.session_state.confirmed_date = datetime.now()
@@ -81,6 +80,42 @@ if page == "🛒 前台：下單作業":
     # STEP 1: 商品選購頁面
     # ---------------------------------------------------------
     if st.session_state.current_step == 1:
+        
+        # ★★★ CSS 注入：將 Primary 按鈕變成 FAB (懸浮按鈕) ★★★
+        st.markdown("""
+        <style>
+        /* 針對步驟1的主要按鈕進行魔改 */
+        div.stButton > button[kind="primary"] {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: auto;
+            height: auto;
+            padding: 15px 30px;
+            border-radius: 50px; /* 膠囊狀 */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* 陰影 */
+            z-index: 9999; /* 確保浮在最上層 */
+            font-size: 18px !important;
+            font-weight: bold !important;
+            border: 2px solid white !important;
+        }
+        /* 滑鼠移過去的效果 */
+        div.stButton > button[kind="primary"]:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+        /* 手機版調整：避免離邊緣太近 */
+        @media (max-width: 640px) {
+            div.stButton > button[kind="primary"] {
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 24px;
+                font-size: 16px !important;
+            }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
         st.title("🛒 步驟 1/2：選擇商品")
         
         # --- 基本資訊區 ---
@@ -112,7 +147,7 @@ if page == "🛒 前台：下單作業":
 
         # --- 產品列表區 ---
         st.subheader("📦 產品列表")
-        st.caption("💡 點擊品牌名稱可展開/折疊商品清單") # 增加提示
+        st.caption("💡 點擊品牌名稱可展開/折疊商品清單")
         
         c_filter, c_search = st.columns([1, 2])
         base_df = df_products.copy()
@@ -132,9 +167,7 @@ if page == "🛒 前台：下單作業":
 
         editors_data = {} 
         
-        # 顯示產品表格
         if search_product_name:
-            # 如果是精準搜尋，就直接顯示該產品 (不用折疊)
             target_df = base_df[base_df["產品名稱"] == search_product_name].copy()
             edited_df = st.data_editor(
                 target_df[["產品名稱", "訂購數量", "搭贈數量"]],
@@ -147,12 +180,10 @@ if page == "🛒 前台：下單作業":
             )
             editors_data["search"] = edited_df
         else:
-            # 品牌列表顯示
             brands_to_show = selected_brands if selected_brands else all_brands
             for brand in brands_to_show:
                 brand_df = base_df[base_df["品牌"] == brand].copy()
                 if not brand_df.empty:
-                    # ★★★ 關鍵修改：expanded=False (預設折疊) ★★★
                     with st.expander(f"🏷️ {brand} ({len(brand_df)})", expanded=False):
                         edited_brand_df = st.data_editor(
                             brand_df[["產品名稱", "訂購數量", "搭贈數量"]],
@@ -165,7 +196,7 @@ if page == "🛒 前台：下單作業":
                         )
                         editors_data[brand] = edited_brand_df
 
-        # --- 底部：前往結帳按鈕 ---
+        # --- 計算選擇的數量 ---
         items_to_add_preview = []
         count_new_items = 0
         for key, df_result in editors_data.items():
@@ -174,49 +205,55 @@ if page == "🛒 前台：下單作業":
                 items_to_add_preview.append(selected)
                 count_new_items += len(selected)
 
-        st.markdown("---")
-        col_space, col_action = st.columns([3, 1])
+        # ★★★ 增加底部空白區 (Spacer) ★★★
+        # 為了避免懸浮按鈕擋住列表的最後一筆資料，我們在這裡加一個看不見的空白區塊
+        st.markdown("<div style='height: 120px;'></div>", unsafe_allow_html=True)
+
+        # --- 懸浮按鈕 (實作邏輯) ---
+        # 這裡雖然寫在底部，但透過上面的 CSS，它會飛到右下角
+        # 按鈕文字會動態改變
+        btn_label = f"🛒 加入並結帳 ({count_new_items} 新項目) ➡️" if count_new_items > 0 else "🛒 前往結帳確認 ➡️"
         
-        with col_action:
-            btn_label = f"🛒 加入並前往結帳 ({count_new_items} 新項目)" if count_new_items > 0 else "🛒 前往結帳確認"
-            
-            if st.button(btn_label, type="primary", use_container_width=True):
-                # 1. 檢查業務客戶
-                if not selected_cust_name or not selected_sales_name:
-                    st.error("⚠️ 請先在上方選擇「業務」與「客戶」")
+        # 為了讓按鈕生效，我們還是要透過 st.columns 來放置它 (雖然位置被 CSS 覆寫)
+        # 放在最底層即可
+        if st.button(btn_label, type="primary"):
+            # 1. 檢查業務客戶
+            if not selected_cust_name or not selected_sales_name:
+                st.error("⚠️ 請先在最上方選擇「業務」與「客戶」")
+            else:
+                # 2. 將當前頁面輸入的商品加入 Session
+                if items_to_add_preview:
+                    for df_chunk in items_to_add_preview:
+                        for _, row in df_chunk.iterrows():
+                            p_name = row["產品名稱"]
+                            qty = row["訂購數量"]
+                            gift_qty = row["搭贈數量"]
+                            original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
+                            st.session_state.cart_list.append({
+                                "業務名稱": selected_sales_name,
+                                "客戶名稱": selected_cust_name,
+                                "產品編號": original_product.get("產品編號", "N/A"),
+                                "產品名稱": p_name,
+                                "品牌": original_product.get("品牌", ""),
+                                "訂購數量": qty,
+                                "搭贈數量": gift_qty
+                            })
+                    # 清除輸入
+                    keys_to_clear = [key for key in st.session_state.keys() if key.startswith("editor_")]
+                    for key in keys_to_clear:
+                        del st.session_state[key]
+
+                # 存檔訂單資訊
+                st.session_state.confirmed_sales = selected_sales_name
+                st.session_state.confirmed_cust = selected_cust_name
+                st.session_state.confirmed_date = order_date
+
+                # 3. 切換頁面
+                if len(st.session_state.cart_list) > 0:
+                    st.session_state.current_step = 2
+                    st.rerun()
                 else:
-                    # 2. 加入商品
-                    if items_to_add_preview:
-                        for df_chunk in items_to_add_preview:
-                            for _, row in df_chunk.iterrows():
-                                p_name = row["產品名稱"]
-                                qty = row["訂購數量"]
-                                gift_qty = row["搭贈數量"]
-                                original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
-                                st.session_state.cart_list.append({
-                                    "業務名稱": selected_sales_name,
-                                    "客戶名稱": selected_cust_name,
-                                    "產品編號": original_product.get("產品編號", "N/A"),
-                                    "產品名稱": p_name,
-                                    "品牌": original_product.get("品牌", ""),
-                                    "訂購數量": qty,
-                                    "搭贈數量": gift_qty
-                                })
-                        keys_to_clear = [key for key in st.session_state.keys() if key.startswith("editor_")]
-                        for key in keys_to_clear:
-                            del st.session_state[key]
-
-                    # 存檔訂單資訊
-                    st.session_state.confirmed_sales = selected_sales_name
-                    st.session_state.confirmed_cust = selected_cust_name
-                    st.session_state.confirmed_date = order_date
-
-                    # 3. 切換頁面
-                    if len(st.session_state.cart_list) > 0:
-                        st.session_state.current_step = 2
-                        st.rerun()
-                    else:
-                        st.warning("請至少選擇一項商品。")
+                    st.warning("請至少選擇一項商品。")
 
     # ---------------------------------------------------------
     # STEP 2: 購物車結帳頁面
@@ -243,7 +280,7 @@ if page == "🛒 前台：下單作業":
                 },
                 column_order=["產品名稱", "訂購數量", "搭贈數量"],
                 use_container_width=True,
-                num_rows="dynamic",
+                num_rows="dynamic", 
                 key="cart_editor_final",
                 height=400
             )
@@ -269,7 +306,7 @@ if page == "🛒 前台：下單作業":
                         if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
                         current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
 
-                        # 使用存檔的資訊
+                        # 使用存檔資訊
                         sales_row = df_salespeople[df_salespeople["業務名稱"] == c_sales]
                         if not sales_row.empty:
                             raw_val = sales_row.iloc[0]["業務編號"]
@@ -336,7 +373,7 @@ if page == "🛒 前台：下單作業":
                         # 清空與重置
                         st.cache_data.clear()
                         st.session_state.cart_list = []
-                        st.session_state.current_step = 1 # 回到第一頁
+                        st.session_state.current_step = 1 
                         
                         if "sb_sales" in st.session_state: del st.session_state["sb_sales"]
                         if "sb_cust" in st.session_state: del st.session_state["sb_cust"]
