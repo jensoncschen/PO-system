@@ -310,4 +310,71 @@ if page == "🛒 前台：下單作業":
                 if not selected_cust_name or not selected_sales_name:
                     st.error("請先選擇業務與客戶")
                 else:
-                    for df_chunk in items_to_add
+                    for df_chunk in items_to_add_preview:
+                        for _, row in df_chunk.iterrows():
+                            p_name = row["產品名稱"]
+                            qty = row["訂購數量"]
+                            gift_qty = row["搭贈數量"]
+                            original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
+                            st.session_state.cart_list.append({
+                                "業務名稱": selected_sales_name,
+                                "客戶名稱": selected_cust_name,
+                                "產品編號": original_product.get("產品編號", "N/A"),
+                                "產品名稱": p_name,
+                                "品牌": original_product.get("品牌", ""),
+                                "訂購數量": qty,
+                                "搭贈數量": gift_qty
+                            })
+                    st.toast("✅ 已加入購物車！")
+                    time.sleep(0.5)
+                    st.rerun()
+        else:
+            st.caption("👈 請在左側列表輸入數量")
+            st.button("⬇️ 加入購物車", disabled=True, use_container_width=True)
+
+        st.divider()
+
+        st.markdown(f"##### 📋 待送出 ({len(st.session_state.cart_list)})")
+        
+        if len(st.session_state.cart_list) > 0:
+            cart_df = pd.DataFrame(st.session_state.cart_list)
+            edited_cart_df = st.data_editor(
+                cart_df,
+                column_config={
+                    "產品名稱": st.column_config.TextColumn(disabled=True),
+                    "訂購數量": st.column_config.NumberColumn(min_value=0, step=1),
+                    "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1),
+                },
+                column_order=["產品名稱", "訂購數量", "搭贈數量"],
+                use_container_width=True, num_rows="dynamic", key="cart_editor_right", height=300
+            )
+            
+            if not edited_cart_df.equals(cart_df):
+                st.session_state.cart_list = edited_cart_df.to_dict('records')
+                st.rerun()
+
+            col_sub, col_clr = st.columns([2, 1])
+            with col_clr:
+                if st.button("清空", key="btn_clr_right"):
+                    st.session_state.cart_list = []
+                    st.rerun()
+            with col_sub:
+                if st.button("✅ 送出訂單", type="primary", use_container_width=True, key="btn_sub_right"):
+                    submit_order_logic()
+        else:
+            st.info("購物車目前是空的")
+
+# ==========================================
+# 🔧 後台管理
+# ==========================================
+elif page == "🔧 後台：資料管理":
+    st.title("🔧 後台管理")
+    try:
+        sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        st.markdown(f"👉 [開啟 Google 試算表]({sheet_url})")
+    except: pass
+    st.divider()
+    st.dataframe(df_order_history, use_container_width=True)
+    if st.button("🔄 重新整理"):
+        st.cache_data.clear()
+        st.rerun()
