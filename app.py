@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (兩步驟版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (流程修復版)", layout="wide", page_icon="🛍️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -46,9 +46,14 @@ if df_customers is None:
 if 'cart_list' not in st.session_state:
     st.session_state.cart_list = []
 if 'current_step' not in st.session_state:
-    st.session_state.current_step = 1 # 1:選購頁, 2:結帳頁
+    st.session_state.current_step = 1 
 
-# --- 左側導航 (僅保留基本功能) ---
+# ★★★ 新增：初始化「確認後」的訂單資訊，避免第二頁報錯 ★★★
+if 'confirmed_sales' not in st.session_state: st.session_state.confirmed_sales = ""
+if 'confirmed_cust' not in st.session_state: st.session_state.confirmed_cust = ""
+if 'confirmed_date' not in st.session_state: st.session_state.confirmed_date = datetime.now()
+
+# --- 左側導航 ---
 st.sidebar.title("☁️ 系統導航")
 if st.sidebar.button("🔄 強制更新資料", key="btn_update_data"):
     st.cache_data.clear()
@@ -57,12 +62,14 @@ if st.sidebar.button("🔄 強制更新資料", key="btn_update_data"):
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
 
-# 顯示目前購物車概況 (在側邊欄提醒)
 cart_count = len(st.session_state.cart_list)
 if cart_count > 0:
     st.sidebar.success(f"🛒 購物車內有 {cart_count} 筆商品")
     if st.session_state.current_step == 1:
         if st.sidebar.button("前往結帳 ➡️"):
+            # 這裡也要防呆，如果直接按側邊欄跳轉，要檢查是否有選業務
+            # 但因為這裡是側邊欄，比較難抓到主畫面的 selectbox 值
+            # 所以建議在主畫面操作跳轉，這裡僅做簡單跳轉
             st.session_state.current_step = 2
             st.rerun()
 else:
@@ -127,7 +134,6 @@ if page == "🛒 前台：下單作業":
 
         editors_data = {} 
         
-        # 顯示產品表格
         if search_product_name:
             target_df = base_df[base_df["產品名稱"] == search_product_name].copy()
             edited_df = st.data_editor(
@@ -158,7 +164,6 @@ if page == "🛒 前台：下單作業":
                         editors_data[brand] = edited_brand_df
 
         # --- 底部：前往結帳按鈕 ---
-        # 收集所有輸入的資料
         items_to_add_preview = []
         count_new_items = 0
         for key, df_result in editors_data.items():
@@ -171,7 +176,6 @@ if page == "🛒 前台：下單作業":
         col_space, col_action = st.columns([3, 1])
         
         with col_action:
-            # 只有當有選擇商品，或購物車已經有東西時，才顯示按鈕
             btn_label = f"🛒 加入並前往結帳 ({count_new_items} 新項目)" if count_new_items > 0 else "🛒 前往結帳確認"
             
             if st.button(btn_label, type="primary", use_container_width=True):
@@ -179,7 +183,7 @@ if page == "🛒 前台：下單作業":
                 if not selected_cust_name or not selected_sales_name:
                     st.error("⚠️ 請先在上方選擇「業務」與「客戶」")
                 else:
-                    # 2. 將當前頁面輸入的商品加入 Session
+                    # 2. 加入商品
                     if items_to_add_preview:
                         for df_chunk in items_to_add_preview:
                             for _, row in df_chunk.iterrows():
@@ -196,12 +200,17 @@ if page == "🛒 前台：下單作業":
                                     "訂購數量": qty,
                                     "搭贈數量": gift_qty
                                 })
-                        # 加入後清除輸入框 (避免返回時重複顯示)
                         keys_to_clear = [key for key in st.session_state.keys() if key.startswith("editor_")]
                         for key in keys_to_clear:
                             del st.session_state[key]
 
-                    # 3. 切換到步驟 2
+                    # ★★★ 關鍵修正：將業務資訊「存檔」到 session_state ★★★
+                    # 因為切換到 step 2 後，select_box 就消失了，所以要存起來
+                    st.session_state.confirmed_sales = selected_sales_name
+                    st.session_state.confirmed_cust = selected_cust_name
+                    st.session_state.confirmed_date = order_date
+
+                    # 3. 切換頁面
                     if len(st.session_state.cart_list) > 0:
                         st.session_state.current_step = 2
                         st.rerun()
@@ -214,13 +223,16 @@ if page == "🛒 前台：下單作業":
     elif st.session_state.current_step == 2:
         st.title("📋 步驟 2/2：確認訂單")
         
-        # 顯示訂單摘要
-        st.info(f"👤 業務：**{st.session_state.sb_sales}** |  🏢 客戶：**{st.session_state.sb_cust}** |  📅 日期：**{st.session_state.get('order_date', datetime.now()).strftime('%Y-%m-%d')}**")
+        # ★★★ 關鍵修正：讀取「已存檔」的資訊，而不是讀取 selectbox 的 key ★★★
+        c_sales = st.session_state.confirmed_sales
+        c_cust = st.session_state.confirmed_cust
+        c_date = st.session_state.confirmed_date.strftime('%Y-%m-%d')
+
+        st.info(f"👤 業務：**{c_sales}** |  🏢 客戶：**{c_cust}** |  📅 日期：**{c_date}**")
 
         if len(st.session_state.cart_list) > 0:
             cart_df = pd.DataFrame(st.session_state.cart_list)
             
-            # 可編輯購物車
             st.markdown("##### 購物車內容 (可直接修改或刪除)")
             edited_cart_df = st.data_editor(
                 cart_df,
@@ -231,19 +243,17 @@ if page == "🛒 前台：下單作業":
                 },
                 column_order=["產品名稱", "訂購數量", "搭贈數量"],
                 use_container_width=True,
-                num_rows="dynamic", # 允許刪除
+                num_rows="dynamic",
                 key="cart_editor_final",
                 height=400
             )
             
-            # 同步修改
             if not edited_cart_df.equals(cart_df):
                 st.session_state.cart_list = edited_cart_df.to_dict('records')
                 st.rerun()
 
             st.divider()
             
-            # 按鈕區
             col_back, col_submit = st.columns([1, 3])
             
             with col_back:
@@ -254,17 +264,13 @@ if page == "🛒 前台：下單作業":
             with col_submit:
                 if st.button("✅ 確認無誤，送出訂單", type="primary", use_container_width=True):
                     
-                    # --- 送出邏輯 ---
                     with st.spinner("正在寫入雲端資料庫..."):
                         current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
                         if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
                         current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
 
-                        # 1. 業務編號
-                        selected_sales_name = st.session_state.sb_sales
-                        selected_cust_name = st.session_state.sb_cust
-                        
-                        sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
+                        # 使用存檔的資訊
+                        sales_row = df_salespeople[df_salespeople["業務名稱"] == c_sales]
                         if not sales_row.empty:
                             raw_val = sales_row.iloc[0]["業務編號"]
                             try:
@@ -276,11 +282,8 @@ if page == "🛒 前台：下單作業":
                         else:
                             s_id_2digits = "00"
 
-                        # 2. 單號生成
-                        # 這裡要小心，date_input 的值在 step 2 可能抓不到，所以如果沒有變更，預設今天
-                        # 更好的方式是我們假設它就是今天，或者你要在 session 存 date
-                        # 簡單起見，我們重新抓取當下時間，或者沿用預設
-                        date_str_8 = datetime.now().strftime('%Y%m%d') 
+                        # 單號生成
+                        date_str_8 = st.session_state.confirmed_date.strftime('%Y%m%d')
                         prefix = f"{s_id_2digits}{date_str_8}"
                         
                         existing_ids = current_history["BillNo"].astype(str).tolist()
@@ -300,7 +303,7 @@ if page == "🛒 前台：下單作業":
                         raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
                         final_bill_no_for_sheet = f"'{raw_bill_no}" 
                         
-                        cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
+                        cust_row = df_customers[df_customers["客戶名稱"] == c_cust]
                         c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
 
                         new_rows = []
@@ -310,7 +313,7 @@ if page == "🛒 前台：下單作業":
                                     "BillDate": date_str_8,
                                     "BillNo": final_bill_no_for_sheet,
                                     "PersonID": s_id_2digits,
-                                    "PersonName": selected_sales_name,
+                                    "PersonName": c_sales,
                                     "CustID": c_id,
                                     "ProdID": item["產品編號"],
                                     "ProdName": item["產品名稱"],
@@ -321,7 +324,7 @@ if page == "🛒 前台：下單作業":
                                     "BillDate": date_str_8,
                                     "BillNo": final_bill_no_for_sheet,
                                     "PersonID": s_id_2digits,
-                                    "PersonName": selected_sales_name,
+                                    "PersonName": c_sales,
                                     "CustID": c_id,
                                     "ProdID": item["產品編號"],
                                     "ProdName": f"{item['產品名稱']} (搭贈)", 
@@ -331,11 +334,12 @@ if page == "🛒 前台：下單作業":
                         updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
                         conn.update(worksheet="訂單紀錄", data=updated_history)
                         
-                        # --- 清空與重置 ---
+                        # 清空與重置
                         st.cache_data.clear()
                         st.session_state.cart_list = []
                         st.session_state.current_step = 1 # 回到第一頁
                         
+                        # 清除主畫面輸入框
                         if "sb_sales" in st.session_state: del st.session_state["sb_sales"]
                         if "sb_cust" in st.session_state: del st.session_state["sb_cust"]
                         
