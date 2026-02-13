@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (流程修復版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (預設折疊版)", layout="wide", page_icon="🛍️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -46,9 +46,9 @@ if df_customers is None:
 if 'cart_list' not in st.session_state:
     st.session_state.cart_list = []
 if 'current_step' not in st.session_state:
-    st.session_state.current_step = 1 
+    st.session_state.current_step = 1 # 1:選購頁, 2:結帳頁
 
-# ★★★ 新增：初始化「確認後」的訂單資訊，避免第二頁報錯 ★★★
+# --- 初始化「確認後」的訂單資訊 ---
 if 'confirmed_sales' not in st.session_state: st.session_state.confirmed_sales = ""
 if 'confirmed_cust' not in st.session_state: st.session_state.confirmed_cust = ""
 if 'confirmed_date' not in st.session_state: st.session_state.confirmed_date = datetime.now()
@@ -67,9 +67,6 @@ if cart_count > 0:
     st.sidebar.success(f"🛒 購物車內有 {cart_count} 筆商品")
     if st.session_state.current_step == 1:
         if st.sidebar.button("前往結帳 ➡️"):
-            # 這裡也要防呆，如果直接按側邊欄跳轉，要檢查是否有選業務
-            # 但因為這裡是側邊欄，比較難抓到主畫面的 selectbox 值
-            # 所以建議在主畫面操作跳轉，這裡僅做簡單跳轉
             st.session_state.current_step = 2
             st.rerun()
 else:
@@ -115,6 +112,7 @@ if page == "🛒 前台：下單作業":
 
         # --- 產品列表區 ---
         st.subheader("📦 產品列表")
+        st.caption("💡 點擊品牌名稱可展開/折疊商品清單") # 增加提示
         
         c_filter, c_search = st.columns([1, 2])
         base_df = df_products.copy()
@@ -134,7 +132,9 @@ if page == "🛒 前台：下單作業":
 
         editors_data = {} 
         
+        # 顯示產品表格
         if search_product_name:
+            # 如果是精準搜尋，就直接顯示該產品 (不用折疊)
             target_df = base_df[base_df["產品名稱"] == search_product_name].copy()
             edited_df = st.data_editor(
                 target_df[["產品名稱", "訂購數量", "搭贈數量"]],
@@ -147,11 +147,13 @@ if page == "🛒 前台：下單作業":
             )
             editors_data["search"] = edited_df
         else:
+            # 品牌列表顯示
             brands_to_show = selected_brands if selected_brands else all_brands
             for brand in brands_to_show:
                 brand_df = base_df[base_df["品牌"] == brand].copy()
                 if not brand_df.empty:
-                    with st.expander(f"🏷️ {brand} ({len(brand_df)})", expanded=True):
+                    # ★★★ 關鍵修改：expanded=False (預設折疊) ★★★
+                    with st.expander(f"🏷️ {brand} ({len(brand_df)})", expanded=False):
                         edited_brand_df = st.data_editor(
                             brand_df[["產品名稱", "訂購數量", "搭贈數量"]],
                             column_config={
@@ -204,8 +206,7 @@ if page == "🛒 前台：下單作業":
                         for key in keys_to_clear:
                             del st.session_state[key]
 
-                    # ★★★ 關鍵修正：將業務資訊「存檔」到 session_state ★★★
-                    # 因為切換到 step 2 後，select_box 就消失了，所以要存起來
+                    # 存檔訂單資訊
                     st.session_state.confirmed_sales = selected_sales_name
                     st.session_state.confirmed_cust = selected_cust_name
                     st.session_state.confirmed_date = order_date
@@ -223,7 +224,6 @@ if page == "🛒 前台：下單作業":
     elif st.session_state.current_step == 2:
         st.title("📋 步驟 2/2：確認訂單")
         
-        # ★★★ 關鍵修正：讀取「已存檔」的資訊，而不是讀取 selectbox 的 key ★★★
         c_sales = st.session_state.confirmed_sales
         c_cust = st.session_state.confirmed_cust
         c_date = st.session_state.confirmed_date.strftime('%Y-%m-%d')
@@ -282,7 +282,6 @@ if page == "🛒 前台：下單作業":
                         else:
                             s_id_2digits = "00"
 
-                        # 單號生成
                         date_str_8 = st.session_state.confirmed_date.strftime('%Y%m%d')
                         prefix = f"{s_id_2digits}{date_str_8}"
                         
@@ -339,7 +338,6 @@ if page == "🛒 前台：下單作業":
                         st.session_state.cart_list = []
                         st.session_state.current_step = 1 # 回到第一頁
                         
-                        # 清除主畫面輸入框
                         if "sb_sales" in st.session_state: del st.session_state["sb_sales"]
                         if "sb_cust" in st.session_state: del st.session_state["sb_cust"]
                         
