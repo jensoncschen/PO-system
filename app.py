@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 (使用 Wide 模式) ---
-st.set_page_config(page_title="雲端訂購系統 (自動清空版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (下方加入版)", layout="wide", page_icon="🛍️")
 
 # --- CSS 樣式注入：讓右側欄位懸浮固定 (Sticky) ---
 st.markdown("""
@@ -123,7 +123,7 @@ if page == "🛒 前台：下單作業":
     
     st.divider()
 
-    # --- 定義送出訂單邏輯 (含自動清空) ---
+    # --- 定義送出訂單邏輯 ---
     def submit_order_logic():
         if not selected_cust_name or not selected_sales_name:
             st.error("⚠️ 無法送出：請確認已選擇「業務」與「客戶」")
@@ -137,7 +137,7 @@ if page == "🛒 前台：下單作業":
             if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
             current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
 
-            # 1. 業務編號處理
+            # 業務編號處理
             sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
             if not sales_row.empty:
                 raw_val = sales_row.iloc[0]["業務編號"]
@@ -167,7 +167,7 @@ if page == "🛒 前台：下單作業":
             else:
                 next_seq = 1
             
-            # 2. 單號加引號
+            # 單號加引號
             raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
             final_bill_no_for_sheet = f"'{raw_bill_no}" 
             
@@ -202,21 +202,12 @@ if page == "🛒 前台：下單作業":
             updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
             conn.update(worksheet="訂單紀錄", data=updated_history)
             
-            # ==========================================
-            # ★★★ 關鍵：強力清空所有欄位狀態 ★★★
-            # ==========================================
-            
-            # 1. 清空快取與購物車
+            # 清空所有狀態
             st.cache_data.clear()
             st.session_state.cart_list = []
-            
-            # 2. 清空業務與客戶選單
             if "sb_sales" in st.session_state: del st.session_state["sb_sales"]
             if "sb_cust" in st.session_state: del st.session_state["sb_cust"]
             
-            # 3. 清空「所有產品列表的輸入框」
-            # 我們搜尋所有以 "editor_" 開頭的 key (這是我們給 data_editor 取的名字)
-            # 把這些 key 刪掉，data_editor 就會重置為預設值 (0)
             keys_to_clear = [key for key in st.session_state.keys() if key.startswith("editor_")]
             for key in keys_to_clear:
                 del st.session_state[key]
@@ -230,7 +221,7 @@ if page == "🛒 前台：下單作業":
     col_main, col_right = st.columns([2.8, 1.2], gap="medium") 
 
     # ==========================
-    # LEFT COLUMN: 產品選擇區
+    # LEFT COLUMN: 產品選擇 + 準備加入區
     # ==========================
     with col_main:
         st.subheader("📦 產品列表")
@@ -286,28 +277,27 @@ if page == "🛒 前台：下單作業":
                             )
                             editors_data[brand] = edited_brand_df
 
+        # --- ★★★ 新增：準備加入區 (在產品列表正下方) ★★★ ---
         items_to_add_preview = []
         for key, df_result in editors_data.items():
             selected = df_result[ (df_result["訂購數量"] > 0) | (df_result["搭贈數量"] > 0) ]
             if not selected.empty:
                 items_to_add_preview.append(selected)
 
-    # ==========================
-    # RIGHT COLUMN: 懸浮快捷區
-    # ==========================
-    with col_right:
-        st.write("### 🛒 快捷操作區")
-        
-        st.markdown("##### ➕ 準備加入...")
         if items_to_add_preview:
+            st.divider()
+            st.markdown("### ➕ 準備加入購物車")
+            st.info("👇 請確認以下商品與數量，然後點擊按鈕加入右側購物車")
+            
             preview_df = pd.concat(items_to_add_preview)
             st.dataframe(
                 preview_df[["產品名稱", "訂購數量", "搭贈數量"]], 
-                use_container_width=True, hide_index=True, height=150
+                use_container_width=True, hide_index=True
             )
-            if st.button("⬇️ 加入購物車", type="primary", use_container_width=True, key="btn_right_add"):
+            
+            if st.button("⬇️ 確認加入購物車", type="primary", use_container_width=True, key="btn_add_to_cart_main"):
                 if not selected_cust_name or not selected_sales_name:
-                    st.error("請先選擇業務與客戶")
+                    st.error("⚠️ 請先選擇業務與客戶")
                 else:
                     for df_chunk in items_to_add_preview:
                         for _, row in df_chunk.iterrows():
@@ -324,7 +314,7 @@ if page == "🛒 前台：下單作業":
                                 "訂購數量": qty,
                                 "搭贈數量": gift_qty
                             })
-                    # 加入後也要清除編輯器輸入
+                    # 加入後清除編輯器輸入，重置為0
                     keys_to_clear = [key for key in st.session_state.keys() if key.startswith("editor_")]
                     for key in keys_to_clear:
                         del st.session_state[key]
@@ -332,13 +322,13 @@ if page == "🛒 前台：下單作業":
                     st.toast("✅ 已加入購物車！")
                     time.sleep(0.5)
                     st.rerun()
-        else:
-            st.caption("👈 請在左側列表輸入數量")
-            st.button("⬇️ 加入購物車", disabled=True, use_container_width=True)
 
-        st.divider()
-
-        st.markdown(f"##### 📋 待送出 ({len(st.session_state.cart_list)})")
+    # ==========================
+    # RIGHT COLUMN: 懸浮購物車
+    # ==========================
+    with col_right:
+        st.write("### 🛒 購物車")
+        st.markdown(f"**目前項目：{len(st.session_state.cart_list)} 筆**")
         
         if len(st.session_state.cart_list) > 0:
             cart_df = pd.DataFrame(st.session_state.cart_list)
@@ -350,7 +340,7 @@ if page == "🛒 前台：下單作業":
                     "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1),
                 },
                 column_order=["產品名稱", "訂購數量", "搭贈數量"],
-                use_container_width=True, num_rows="dynamic", key="cart_editor_right", height=300
+                use_container_width=True, num_rows="dynamic", key="cart_editor_right", height=400
             )
             
             if not edited_cart_df.equals(cart_df):
@@ -366,7 +356,8 @@ if page == "🛒 前台：下單作業":
                 if st.button("✅ 送出訂單", type="primary", use_container_width=True, key="btn_sub_right"):
                     submit_order_logic()
         else:
-            st.info("購物車目前是空的")
+            st.info("尚未加入商品")
+            st.caption("👈 請在左側選購商品，並點擊列表下方的「確認加入購物車」")
 
 # ==========================================
 # 🔧 後台管理
