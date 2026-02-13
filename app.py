@@ -5,28 +5,24 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 (使用 Wide 模式) ---
-st.set_page_config(page_title="雲端訂購系統 (右側懸浮版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (完美單號版)", layout="wide", page_icon="🛍️")
 
 # --- CSS 樣式注入：讓右側欄位懸浮固定 (Sticky) ---
 st.markdown("""
     <style>
-    /* 針對寬螢幕，讓第二個 Column (右側欄) 變成 Sticky */
     @media (min-width: 992px) {
         div[data-testid="column"]:nth-of-type(2) {
             position: sticky;
-            top: 60px; /* 距離頂部的高度 */
+            top: 60px;
             height: calc(100vh - 60px);
-            overflow-y: auto; /* 內容太多時可捲動 */
-            background-color: #f8f9fa; /* 淺灰背景區隔 */
+            overflow-y: auto;
+            background-color: #f8f9fa;
             padding: 20px;
             border-radius: 10px;
             border: 1px solid #dee2e6;
         }
     }
-    /* 調整一下標題間距 */
-    .block-container {
-        padding-top: 2rem;
-    }
+    .block-container { padding-top: 2rem; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,9 +45,13 @@ def fetch_all_data():
         if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
         if "業務名稱" not in df_cust.columns: df_cust["業務名稱"] = ""
         
-        # 清洗資料
+        # 清洗資料 (轉字串並去空白)
         df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
         df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
+        
+        # ★★★ 關鍵修正：讀取 BillNo 時，移除可能存在的單引號 ' ★★★
+        # 這樣下次計算流水號時，才不會因為多了 ' 而判斷錯誤
+        df_order["BillNo"] = df_order["BillNo"].astype(str).str.replace("'", "", regex=False)
         
         return df_cust, df_prod, df_sales, df_order
     except Exception as e:
@@ -68,7 +68,7 @@ if df_customers is None:
 if 'cart_list' not in st.session_state:
     st.session_state.cart_list = []
 
-# --- 左側原生側邊欄 (只保留導航與更新) ---
+# --- 左側原生側邊欄 ---
 st.sidebar.title("☁️ 系統導航")
 if st.sidebar.button("🔄 強制更新資料", key="btn_update_data"):
     st.cache_data.clear()
@@ -76,7 +76,6 @@ if st.sidebar.button("🔄 強制更新資料", key="btn_update_data"):
 
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
-st.sidebar.info("💡 提示：右側欄位現在會懸浮跟隨，方便隨時結帳。")
 
 # ==========================================
 # 🛒 前台：下單作業
@@ -125,7 +124,7 @@ if page == "🛒 前台：下單作業":
     
     st.divider()
 
-    # --- 定義送出訂單邏輯 (BillNo 修正版) ---
+    # --- 定義送出訂單邏輯 ---
     def submit_order_logic():
         if not selected_cust_name or not selected_sales_name:
             st.error("⚠️ 無法送出：請確認已選擇「業務」與「客戶」")
@@ -135,23 +134,24 @@ if page == "🛒 前台：下單作業":
             return
 
         with st.spinner("正在處理訂單資料..."):
+            # 讀取最新歷史紀錄 (並做清洗)
             current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
             if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
+            # 清洗單引號，確保比對正確
+            current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
 
             # ==========================================
-            # ★ 核心修正：業務編號轉字串邏輯 (個位數補0) ★
+            # ★ 1. 業務編號補零邏輯 (強制轉 2 位數字串) ★
             # ==========================================
             sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
             if not sales_row.empty:
                 raw_val = sales_row.iloc[0]["業務編號"]
                 try:
-                    # 嘗試轉為浮點數再轉整數 (處理 6.0 或 "6" 或 6)
-                    val_float = float(raw_val)
-                    val_int = int(val_float)
-                    # 格式化為2位數，不足補0 (6 -> "06", 12 -> "12")
-                    s_id_2digits = f"{val_int:02d}"
+                    # 先轉 float 處理 6.0，再轉 int 處理 6，最後轉字串補零
+                    val_int = int(float(raw_val))
+                    s_id_2digits = f"{val_int:02d}" # 例如 6 -> "06"
                 except:
-                    # 如果失敗 (例如是純英文編號)，退回原本的字串處理
+                    # 如果不是數字，則退回字串處理 (取後兩碼)
                     s_str = str(raw_val).strip()
                     s_id_2digits = s_str.zfill(2)[-2:]
             else:
@@ -161,6 +161,7 @@ if page == "🛒 前台：下單作業":
             date_str_8 = order_date.strftime('%Y%m%d')
             prefix = f"{s_id_2digits}{date_str_8}"
             
+            # 計算流水號
             existing_ids = current_history["BillNo"].astype(str).tolist()
             matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
             
@@ -175,7 +176,13 @@ if page == "🛒 前台：下單作業":
             else:
                 next_seq = 1
             
-            final_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
+            # ==========================================
+            # ★ 2. 強制 Google Sheets 顯示開頭 0 的技巧 ★
+            # ==========================================
+            # 在字串最前面加上單引號 ' 
+            # Google Sheets 看到單引號會強制將其視為「文字」，因此不會刪除開頭的 0
+            raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
+            final_bill_no_for_sheet = f"'{raw_bill_no}" 
             
             cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
             c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
@@ -185,7 +192,7 @@ if page == "🛒 前台：下單作業":
                 if item["訂購數量"] > 0:
                     new_rows.append({
                         "BillDate": date_str_8,
-                        "BillNo": final_bill_no,
+                        "BillNo": final_bill_no_for_sheet, # 寫入帶有 ' 的單號
                         "PersonID": s_id_2digits,
                         "PersonName": item["業務名稱"],
                         "CustID": c_id,
@@ -196,7 +203,7 @@ if page == "🛒 前台：下單作業":
                 if item["搭贈數量"] > 0:
                     new_rows.append({
                         "BillDate": date_str_8,
-                        "BillNo": final_bill_no,
+                        "BillNo": final_bill_no_for_sheet, # 寫入帶有 ' 的單號
                         "PersonID": s_id_2digits,
                         "PersonName": item["業務名稱"],
                         "CustID": c_id,
@@ -216,12 +223,12 @@ if page == "🛒 前台：下單作業":
             if "sb_cust" in st.session_state: del st.session_state["sb_cust"]
             
             st.balloons()
-            st.success(f"訂單 {final_bill_no} 建立成功！")
+            st.success(f"訂單 {raw_bill_no} 建立成功！") # 顯示給使用者看時，不用顯示單引號
             time.sleep(2)
             st.rerun()
 
-    # --- 版面配置：左側(列表) vs 右側(懸浮操作區) ---
-    col_main, col_right = st.columns([2.8, 1.2], gap="medium") # 調整比例
+    # --- 版面配置 ---
+    col_main, col_right = st.columns([2.8, 1.2], gap="medium") 
 
     # ==========================
     # LEFT COLUMN: 產品選擇區
@@ -229,7 +236,6 @@ if page == "🛒 前台：下單作業":
     with col_main:
         st.subheader("📦 產品列表")
         
-        # 篩選區
         c_filter, c_search = st.columns([1, 2])
         base_df = df_products.copy()
         base_df["訂購數量"] = 0
@@ -246,7 +252,6 @@ if page == "🛒 前台：下單作業":
             product_list = filtered_for_search["產品名稱"].unique().tolist()
             search_product_name = st.selectbox("🔍 搜尋", product_list, index=None, placeholder="輸入產品名稱...")
 
-        # 顯示編輯器
         editors_data = {} 
         
         if search_product_name:
@@ -282,7 +287,6 @@ if page == "🛒 前台：下單作業":
                             )
                             editors_data[brand] = edited_brand_df
 
-        # 收集左側輸入的資料 (準備傳遞給右側顯示)
         items_to_add_preview = []
         for key, df_result in editors_data.items():
             selected = df_result[ (df_result["訂購數量"] > 0) | (df_result["搭贈數量"] > 0) ]
@@ -295,96 +299,15 @@ if page == "🛒 前台：下單作業":
     with col_right:
         st.write("### 🛒 快捷操作區")
         
-        # 區塊 1: 顯示「目前正在輸入」的商品 (取代原本的折疊檢視)
         st.markdown("##### ➕ 準備加入...")
-        
         if items_to_add_preview:
-            # 彙整預覽資料
             preview_df = pd.concat(items_to_add_preview)
             st.dataframe(
                 preview_df[["產品名稱", "訂購數量", "搭贈數量"]], 
-                use_container_width=True, 
-                hide_index=True,
-                height=150 # 固定高度避免太長
+                use_container_width=True, hide_index=True, height=150
             )
-            
-            # 加入購物車按鈕 (直接在這裡)
             if st.button("⬇️ 加入購物車", type="primary", use_container_width=True, key="btn_right_add"):
                 if not selected_cust_name or not selected_sales_name:
                     st.error("請先選擇業務與客戶")
                 else:
-                    for df_chunk in items_to_add_preview:
-                        for _, row in df_chunk.iterrows():
-                            p_name = row["產品名稱"]
-                            qty = row["訂購數量"]
-                            gift_qty = row["搭贈數量"]
-                            original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
-                            st.session_state.cart_list.append({
-                                "業務名稱": selected_sales_name,
-                                "客戶名稱": selected_cust_name,
-                                "產品編號": original_product.get("產品編號", "N/A"),
-                                "產品名稱": p_name,
-                                "品牌": original_product.get("品牌", ""),
-                                "訂購數量": qty,
-                                "搭贈數量": gift_qty
-                            })
-                    st.toast("✅ 已加入購物車！")
-                    time.sleep(0.5)
-                    st.rerun()
-        else:
-            st.caption("👈 請在左側列表輸入數量")
-            st.button("⬇️ 加入購物車", disabled=True, use_container_width=True)
-
-        st.divider()
-
-        # 區塊 2: 購物車總覽 (可編輯)
-        st.markdown(f"##### 📋 待送出 ({len(st.session_state.cart_list)})")
-        
-        if len(st.session_state.cart_list) > 0:
-            cart_df = pd.DataFrame(st.session_state.cart_list)
-            
-            # 購物車編輯器
-            edited_cart_df = st.data_editor(
-                cart_df,
-                column_config={
-                    "產品名稱": st.column_config.TextColumn(disabled=True),
-                    "訂購數量": st.column_config.NumberColumn(min_value=0, step=1),
-                    "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1),
-                },
-                column_order=["產品名稱", "訂購數量", "搭贈數量"],
-                use_container_width=True,
-                num_rows="dynamic",
-                key="cart_editor_right",
-                height=300 # 限制高度
-            )
-            
-            # 同步修改
-            if not edited_cart_df.equals(cart_df):
-                st.session_state.cart_list = edited_cart_df.to_dict('records')
-                st.rerun()
-
-            col_sub, col_clr = st.columns([2, 1])
-            with col_clr:
-                if st.button("清空", key="btn_clr_right"):
-                    st.session_state.cart_list = []
-                    st.rerun()
-            with col_sub:
-                if st.button("✅ 送出訂單", type="primary", use_container_width=True, key="btn_sub_right"):
-                    submit_order_logic()
-        else:
-            st.info("購物車目前是空的")
-
-# ==========================================
-# 🔧 後台管理
-# ==========================================
-elif page == "🔧 後台：資料管理":
-    st.title("🔧 後台管理")
-    try:
-        sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        st.markdown(f"👉 [開啟 Google 試算表]({sheet_url})")
-    except: pass
-    st.divider()
-    st.dataframe(df_order_history, use_container_width=True)
-    if st.button("🔄 重新整理"):
-        st.cache_data.clear()
-        st.rerun()
+                    for df_chunk in items_to_add
