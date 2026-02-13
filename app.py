@@ -5,7 +5,7 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (精簡後台版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (修復版)", layout="wide", page_icon="🛍️")
 
 # --- 連接 Google Sheets ---
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -19,6 +19,7 @@ def fetch_all_data():
         df_sales = conn.read(worksheet="業務資料") 
         df_order = conn.read(worksheet="訂單紀錄")
         
+        # 防呆
         if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
         if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
@@ -36,7 +37,7 @@ if st.sidebar.button("🔄 強制更新資料"):
 
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
-st.sidebar.caption("v10.0 | 純雲端維護版")
+st.sidebar.caption("v10.1 | 語法修復版")
 
 # 載入資料
 df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
@@ -50,7 +51,7 @@ if 'cart_list' not in st.session_state:
     st.session_state.cart_list = []
 
 # ==========================================
-# 🛒 前台：下單作業 (維持不變)
+# 🛒 前台：下單作業
 # ==========================================
 if page == "🛒 前台：下單作業":
     st.title("🛒 業務下單專區")
@@ -162,4 +163,129 @@ if page == "🛒 前台：下單作業":
                             p_name = row["產品名稱"]
                             qty = row["訂購數量"]
                             gift_qty = row["搭贈數量"]
-                            original_product = df_products[df_products["產品名稱"]
+                            
+                            # ★★★ 這裡是原本報錯的地方，已經修正 ★★★
+                            original_product = df_products[df_products["產品名稱"] == p_name].iloc[0]
+                            
+                            st.session_state.cart_list.append({
+                                "業務名稱": selected_sales_name,
+                                "客戶名稱": selected_cust_name,
+                                "產品編號": original_product.get("產品編號", "N/A"),
+                                "產品名稱": p_name,
+                                "品牌": original_product.get("品牌", ""),
+                                "訂購數量": qty,
+                                "搭贈數量": gift_qty
+                            })
+                    st.toast("✅ 加入購物車！") 
+                    time.sleep(0.5)
+                    st.rerun()
+
+    # --- 4. 確認送出 ---
+    if len(st.session_state.cart_list) > 0:
+        st.divider()
+        st.subheader("📋 待送出清單")
+        
+        cart_df = pd.DataFrame(st.session_state.cart_list)
+        st.dataframe(cart_df[["產品名稱", "訂購數量", "搭贈數量", "客戶名稱"]], use_container_width=True)
+        
+        col_submit, col_clear = st.columns([4, 1])
+        
+        with col_clear:
+            if st.button("🗑️ 清空"):
+                st.session_state.cart_list = []
+                st.rerun()
+
+        with col_submit:
+            if st.button("✅ 確認送出 (寫入資料庫)", type="primary", use_container_width=True):
+                with st.spinner("正在處理訂單資料..."):
+                    
+                    current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
+                    if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
+
+                    sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
+                    if not sales_row.empty:
+                        raw_val = sales_row.iloc[0]["業務編號"]
+                        s_str = str(raw_val).strip()
+                        if s_str.endswith(".0"): s_str = s_str[:-2]
+                        s_id_2digits = s_str.zfill(2)[-2:] 
+                    else:
+                        s_id_2digits = "00"
+
+                    date_str_8 = order_date.strftime('%Y%m%d')
+                    prefix = f"{s_id_2digits}{date_str_8}"
+                    
+                    existing_ids = current_history["BillNo"].astype(str).tolist()
+                    matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
+                    
+                    if matching_ids:
+                        sequences = []
+                        for oid in matching_ids:
+                            try:
+                                seq_num = int(oid[-3:])
+                                sequences.append(seq_num)
+                            except: continue
+                        next_seq = max(sequences) + 1 if sequences else 1
+                    else:
+                        next_seq = 1
+                    
+                    final_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
+                    cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
+                    c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
+
+                    new_rows = []
+                    for item in st.session_state.cart_list:
+                        if item["訂購數量"] > 0:
+                            new_rows.append({
+                                "BillDate": date_str_8,
+                                "BillNo": final_bill_no,
+                                "PersonID": s_id_2digits,
+                                "PersonName": item["業務名稱"],
+                                "CustID": c_id,
+                                "ProdID": item["產品編號"],
+                                "ProdName": item["產品名稱"],
+                                "Quantity": item["訂購數量"]
+                            })
+                        if item["搭贈數量"] > 0:
+                            new_rows.append({
+                                "BillDate": date_str_8,
+                                "BillNo": final_bill_no,
+                                "PersonID": s_id_2digits,
+                                "PersonName": item["業務名稱"],
+                                "CustID": c_id,
+                                "ProdID": item["產品編號"],
+                                "ProdName": f"{item['產品名稱']} (搭贈)", 
+                                "Quantity": item["搭贈數量"]
+                            })
+
+                    updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
+                    conn.update(worksheet="訂單紀錄", data=updated_history)
+                    
+                    st.cache_data.clear()
+                    st.session_state.cart_list = []
+                    st.balloons()
+                    st.success(f"訂單 {final_bill_no} 建立成功！")
+                    time.sleep(2)
+                    st.rerun()
+
+# ==========================================
+# 🔧 後台管理 (精簡版：僅顯示訂單與連結)
+# ==========================================
+elif page == "🔧 後台：資料管理":
+    st.title("🔧 後台管理")
+    
+    try:
+        sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        st.info("💡 溫馨提示：客戶、產品、業務資料請直接在 Google 試算表 中修改，系統會自動同步。")
+        st.markdown(f"👉 [點擊這裡開啟 Google 試算表]({sheet_url})")
+    except:
+        st.info("💡 客戶、產品、業務資料請直接在 Google 試算表 中修改。")
+
+    st.divider()
+    
+    st.subheader("📊 歷史訂單紀錄")
+    
+    st.dataframe(df_order_history, use_container_width=True)
+    
+    if st.button("🔄 重新整理訂單"):
+        st.cache_data.clear()
+        st.rerun()
