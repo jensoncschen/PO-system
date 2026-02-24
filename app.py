@@ -5,38 +5,32 @@ from streamlit_gsheets import GSheetsConnection
 import time
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (品類篩選版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (批次POS版)", layout="wide", page_icon="🛍️")
 
-# --- CSS 優化：維持 POS 大按鈕風格 ---
+# --- CSS 優化 ---
 st.markdown("""
     <style>
     /* 加大輸入框文字與高度 */
     div[data-testid="stNumberInput"] input {
-        font-size: 24px !important;
-        height: 60px !important;
+        font-size: 20px !important;
+        height: 50px !important;
         text-align: center !important;
         font-weight: bold;
     }
-    /* 加大搜尋選單的高度 */
-    div[data-testid="stSelectbox"] > div > div {
-        min-height: 50px;
-    }
     /* 加大按鈕 */
     div.stButton > button {
-        height: 60px !important;
-        font-size: 20px !important;
+        height: 55px !important;
+        font-size: 18px !important;
         font-weight: bold !important;
         border-radius: 12px;
     }
-    /* 讓加入購物車按鈕變綠色 */
+    /* 加入購物車按鈕變綠色 */
     div.stButton > button[kind="primary"] {
         background-color: #28a745;
         border-color: #28a745;
     }
-    /* 購物車表格字體加大 */
-    div[data-testid="stDataFrame"] {
-        font-size: 16px;
-    }
+    /* 讓表單內的分割線不明顯一點 */
+    hr { margin-top: 0.5rem; margin-bottom: 0.5rem; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -52,23 +46,18 @@ def fetch_all_data():
         df_sales = conn.read(worksheet="業務資料") 
         df_order = conn.read(worksheet="訂單紀錄")
         
-        # 欄位補全
         for df in [df_cust, df_sales, df_prod, df_order]:
             if df is None: return None, None, None, None
             
         if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
         if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
-        # ★ 新增品類欄位防呆 ★
         if "品類" not in df_prod.columns: df_prod["品類"] = "一般"
         if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
         
-        # 資料清洗
         df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
         df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
         df_order["BillNo"] = df_order["BillNo"].astype(str).str.replace("'", "", regex=False)
-        
-        # 填充空白品類
         df_prod["品類"] = df_prod["品類"].fillna("一般")
         
         return df_cust, df_prod, df_sales, df_order
@@ -82,9 +71,8 @@ if df_customers is None:
     st.error("⚠️ 資料載入失敗，請檢查網路或 Google Sheets 連線。")
     st.stop()
 
-# --- Session State 初始化 ---
+# --- Session State ---
 if 'cart_list' not in st.session_state: st.session_state.cart_list = []
-# 用來控制輸入框重置的 key
 if 'reset_trigger' not in st.session_state: st.session_state.reset_trigger = 0
 
 # --- 側邊欄 ---
@@ -104,11 +92,11 @@ if st.sidebar.button("🔄 更新資料庫"):
     st.rerun()
 
 # ==========================================
-# 🚀 主畫面：POS 三層篩選介面
+# 🚀 主畫面
 # ==========================================
 st.title("🚀 快速下單系統")
 
-# 1. 鎖定業務與客戶 (最上方)
+# 1. 鎖定業務與客戶
 with st.container(border=True):
     c1, c2 = st.columns(2)
     with c1:
@@ -124,107 +112,113 @@ with st.container(border=True):
 
 st.divider()
 
-# 2. 產品輸入核心區 (三層篩選)
-st.subheader("➕ 新增商品")
+# 2. 產品輸入核心區 (批次處理)
+st.subheader("➕ 批次新增商品")
 
-# 建立篩選區塊
-# 我們使用 reset_trigger 來確保加入後這些選單會重置回預設值
 reset_key_suffix = f"_{st.session_state.reset_trigger}"
-
 col_filter_brand, col_filter_cat = st.columns(2)
 
-# --- 第一層：品牌篩選 ---
+# --- 第一層：品牌 ---
 with col_filter_brand:
     all_brands = df_products["品牌"].unique().tolist()
-    # 增加 "全部" 選項
     brand_options = ["全部"] + all_brands
-    selected_brand_filter = st.selectbox(
-        "1️⃣ 品牌篩選", 
-        brand_options, 
-        key=f"brand{reset_key_suffix}"
-    )
+    selected_brand_filter = st.selectbox("1️⃣ 品牌篩選", brand_options, key=f"brand{reset_key_suffix}")
 
-# --- 第二層：品類篩選 (連動) ---
+# --- 第二層：品類 ---
 with col_filter_cat:
-    # 根據選定的品牌過濾資料
     df_step1 = df_products.copy()
     if selected_brand_filter != "全部":
         df_step1 = df_step1[df_step1["品牌"] == selected_brand_filter]
     
-    # 找出該品牌下有的品類
     available_cats = df_step1["品類"].unique().tolist()
     cat_options = ["全部"] + available_cats
-    selected_cat_filter = st.selectbox(
-        "2️⃣ 品類篩選", 
-        cat_options,
-        key=f"cat{reset_key_suffix}"
-    )
+    selected_cat_filter = st.selectbox("2️⃣ 品類篩選", cat_options, key=f"cat{reset_key_suffix}")
 
-# --- 第三層：產品搜尋 (連動) ---
-# 根據選定的品類再次過濾資料
+# --- 第三層：產品多選 (Multiselect) ---
 df_step2 = df_step1.copy()
 if selected_cat_filter != "全部":
     df_step2 = df_step2[df_step2["品類"] == selected_cat_filter]
 
 product_list = df_step2["產品名稱"].unique().tolist()
 
-selected_product_add = st.selectbox(
-    "3️⃣ 選擇商品 (輸入關鍵字搜尋)", 
+# ★★★ 重點修改：改為 Multiselect，限制最多 20 個 ★★★
+selected_products_batch = st.multiselect(
+    "3️⃣ 選擇商品 (可多選，最多20樣)", 
     product_list, 
-    index=None, 
-    placeholder="請點此選擇或輸入...",
-    key=f"prod{reset_key_suffix}"
+    max_selections=20,
+    placeholder="請點選加入多項商品...",
+    key=f"prod_multi{reset_key_suffix}"
 )
 
-# 只有當選了產品才顯示輸入框
-if selected_product_add:
-    # 抓取產品資訊
-    p_info = df_products[df_products["產品名稱"] == selected_product_add].iloc[0]
+# --- 批次輸入表單 ---
+if selected_products_batch:
+    st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
     
-    # 顯示選到的資訊
-    st.info(f"👉 已選擇：**{selected_product_add}** | 🏷️ {p_info.get('品牌')} | 📂 {p_info.get('品類')}")
-    
-    # 輸入數量區 (特大號輸入框)
-    with st.container(border=True):
-        c_qty, c_gift = st.columns(2)
-        with c_qty:
-            qty_input = st.number_input("📦 訂購數量", min_value=0, step=1, value=0, key=f"q{reset_key_suffix}")
-        with c_gift:
-            gift_input = st.number_input("🎁 搭贈數量", min_value=0, step=1, value=0, key=f"g{reset_key_suffix}")
+    # ★★★ 使用 st.form 包起來，避免每輸入一個數字就刷新頁面 ★★★
+    with st.form(key=f"batch_form{reset_key_suffix}"):
+        
+        # 迴圈產生每一列輸入框
+        # 使用字典來收集這個表單內的輸入 widget key
+        # 因為在 form submit 之前，我們拿不到值，所以要先定義 key
+        
+        for p_name in selected_products_batch:
+            # 取得產品資訊
+            p_info = df_products[df_products["產品名稱"] == p_name].iloc[0]
+            
+            st.markdown(f"**{p_name}** <span style='color:gray; font-size:0.8em'>({p_info['品類']})</span>", unsafe_allow_html=True)
+            
+            c_q, c_g = st.columns(2)
+            with c_q:
+                st.number_input("訂購", min_value=0, step=1, key=f"q_{p_name}", label_visibility="collapsed")
+            with c_g:
+                st.number_input("搭贈", min_value=0, step=1, key=f"g_{p_name}", label_visibility="collapsed")
+            st.divider()
 
-        # 加入按鈕
-        if st.button("⬇️ 加入購物車", type="primary", use_container_width=True):
+        # 表單送出按鈕
+        submitted = st.form_submit_button("⬇️ 全部加入購物車", type="primary", use_container_width=True)
+        
+        if submitted:
             if not selected_sales_name or not selected_cust_name:
                 st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
-            elif qty_input == 0 and gift_input == 0:
-                st.warning("⚠️ 數量不能都是 0")
             else:
-                # 加入清單
-                st.session_state.cart_list.insert(0, {
-                    "業務名稱": selected_sales_name,
-                    "客戶名稱": selected_cust_name,
-                    "產品編號": p_info.get("產品編號", "N/A"),
-                    "產品名稱": selected_product_add,
-                    "品牌": p_info.get("品牌", ""),
-                    "品類": p_info.get("品類", ""), # 紀錄品類
-                    "訂購數量": qty_input,
-                    "搭贈數量": gift_input
-                })
+                items_added_count = 0
+                # 遍歷選取的產品，抓取剛剛輸入的值
+                for p_name in selected_products_batch:
+                    # 從 session_state 抓值 (因為 form 已經 submit)
+                    q_val = st.session_state.get(f"q_{p_name}", 0)
+                    g_val = st.session_state.get(f"g_{p_name}", 0)
+                    
+                    # 只有當數量 > 0 才加入
+                    if q_val > 0 or g_val > 0:
+                        p_info = df_products[df_products["產品名稱"] == p_name].iloc[0]
+                        
+                        st.session_state.cart_list.insert(0, {
+                            "業務名稱": selected_sales_name,
+                            "客戶名稱": selected_cust_name,
+                            "產品編號": p_info.get("產品編號", "N/A"),
+                            "產品名稱": p_name,
+                            "品牌": p_info.get("品牌", ""),
+                            "品類": p_info.get("品類", ""),
+                            "訂購數量": q_val,
+                            "搭贈數量": g_val
+                        })
+                        items_added_count += 1
                 
-                # ★ 強制重置：讓 reset_trigger + 1，所有綁定這個 key 的選單都會重置 ★
-                st.session_state.reset_trigger += 1
-                st.toast(f"✅ 已加入：{selected_product_add}")
-                time.sleep(0.1)
-                st.rerun()
+                if items_added_count > 0:
+                    st.session_state.reset_trigger += 1 # 強制重置選單
+                    st.toast(f"✅ 成功加入 {items_added_count} 項商品！")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.warning("⚠️ 所有商品的數量都是 0，未加入任何項目")
 
-# 3. 購物車清單與結帳 (顯示在下方)
+# 3. 購物車清單與結帳
 st.divider()
 st.subheader(f"📋 準備送出 ({len(st.session_state.cart_list)})")
 
 if len(st.session_state.cart_list) > 0:
     cart_df = pd.DataFrame(st.session_state.cart_list)
     
-    # 編輯購物車
     edited_cart = st.data_editor(
         cart_df,
         column_config={
@@ -251,7 +245,6 @@ if len(st.session_state.cart_list) > 0:
                 if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
                 current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
 
-                # 業務編號處理
                 sales_row = df_salespeople[df_salespeople["業務名稱"] == selected_sales_name]
                 if not sales_row.empty:
                     raw_val = sales_row.iloc[0]["業務編號"]
@@ -263,7 +256,6 @@ if len(st.session_state.cart_list) > 0:
                         s_id_2digits = s_str.zfill(2)[-2:]
                 else: s_id_2digits = "00"
 
-                # 單號生成
                 date_str_8 = order_date.strftime('%Y%m%d')
                 prefix = f"{s_id_2digits}{date_str_8}"
                 
@@ -307,6 +299,5 @@ if len(st.session_state.cart_list) > 0:
                 st.success(f"🎉 訂單建立成功！")
                 time.sleep(2)
                 st.rerun()
-
 else:
     st.info("👇 請在上方篩選並加入商品")
