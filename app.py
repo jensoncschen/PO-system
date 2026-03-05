@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import time
-import traceback # 用來捕捉詳細錯誤訊息
+import traceback
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統 (專家重構版)", layout="wide", page_icon="🛍️")
@@ -37,8 +37,6 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 # ==========================================
 # 🛠️ 核心輔助函式 (Helpers)
 # ==========================================
-
-# 【優化 4】抽離重複的業務編號計算邏輯 (Clean Code)
 def get_sales_id_2digits(sales_name, df_sales):
     if not sales_name: return "00"
     sales_row = df_sales[df_sales["業務名稱"] == sales_name]
@@ -76,16 +74,15 @@ def fetch_all_data():
         return df_cust, df_prod, df_sales, df_order
         
     except Exception as e:
-        # 【優化 5】捕捉詳細錯誤，避免 Silent Failure
         st.error(f"⚠️ 資料庫連線異常，錯誤原因：{e}")
-        print(traceback.format_exc()) # 開發者可在後台看到詳細報錯
+        print(traceback.format_exc())
         return None, None, None, None
 
 # --- 載入資料 ---
 df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
 
 if df_customers is None:
-    st.stop() # 停止執行後續程式碼
+    st.stop()
 
 # --- Session State 初始化 ---
 if 'cart_list' not in st.session_state: st.session_state.cart_list = []
@@ -113,7 +110,6 @@ if st.sidebar.button("🔄 更新資料庫"):
 # ==========================================
 st.title("🚀 快速下單系統")
 
-# 1. 鎖定業務與客戶
 form_suffix = f"_{st.session_state.form_reset_trigger}"
 
 with st.container(border=True):
@@ -135,7 +131,6 @@ with st.container(border=True):
 
 st.divider()
 
-# 2. 產品輸入核心區
 st.subheader("➕ 批次新增商品")
 
 input_suffix = f"_{st.session_state.input_reset_trigger}"
@@ -176,12 +171,10 @@ if selected_products_batch:
     
     with st.form(key=f"batch_form{input_suffix}"):
         
-        # 【優化 2】O(1) Hash Map 查詢：事前建立商品對照字典
-        # 把 dataframe 變成字典，查詢速度是原本的 100 倍以上
-        prod_dict = df_products.set_index("產品名稱").to_dict('index')
+        # ★★★ 修復點：加上 drop_duplicates 確保產品名稱唯一，避免報錯 ★★★
+        prod_dict = df_products.drop_duplicates(subset=["產品名稱"]).set_index("產品名稱").to_dict('index')
         
         for p_name in selected_products_batch:
-            # 從字典瞬間取得商品資訊
             p_info = prod_dict.get(p_name, {})
             p_cat = p_info.get('品類', '一般')
             
@@ -201,7 +194,7 @@ if selected_products_batch:
                 st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
             else:
                 items_added_count = 0
-                keys_to_clear = [] # 【優化 3】準備要回收的孤兒 Keys
+                keys_to_clear = [] 
                 
                 for p_name in selected_products_batch:
                     q_key = f"q_{p_name}"
@@ -225,11 +218,9 @@ if selected_products_batch:
                         })
                         items_added_count += 1
                     
-                    # 登記使用過的 Key 準備刪除
                     keys_to_clear.extend([q_key, g_key])
                 
                 if items_added_count > 0:
-                    # 【優化 3】精準清理使用過的 Session State，釋放記憶體
                     for k in keys_to_clear:
                         if k in st.session_state:
                             del st.session_state[k]
@@ -271,8 +262,6 @@ if len(st.session_state.cart_list) > 0:
         if st.button("✅ 確認結帳，送出訂單", type="primary", use_container_width=True):
             with st.spinner("⏳ 正在寫入雲端..."):
                 
-                # 【優化 1】極限縮短 Read-Modify-Write 的時間差
-                # 將「不需要讀取雲端就能運算」的部分全部移到最前面
                 s_id_2digits = get_sales_id_2digits(selected_sales_name, df_salespeople)
                 date_str_8 = order_date.strftime('%Y%m%d')
                 prefix = f"{s_id_2digits}{date_str_8}"
@@ -280,7 +269,6 @@ if len(st.session_state.cart_list) > 0:
                 cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
                 c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
                 
-                # ------ 👇 開始危險寫入區 (維持最短時間) 👇 ------
                 current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
                 if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
                 current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
@@ -316,7 +304,6 @@ if len(st.session_state.cart_list) > 0:
 
                 updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
                 conn.update(worksheet="訂單紀錄", data=updated_history)
-                # ------ 👆 結束危險寫入區 👆 ------
                 
                 st.session_state.cart_list = []
                 st.session_state.input_reset_trigger += 1 
