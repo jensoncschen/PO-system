@@ -4,10 +4,10 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import time
 import traceback
-import io # ★ 新增 io 模組來處理 Excel 匯出
+import io 
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (匯出管理版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (條碼掃描版)", layout="wide", page_icon="🛍️")
 
 # --- CSS 優化 ---
 st.markdown("""
@@ -65,12 +65,17 @@ def fetch_all_data():
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
         if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
         if "品類" not in df_prod.columns: df_prod["品類"] = "一般"
+        # ★ 新增：確保國際條碼欄位存在 ★
+        if "國際條碼" not in df_prod.columns: df_prod["國際條碼"] = ""
         if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
         
         df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
         df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
         df_order["BillNo"] = df_order["BillNo"].astype(str).str.replace("'", "", regex=False)
         df_prod["品類"] = df_prod["品類"].fillna("一般")
+        
+        # ★ 新增：清洗條碼資料 (避免 pandas 把數字條碼讀成浮點數如 471.0) ★
+        df_prod["國際條碼"] = df_prod["國際條碼"].astype(str).str.replace(r'\.0$', '', regex=True).replace('nan', '')
         
         return df_cust, df_prod, df_sales, df_order
         
@@ -90,14 +95,12 @@ if 'cart_list' not in st.session_state: st.session_state.cart_list = []
 if 'input_reset_trigger' not in st.session_state: st.session_state.input_reset_trigger = 0
 if 'form_reset_trigger' not in st.session_state: st.session_state.form_reset_trigger = 0
 
-# --- 左側導航 (★ 新增訂單匯出選單) ---
+# --- 左側導航 ---
 st.sidebar.title("☁️ 系統導航")
 
-# 更新選單內容
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "📥 訂單匯出", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
 
-# 購物車狀態
 st.sidebar.markdown("### 🛒 購物車狀態")
 cart_len = len(st.session_state.cart_list)
 if cart_len > 0:
@@ -162,15 +165,32 @@ if page == "🛒 前台：下單作業":
     if selected_cat_filter != "全部":
         df_step2 = df_step2[df_step2["品類"] == selected_cat_filter]
 
-    product_list = df_step2["產品名稱"].unique().tolist()
+    # ★★★ 關鍵修改：建立「顯示字串」對應「產品名稱」的字典 ★★★
+    # 這樣選單上可以顯示條碼，讓系統支援條碼搜尋，但背後存的還是產品名稱
+    display_to_name = {}
+    for _, row in df_step2.iterrows():
+        p_name = row["產品名稱"]
+        barcode = str(row["國際條碼"]).strip()
+        
+        if barcode and barcode != "nan" and barcode != "None":
+            display_str = f"{p_name} ［條碼: {barcode}］"
+        else:
+            display_str = p_name
+            
+        display_to_name[display_str] = p_name
 
-    selected_products_batch = st.multiselect(
-        "3️⃣ 選擇商品 (可多選，最多20樣)", 
-        product_list, 
+    display_options = list(display_to_name.keys())
+
+    selected_displays = st.multiselect(
+        "3️⃣ 選擇商品 (可刷條碼或輸入名稱，最多20樣)", 
+        options=display_options, 
         max_selections=20,
-        placeholder="請點選加入多項商品...",
+        placeholder="請點此使用條碼槍掃描，或輸入商品名稱...",
         key=f"prod_multi{input_suffix}"
     )
+
+    # 將選擇的顯示字串轉換回產品名稱
+    selected_products_batch = [display_to_name[disp] for disp in selected_displays]
 
     if selected_products_batch:
         st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
@@ -181,8 +201,10 @@ if page == "🛒 前台：下單作業":
             for p_name in selected_products_batch:
                 p_info = prod_dict.get(p_name, {})
                 p_cat = p_info.get('品類', '一般')
+                p_barcode = p_info.get('國際條碼', '')
+                barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
                 
-                st.markdown(f"**{p_name}** <span style='color:gray; font-size:0.8em'>({p_cat})</span>", unsafe_allow_html=True)
+                st.markdown(f"**{p_name}** <span style='color:gray; font-size:0.8em'>({p_cat}{barcode_text})</span>", unsafe_allow_html=True)
                 
                 c_q, c_g = st.columns(2)
                 with c_q:
@@ -322,7 +344,7 @@ if page == "🛒 前台：下單作業":
         st.info("👇 請在上方篩選並加入商品")
 
 # ==========================================
-# 📥 2. 中台：訂單匯出 (★ 本次新增核心功能)
+# 📥 2. 中台：訂單匯出
 # ==========================================
 elif page == "📥 訂單匯出":
     st.title("📥 訂單匯出與清理")
@@ -330,7 +352,6 @@ elif page == "📥 訂單匯出":
 
     st.subheader(f"📋 目前雲端共有 {len(df_order_history)} 筆訂單紀錄")
     
-    # 顯示預覽清單
     st.dataframe(df_order_history, use_container_width=True, height=400)
 
     st.divider()
@@ -338,14 +359,12 @@ elif page == "📥 訂單匯出":
 
     col_export, col_clear = st.columns(2, gap="large")
 
-    # --- 左側：匯出按鈕 ---
     with col_export:
         st.markdown("##### 1️⃣ 下載 Excel 備份")
         st.caption("將目前的訂單紀錄完整下載為 Excel 檔案。")
         
         if not df_order_history.empty:
             excel_buffer = io.BytesIO()
-            # 兼容不同環境的 Excel 寫入引擎
             try:
                 with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
                     df_order_history.to_excel(writer, index=False, sheet_name='訂單紀錄')
@@ -366,24 +385,17 @@ elif page == "📥 訂單匯出":
         else:
             st.button("📥 目前無資料可匯出", disabled=True, use_container_width=True)
 
-    # --- 右側：清除按鈕 ---
     with col_clear:
         st.markdown("##### 2️⃣ 清除雲端紀錄")
         st.caption("⚠️ 警告：清除後將徹底刪除雲端訂單資料。請務必先執行左側下載備份！")
         
-        # 防呆核取方塊
         confirm_clear = st.checkbox("✅ 我確認已下載 Excel 備份，同意徹底清除雲端紀錄", key="confirm_clear_cb")
         
-        # 只有在打勾的情況下，按鈕才會啟動
         if st.button("🗑️ 清空所有訂單紀錄", type="primary", use_container_width=True, disabled=not confirm_clear):
             with st.spinner("正在安全刪除雲端紀錄..."):
-                # 建立一個只有欄位標題，但內容全空的 DataFrame
                 empty_df = pd.DataFrame(columns=df_order_history.columns)
-                
-                # 直接覆寫雲端的「訂單紀錄」工作表，完美保留標題
                 conn.update(worksheet="訂單紀錄", data=empty_df)
                 
-                # 清除快取並重啟
                 st.cache_data.clear()
                 st.success("✅ 雲端訂單紀錄已完全清空！")
                 time.sleep(2)
