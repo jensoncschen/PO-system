@@ -164,4 +164,281 @@ if page == "🛒 前台：下單作業":
         key=f"barcode_scan{input_suffix}"
     )
 
-    st.markdown("
+    st.markdown("#### 👆 步驟二：無條碼時的手動篩選")
+    col_filter_brand, col_filter_cat = st.columns(2)
+
+    with col_filter_brand:
+        brand_options = ["全部"] + df_products["品牌"].unique().tolist()
+        selected_brand_filter = st.selectbox("1️⃣ 品牌篩選", brand_options, key=f"brand{input_suffix}")
+
+    with col_filter_cat:
+        df_step1 = df_products.copy()
+        if selected_brand_filter != "全部":
+            df_step1 = df_step1[df_step1["品牌"] == selected_brand_filter]
+        
+        cat_options = ["全部"] + df_step1["品類"].unique().tolist()
+        selected_cat_filter = st.selectbox("2️⃣ 品類篩選", cat_options, key=f"cat{input_suffix}")
+
+    # ★★★ 模糊搜尋核心邏輯 ★★★
+    if barcode_input:
+        clean_input = barcode_input.strip()
+        
+        # 允許「國際條碼」包含輸入的字串，或是「產品名稱」包含該字串 (不分大小寫)
+        mask_barcode = df_products["國際條碼"].astype(str).str.contains(clean_input, case=False, na=False)
+        mask_name = df_products["產品名稱"].astype(str).str.contains(clean_input, case=False, na=False)
+        
+        df_step2 = df_products[mask_barcode | mask_name]
+        
+        if df_step2.empty:
+            st.error(f"❌ 找不到包含「{clean_input}」的條碼或商品名稱！")
+    else:
+        df_step2 = df_step1.copy()
+        if selected_cat_filter != "全部":
+            df_step2 = df_step2[df_step2["品類"] == selected_cat_filter]
+
+    display_to_name = {}
+    for _, row in df_step2.iterrows():
+        p_name = row["產品名稱"]
+        barcode = str(row["國際條碼"]).strip()
+        if barcode:
+            display_str = f"{p_name} ［條碼: {barcode}］"
+        else:
+            display_str = p_name
+        display_to_name[display_str] = p_name
+
+    display_options = list(display_to_name.keys())
+
+    # ★ 智慧自動打勾邏輯：只有當搜尋結果為 1 筆時（精準命中），才自動打勾
+    if barcode_input and len(display_options) == 1:
+        default_selections = display_options
+    else:
+        default_selections = []
+
+    selected_displays = st.multiselect(
+        "3️⃣ 選擇商品 (可手動點選，最多20樣)", 
+        options=display_options, 
+        default=default_selections, 
+        max_selections=20,
+        placeholder="請點選加入多項商品...",
+        key=f"prod_multi{input_suffix}"
+    )
+
+    selected_products_batch = [display_to_name[disp] for disp in selected_displays]
+
+    # --- 批次輸入表單 ---
+    if selected_products_batch:
+        st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
+        
+        with st.form(key=f"batch_form{input_suffix}"):
+            prod_dict = df_products.drop_duplicates(subset=["產品名稱"]).set_index("產品名稱").to_dict('index')
+            
+            for p_name in selected_products_batch:
+                p_info = prod_dict.get(p_name, {})
+                p_cat = p_info.get('品類', '一般')
+                p_barcode = p_info.get('國際條碼', '')
+                barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
+                
+                st.markdown(f"**{p_name}** <span style='color:gray; font-size:0.8em'>({p_cat}{barcode_text})</span>", unsafe_allow_html=True)
+                
+                c_q, c_g = st.columns(2)
+                with c_q:
+                    st.number_input("訂購", min_value=0, step=1, key=f"q_{p_name}", label_visibility="collapsed")
+                with c_g:
+                    st.number_input("搭贈", min_value=0, step=1, key=f"g_{p_name}", label_visibility="collapsed")
+                st.divider()
+
+            submitted = st.form_submit_button("⬇️ 全部加入購物車", type="primary", use_container_width=True)
+            
+            if submitted:
+                if not selected_sales_name or not selected_cust_name:
+                    st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
+                else:
+                    items_added_count = 0
+                    keys_to_clear = [] 
+                    
+                    for p_name in selected_products_batch:
+                        q_key = f"q_{p_name}"
+                        g_key = f"g_{p_name}"
+                        
+                        q_val = st.session_state.get(q_key, 0)
+                        g_val = st.session_state.get(g_key, 0)
+                        
+                        if q_val > 0 or g_val > 0:
+                            p_info = prod_dict.get(p_name, {})
+                            
+                            st.session_state.cart_list.insert(0, {
+                                "業務名稱": selected_sales_name,
+                                "客戶名稱": selected_cust_name,
+                                "產品編號": p_info.get("產品編號", "N/A"),
+                                "產品名稱": p_name,
+                                "品牌": p_info.get("品牌", ""),
+                                "品類": p_info.get("品類", ""),
+                                "訂購數量": q_val,
+                                "搭贈數量": g_val
+                            })
+                            items_added_count += 1
+                        
+                        keys_to_clear.extend([q_key, g_key])
+                    
+                    if items_added_count > 0:
+                        for k in keys_to_clear:
+                            if k in st.session_state:
+                                del st.session_state[k]
+                                
+                        st.session_state.input_reset_trigger += 1 
+                        st.toast(f"✅ 成功加入 {items_added_count} 項商品！")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ 所有商品的數量都是 0，未加入任何項目")
+
+    st.divider()
+    st.subheader(f"📋 準備送出 ({len(st.session_state.cart_list)})")
+
+    if len(st.session_state.cart_list) > 0:
+        cart_df = pd.DataFrame(st.session_state.cart_list)
+        
+        edited_cart = st.data_editor(
+            cart_df,
+            column_config={
+                "產品名稱": st.column_config.TextColumn(disabled=True),
+                "訂購數量": st.column_config.NumberColumn(min_value=0, step=1),
+                "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1),
+            },
+            column_order=["產品名稱", "訂購數量", "搭贈數量"],
+            use_container_width=True,
+            num_rows="dynamic",
+            key="final_cart_editor"
+        )
+        
+        if not edited_cart.equals(cart_df):
+            st.session_state.cart_list = edited_cart.to_dict('records')
+            st.rerun()
+
+        st.markdown("")
+        col_submit_space, col_submit_btn = st.columns([1, 2])
+        with col_submit_btn:
+            if st.button("✅ 確認結帳，送出訂單", type="primary", use_container_width=True):
+                with st.spinner("⏳ 正在寫入雲端..."):
+                    
+                    s_id_2digits = get_sales_id_2digits(selected_sales_name, df_salespeople)
+                    date_str_8 = order_date.strftime('%Y%m%d')
+                    prefix = f"{s_id_2digits}{date_str_8}"
+                    
+                    cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
+                    c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
+                    
+                    current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
+                    if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
+                    current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
+                    
+                    existing_ids = current_history["BillNo"].astype(str).tolist()
+                    matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
+                    
+                    if matching_ids:
+                        seqs = [int(oid[-3:]) for oid in matching_ids if oid[-3:].isdigit()]
+                        next_seq = max(seqs) + 1 if seqs else 1
+                    else: 
+                        next_seq = 1
+                    
+                    raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
+                    final_bill_no = f"'{raw_bill_no}"
+                    
+                    new_rows = []
+                    for item in st.session_state.cart_list:
+                        if item["訂購數量"] > 0:
+                            new_rows.append({
+                                "BillDate": date_str_8, "BillNo": final_bill_no,
+                                "PersonID": s_id_2digits, "PersonName": selected_sales_name,
+                                "CustID": c_id, "ProdID": item["產品編號"], "ProdName": item["產品名稱"],
+                                "Quantity": item["訂購數量"]
+                            })
+                        if item["搭贈數量"] > 0:
+                            new_rows.append({
+                                "BillDate": date_str_8, "BillNo": final_bill_no,
+                                "PersonID": s_id_2digits, "PersonName": selected_sales_name,
+                                "CustID": c_id, "ProdID": item["產品編號"], "ProdName": f"{item['產品名稱']} (搭贈)", 
+                                "Quantity": item["搭贈數量"]
+                            })
+
+                    updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
+                    conn.update(worksheet="訂單紀錄", data=updated_history)
+                    
+                    st.session_state.cart_list = []
+                    st.session_state.input_reset_trigger += 1 
+                    st.session_state.form_reset_trigger += 1  
+                    
+                    st.cache_data.clear()
+                    
+                    st.balloons()
+                    st.success(f"🎉 訂單 {raw_bill_no} 建立成功！")
+                    time.sleep(2)
+                    st.rerun()
+    else:
+        st.info("👇 請在上方篩選並加入商品")
+
+# ==========================================
+# 📥 2. 中台：訂單匯出
+# ==========================================
+elif page == "📥 訂單匯出":
+    st.title("📥 訂單匯出與清理")
+    st.info("💡 內勤人員專屬：您可在此下載完整訂單 Excel，並在處理完畢後一鍵清空雲端紀錄。")
+
+    st.subheader(f"📋 目前雲端共有 {len(df_order_history)} 筆訂單紀錄")
+    st.dataframe(df_order_history, use_container_width=True, height=400)
+
+    st.divider()
+    st.subheader("⚙️ 匯出與清理操作")
+    col_export, col_clear = st.columns(2, gap="large")
+
+    with col_export:
+        st.markdown("##### 1️⃣ 下載 Excel 備份")
+        st.caption("將目前的訂單紀錄完整下載為 Excel 檔案。")
+        
+        if not df_order_history.empty:
+            excel_buffer = io.BytesIO()
+            try:
+                with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
+                    df_order_history.to_excel(writer, index=False, sheet_name='訂單紀錄')
+            except:
+                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                    df_order_history.to_excel(writer, index=False, sheet_name='訂單紀錄')
+            
+            download_name = f"訂單紀錄_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+            
+            st.download_button(
+                label="📥 點擊下載 Excel 檔",
+                data=excel_buffer.getvalue(),
+                file_name=download_name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="primary"
+            )
+        else:
+            st.button("📥 目前無資料可匯出", disabled=True, use_container_width=True)
+
+    with col_clear:
+        st.markdown("##### 2️⃣ 清除雲端紀錄")
+        st.caption("⚠️ 警告：清除後將徹底刪除雲端訂單資料。請務必先執行左側下載備份！")
+        confirm_clear = st.checkbox("✅ 我確認已下載 Excel 備份，同意徹底清除雲端紀錄", key="confirm_clear_cb")
+        
+        if st.button("🗑️ 清空所有訂單紀錄", type="primary", use_container_width=True, disabled=not confirm_clear):
+            with st.spinner("正在安全刪除雲端紀錄..."):
+                empty_df = pd.DataFrame(columns=df_order_history.columns)
+                conn.update(worksheet="訂單紀錄", data=empty_df)
+                st.cache_data.clear()
+                st.success("✅ 雲端訂單紀錄已完全清空！")
+                time.sleep(2)
+                st.rerun()
+
+# ==========================================
+# 🔧 3. 後台：資料管理
+# ==========================================
+elif page == "🔧 後台：資料管理":
+    st.title("🔧 後台管理")
+    try:
+        sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        st.markdown(f"👉 [開啟 Google 試算表編輯基礎資料]({sheet_url})")
+    except: pass
+    st.divider()
+    st.info("💡 如需查看或匯出訂單，請前往左側選單的「📥 訂單匯出」頁面。")
