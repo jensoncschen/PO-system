@@ -7,7 +7,7 @@ import traceback
 import io 
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (條碼掃描版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (條碼快搜版)", layout="wide", page_icon="🛍️")
 
 # --- CSS 優化 ---
 st.markdown("""
@@ -36,7 +36,7 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 🛠️ 核心輔助函式 (Helpers)
+# 🛠️ 核心輔助函式
 # ==========================================
 def get_sales_id_2digits(sales_name, df_sales):
     if not sales_name: return "00"
@@ -61,11 +61,16 @@ def fetch_all_data():
         for df in [df_cust, df_sales, df_prod, df_order]:
             if df is None: return None, None, None, None
             
+        # ★ 防呆大升級：強制清除所有欄位名稱前後的空白符號 ★
+        df_cust.columns = df_cust.columns.str.strip()
+        df_prod.columns = df_prod.columns.str.strip()
+        df_sales.columns = df_sales.columns.str.strip()
+        df_order.columns = df_order.columns.str.strip()
+            
         if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
         if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
         if "品類" not in df_prod.columns: df_prod["品類"] = "一般"
-        # ★ 新增：確保國際條碼欄位存在 ★
         if "國際條碼" not in df_prod.columns: df_prod["國際條碼"] = ""
         if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
         
@@ -74,7 +79,7 @@ def fetch_all_data():
         df_order["BillNo"] = df_order["BillNo"].astype(str).str.replace("'", "", regex=False)
         df_prod["品類"] = df_prod["品類"].fillna("一般")
         
-        # ★ 新增：清洗條碼資料 (避免 pandas 把數字條碼讀成浮點數如 471.0) ★
+        # 清洗條碼資料
         df_prod["國際條碼"] = df_prod["國際條碼"].astype(str).str.replace(r'\.0$', '', regex=True).replace('nan', '')
         
         return df_cust, df_prod, df_sales, df_order
@@ -84,20 +89,18 @@ def fetch_all_data():
         print(traceback.format_exc())
         return None, None, None, None
 
-# --- 載入資料 ---
 df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
 
 if df_customers is None:
     st.stop()
 
-# --- Session State 初始化 ---
+# --- Session State ---
 if 'cart_list' not in st.session_state: st.session_state.cart_list = []
 if 'input_reset_trigger' not in st.session_state: st.session_state.input_reset_trigger = 0
 if 'form_reset_trigger' not in st.session_state: st.session_state.form_reset_trigger = 0
 
 # --- 左側導航 ---
 st.sidebar.title("☁️ 系統導航")
-
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "📥 訂單匯出", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
 
@@ -144,9 +147,20 @@ if page == "🛒 前台：下單作業":
 
     st.divider()
 
-    st.subheader("➕ 批次新增商品")
-
+    st.subheader("➕ 新增商品")
     input_suffix = f"_{st.session_state.input_reset_trigger}"
+
+    # ★★★ 新增：專屬條碼快搜區 ★★★
+    st.markdown("#### 📷 條碼快搜 (支援條碼槍)")
+    barcode_input = st.text_input(
+        "將游標停在此處，刷入條碼或輸入數字後按 Enter", 
+        placeholder="例如輸入 12345 尋找對應條碼商品...",
+        key=f"barcode_scan{input_suffix}"
+    )
+
+    st.markdown("---")
+    st.markdown("#### 👆 傳統篩選與多選")
+
     col_filter_brand, col_filter_cat = st.columns(2)
 
     with col_filter_brand:
@@ -165,33 +179,43 @@ if page == "🛒 前台：下單作業":
     if selected_cat_filter != "全部":
         df_step2 = df_step2[df_step2["品類"] == selected_cat_filter]
 
-    # ★★★ 關鍵修改：建立「顯示字串」對應「產品名稱」的字典 ★★★
-    # 這樣選單上可以顯示條碼，讓系統支援條碼搜尋，但背後存的還是產品名稱
     display_to_name = {}
     for _, row in df_step2.iterrows():
         p_name = row["產品名稱"]
         barcode = str(row["國際條碼"]).strip()
-        
         if barcode and barcode != "nan" and barcode != "None":
             display_str = f"{p_name} ［條碼: {barcode}］"
         else:
             display_str = p_name
-            
         display_to_name[display_str] = p_name
 
     display_options = list(display_to_name.keys())
 
+    # ★★★ 條碼連動邏輯 ★★★
+    # 如果使用者在上面的條碼框輸入了條碼，系統自動尋找並加入預設選項
+    default_selections = []
+    if barcode_input:
+        found = False
+        for disp_str in display_options:
+            if f"條碼: {barcode_input.strip()}］" in disp_str:
+                default_selections.append(disp_str)
+                found = True
+                break # 假設條碼唯一，找到就跳出
+        if not found:
+            st.error(f"❌ 找不到條碼為「{barcode_input}」的商品。請確認產品資料中是否有此條碼。")
+
     selected_displays = st.multiselect(
-        "3️⃣ 選擇商品 (可刷條碼或輸入名稱，最多20樣)", 
+        "3️⃣ 選擇商品 (可手動點選，最多20樣)", 
         options=display_options, 
+        default=default_selections, # 自動帶入條碼掃到的商品
         max_selections=20,
-        placeholder="請點此使用條碼槍掃描，或輸入商品名稱...",
+        placeholder="請點選加入多項商品...",
         key=f"prod_multi{input_suffix}"
     )
 
-    # 將選擇的顯示字串轉換回產品名稱
     selected_products_batch = [display_to_name[disp] for disp in selected_displays]
 
+    # --- 批次輸入表單 ---
     if selected_products_batch:
         st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
         
@@ -351,12 +375,10 @@ elif page == "📥 訂單匯出":
     st.info("💡 內勤人員專屬：您可在此下載完整訂單 Excel，並在處理完畢後一鍵清空雲端紀錄。")
 
     st.subheader(f"📋 目前雲端共有 {len(df_order_history)} 筆訂單紀錄")
-    
     st.dataframe(df_order_history, use_container_width=True, height=400)
 
     st.divider()
     st.subheader("⚙️ 匯出與清理操作")
-
     col_export, col_clear = st.columns(2, gap="large")
 
     with col_export:
@@ -388,14 +410,12 @@ elif page == "📥 訂單匯出":
     with col_clear:
         st.markdown("##### 2️⃣ 清除雲端紀錄")
         st.caption("⚠️ 警告：清除後將徹底刪除雲端訂單資料。請務必先執行左側下載備份！")
-        
         confirm_clear = st.checkbox("✅ 我確認已下載 Excel 備份，同意徹底清除雲端紀錄", key="confirm_clear_cb")
         
         if st.button("🗑️ 清空所有訂單紀錄", type="primary", use_container_width=True, disabled=not confirm_clear):
             with st.spinner("正在安全刪除雲端紀錄..."):
                 empty_df = pd.DataFrame(columns=df_order_history.columns)
                 conn.update(worksheet="訂單紀錄", data=empty_df)
-                
                 st.cache_data.clear()
                 st.success("✅ 雲端訂單紀錄已完全清空！")
                 time.sleep(2)
