@@ -38,16 +38,16 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 # ==========================================
 # 🛠️ 核心輔助函式
 # ==========================================
-def get_sales_id_2digits(sales_name, df_sales):
-    if not sales_name: return "00"
+def get_sales_id_3digits(sales_name, df_sales):
+    if not sales_name: return "000"
     sales_row = df_sales[df_sales["業務名稱"] == sales_name]
-    if sales_row.empty: return "00"
+    if sales_row.empty: return "000"
     
     raw_val = sales_row.iloc[0]["業務編號"]
     try:
-        return f"{int(float(raw_val)):02d}"
+        return f"{int(float(raw_val)):03d}"
     except:
-        return str(raw_val).strip().zfill(2)[-2:]
+        return str(raw_val).strip().zfill(3)[-3:]
 
 def clean_barcode(val):
     s = str(val).strip() 
@@ -79,13 +79,16 @@ def fetch_all_data():
         if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
         if "品類" not in df_prod.columns: df_prod["品類"] = "一般"
         if "國際條碼" not in df_prod.columns: df_prod["國際條碼"] = ""
+        
         if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
+        if "PersonID" not in df_order.columns: df_order["PersonID"] = ""
         
         df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
         df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
         df_order["BillNo"] = df_order["BillNo"].astype(str).str.replace("'", "", regex=False)
-        df_prod["品類"] = df_prod["品類"].fillna("一般")
+        df_order["PersonID"] = df_order["PersonID"].astype(str).str.replace("'", "", regex=False)
         
+        df_prod["品類"] = df_prod["品類"].fillna("一般")
         df_prod["國際條碼"] = df_prod["國際條碼"].apply(clean_barcode)
         
         return df_cust, df_prod, df_sales, df_order
@@ -156,7 +159,6 @@ if page == "🛒 前台：下單作業":
     st.subheader("➕ 新增商品")
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
-    # --- 📷 條碼快搜區 ---
     st.markdown("#### 📷 步驟一：條碼快搜 (支援條碼槍或輸入部分數字)")
     barcode_input = st.text_input(
         "輸入部分條碼、完整條碼，或商品名稱關鍵字後按 Enter", 
@@ -179,14 +181,10 @@ if page == "🛒 前台：下單作業":
         cat_options = ["全部"] + df_step1["品類"].unique().tolist()
         selected_cat_filter = st.selectbox("2️⃣ 品類篩選", cat_options, key=f"cat{input_suffix}")
 
-    # ★★★ 模糊搜尋核心邏輯 ★★★
     if barcode_input:
         clean_input = barcode_input.strip()
-        
-        # 允許「國際條碼」包含輸入的字串，或是「產品名稱」包含該字串 (不分大小寫)
         mask_barcode = df_products["國際條碼"].astype(str).str.contains(clean_input, case=False, na=False)
         mask_name = df_products["產品名稱"].astype(str).str.contains(clean_input, case=False, na=False)
-        
         df_step2 = df_products[mask_barcode | mask_name]
         
         if df_step2.empty:
@@ -208,7 +206,6 @@ if page == "🛒 前台：下單作業":
 
     display_options = list(display_to_name.keys())
 
-    # ★ 智慧自動打勾邏輯：只有當搜尋結果為 1 筆時（精準命中），才自動打勾
     if barcode_input and len(display_options) == 1:
         default_selections = display_options
     else:
@@ -225,7 +222,6 @@ if page == "🛒 前台：下單作業":
 
     selected_products_batch = [display_to_name[disp] for disp in selected_displays]
 
-    # --- 批次輸入表單 ---
     if selected_products_batch:
         st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
         
@@ -321,9 +317,16 @@ if page == "🛒 前台：下單作業":
             if st.button("✅ 確認結帳，送出訂單", type="primary", use_container_width=True):
                 with st.spinner("⏳ 正在寫入雲端..."):
                     
-                    s_id_2digits = get_sales_id_2digits(selected_sales_name, df_salespeople)
+                    # 1. 取得 3 碼的業務編號供 C 欄位使用 (例如 "006")
+                    s_id_3digits = get_sales_id_3digits(selected_sales_name, df_salespeople)
+                    
+                    # 2. ★ 取得 2 碼的業務編號供訂單編號 (BillNo) 使用 (截取後兩碼，例如 "06") ★
+                    s_id_2digits_for_billno = s_id_3digits[-2:]
+                    
                     date_str_8 = order_date.strftime('%Y%m%d')
-                    prefix = f"{s_id_2digits}{date_str_8}"
+                    
+                    # ★ 訂單編號前綴：2碼業務 + 8碼日期 = 10碼 ★
+                    prefix = f"{s_id_2digits_for_billno}{date_str_8}"
                     
                     cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
                     c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
@@ -333,6 +336,8 @@ if page == "🛒 前台：下單作業":
                     current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
                     
                     existing_ids = current_history["BillNo"].astype(str).tolist()
+                    
+                    # ★ 維持 13 碼邏輯：10碼前綴 + 3碼流水號 = 13碼 ★
                     matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
                     
                     if matching_ids:
@@ -341,22 +346,26 @@ if page == "🛒 前台：下單作業":
                     else: 
                         next_seq = 1
                     
+                    # 產生 13 碼的單號
                     raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
                     final_bill_no = f"'{raw_bill_no}"
+                    
+                    # C 欄位業務編號維持 3 碼
+                    final_person_id = f"'{s_id_3digits}"
                     
                     new_rows = []
                     for item in st.session_state.cart_list:
                         if item["訂購數量"] > 0:
                             new_rows.append({
                                 "BillDate": date_str_8, "BillNo": final_bill_no,
-                                "PersonID": s_id_2digits, "PersonName": selected_sales_name,
+                                "PersonID": final_person_id, "PersonName": selected_sales_name,
                                 "CustID": c_id, "ProdID": item["產品編號"], "ProdName": item["產品名稱"],
                                 "Quantity": item["訂購數量"]
                             })
                         if item["搭贈數量"] > 0:
                             new_rows.append({
                                 "BillDate": date_str_8, "BillNo": final_bill_no,
-                                "PersonID": s_id_2digits, "PersonName": selected_sales_name,
+                                "PersonID": final_person_id, "PersonName": selected_sales_name,
                                 "CustID": c_id, "ProdID": item["產品編號"], "ProdName": f"{item['產品名稱']} (搭贈)", 
                                 "Quantity": item["搭贈數量"]
                             })
