@@ -18,6 +18,11 @@ st.markdown("""
         text-align: center !important;
         font-weight: bold;
     }
+    /* 讓 placeholder 顏色淡一點，看起來更像浮水印 */
+    div[data-testid="stNumberInput"] input::placeholder {
+        color: #cccccc;
+        font-weight: normal;
+    }
     div.stButton > button {
         height: 55px !important;
         font-size: 18px !important;
@@ -237,10 +242,17 @@ if page == "🛒 前台：下單作業":
                 st.markdown(f"**{p_name}** <span style='color:gray; font-size:0.8em'>({p_cat}{barcode_text})</span>", unsafe_allow_html=True)
                 
                 c_q, c_g = st.columns(2)
+                # ★★★ 關鍵修改 1：設定 value=None 讓格子預設全空，並加上 placeholder ★★★
                 with c_q:
-                    st.number_input("訂購", min_value=0, step=1, key=f"q_{p_name}", label_visibility="collapsed")
+                    st.number_input(
+                        "訂購", min_value=0, step=1, value=None, placeholder="0", 
+                        key=f"q_{p_name}", label_visibility="collapsed"
+                    )
                 with c_g:
-                    st.number_input("搭贈", min_value=0, step=1, key=f"g_{p_name}", label_visibility="collapsed")
+                    st.number_input(
+                        "搭贈", min_value=0, step=1, value=None, placeholder="0", 
+                        key=f"g_{p_name}", label_visibility="collapsed"
+                    )
                 st.divider()
 
             submitted = st.form_submit_button("⬇️ 全部加入購物車", type="primary", use_container_width=True)
@@ -253,11 +265,13 @@ if page == "🛒 前台：下單作業":
                     keys_to_clear = [] 
                     
                     for p_name in selected_products_batch:
-                        q_key = f"q_{p_name}"
-                        g_key = f"g_{p_name}"
+                        # 從 session 取出值 (可能會是 None)
+                        q_raw = st.session_state.get(f"q_{p_name}")
+                        g_raw = st.session_state.get(f"g_{p_name}")
                         
-                        q_val = st.session_state.get(q_key, 0)
-                        g_val = st.session_state.get(g_key, 0)
+                        # ★★★ 關鍵修改 2：如果沒有填 (None)，自動轉成整數 0 ★★★
+                        q_val = int(q_raw) if q_raw is not None else 0
+                        g_val = int(g_raw) if g_raw is not None else 0
                         
                         if q_val > 0 or g_val > 0:
                             p_info = prod_dict.get(p_name, {})
@@ -274,7 +288,7 @@ if page == "🛒 前台：下單作業":
                             })
                             items_added_count += 1
                         
-                        keys_to_clear.extend([q_key, g_key])
+                        keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
                     
                     if items_added_count > 0:
                         for k in keys_to_clear:
@@ -286,7 +300,7 @@ if page == "🛒 前台：下單作業":
                         time.sleep(0.5)
                         st.rerun()
                     else:
-                        st.warning("⚠️ 所有商品的數量都是 0，未加入任何項目")
+                        st.warning("⚠️ 所有商品的數量皆未輸入，未加入任何項目")
 
     st.divider()
     st.subheader(f"📋 準備送出 ({len(st.session_state.cart_list)})")
@@ -317,15 +331,9 @@ if page == "🛒 前台：下單作業":
             if st.button("✅ 確認結帳，送出訂單", type="primary", use_container_width=True):
                 with st.spinner("⏳ 正在寫入雲端..."):
                     
-                    # 1. 取得 3 碼的業務編號供 C 欄位使用 (例如 "006")
                     s_id_3digits = get_sales_id_3digits(selected_sales_name, df_salespeople)
-                    
-                    # 2. ★ 取得 2 碼的業務編號供訂單編號 (BillNo) 使用 (截取後兩碼，例如 "06") ★
                     s_id_2digits_for_billno = s_id_3digits[-2:]
-                    
                     date_str_8 = order_date.strftime('%Y%m%d')
-                    
-                    # ★ 訂單編號前綴：2碼業務 + 8碼日期 = 10碼 ★
                     prefix = f"{s_id_2digits_for_billno}{date_str_8}"
                     
                     cust_row = df_customers[df_customers["客戶名稱"] == selected_cust_name]
@@ -336,8 +344,6 @@ if page == "🛒 前台：下單作業":
                     current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
                     
                     existing_ids = current_history["BillNo"].astype(str).tolist()
-                    
-                    # ★ 維持 13 碼邏輯：10碼前綴 + 3碼流水號 = 13碼 ★
                     matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
                     
                     if matching_ids:
@@ -346,11 +352,8 @@ if page == "🛒 前台：下單作業":
                     else: 
                         next_seq = 1
                     
-                    # 產生 13 碼的單號
                     raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
                     final_bill_no = f"'{raw_bill_no}"
-                    
-                    # C 欄位業務編號維持 3 碼
                     final_person_id = f"'{s_id_3digits}"
                     
                     new_rows = []
