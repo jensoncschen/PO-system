@@ -7,7 +7,7 @@ import traceback
 import io 
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (企業架構版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (完美拋光版)", layout="wide", page_icon="🛍️")
 
 # --- CSS 優化 ---
 st.markdown("""
@@ -44,10 +44,9 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 🛠️ 核心輔助函式 (Helpers)
+# 🛠️ 核心輔助函式
 # ==========================================
 def get_sales_id_3digits(sales_name, df_sales):
-    """取得 3 碼的業務編號"""
     if not sales_name: return "000"
     sales_row = df_sales[df_sales["業務名稱"] == sales_name]
     if sales_row.empty: return "000"
@@ -58,16 +57,13 @@ def get_sales_id_3digits(sales_name, df_sales):
         return str(raw_val).strip().zfill(3)[-3:]
 
 def clean_barcode(val):
-    """清洗國際條碼格式"""
     s = str(val).strip() 
     if s.endswith('.0'): s = s[:-2]
     if s.lower() in ['nan', 'none', '']: return ''
     return s
 
-# 【優化 2】Excel 匯出快取：避免無意義的重複消耗 CPU 與記憶體
 @st.cache_data(show_spinner=False)
 def generate_excel_file(df):
-    """將 DataFrame 轉換為 Excel 檔案並回傳二進位資料"""
     excel_buffer = io.BytesIO()
     try:
         with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
@@ -77,9 +73,7 @@ def generate_excel_file(df):
             df.to_excel(writer, index=False, sheet_name='訂單紀錄')
     return excel_buffer.getvalue()
 
-# 【優化 4】關注點分離：將「肥大」的送出訂單邏輯抽離，保持 UI 乾淨
 def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sales, df_cust):
-    """處理訂單邏輯並寫入 Google Sheets，回傳生成的單號"""
     s_id_3digits = get_sales_id_3digits(sales_name, df_sales)
     s_id_2digits_for_billno = s_id_3digits[-2:]
     date_str_8 = order_date.strftime('%Y%m%d')
@@ -88,12 +82,10 @@ def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sale
     cust_row = df_cust[df_cust["客戶名稱"] == cust_name]
     c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
     
-    # 讀取現有紀錄
     current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
     if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
     current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
     
-    # 計算流水號
     existing_ids = current_history["BillNo"].astype(str).tolist()
     matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
     if matching_ids:
@@ -123,7 +115,6 @@ def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sale
                 "Quantity": item["搭贈數量"]
             })
 
-    # 寫入更新
     updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
     conn.update(worksheet="訂單紀錄", data=updated_history)
     return raw_bill_no
@@ -173,6 +164,9 @@ df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
 
 if df_customers is None:
     st.stop()
+
+# ★ 優化 3：建立全域產品查表字典 (O(1) 效能提昇，拔除迴圈內的多餘建立) ★
+global_prod_dict = df_products.drop_duplicates(subset=["產品名稱"]).set_index("產品名稱").to_dict('index')
 
 # --- Session State ---
 if 'cart_list' not in st.session_state: st.session_state.cart_list = []
@@ -250,17 +244,13 @@ if page == "🛒 前台：下單作業":
         cat_options = ["全部"] + df_step1["品類"].unique().tolist()
         selected_cat_filter = st.selectbox("2️⃣ 品類篩選", cat_options, key=f"cat{input_suffix}")
 
-    # 【優化 3】智慧條碼搜尋邏輯
     if barcode_input:
         clean_input = barcode_input.strip()
-        
-        # 判斷是否為「長度大於等於 4 的純數字」，是的話才精準比對條碼，避免輸入 "1" 卡死系統
         if clean_input.isdigit() and len(clean_input) >= 4:
             mask_barcode = df_products["國際條碼"].astype(str) == clean_input
         else:
             mask_barcode = pd.Series(False, index=df_products.index)
             
-        # 品名維持模糊搜尋
         mask_name = df_products["產品名稱"].astype(str).str.contains(clean_input, case=False, na=False)
         df_step2 = df_products[mask_barcode | mask_name]
         
@@ -282,8 +272,6 @@ if page == "🛒 前台：下單作業":
         display_to_name[display_str] = p_name
 
     display_options = list(display_to_name.keys())
-
-    # 只有當搜尋結果為 1 筆時，才自動打勾
     default_selections = display_options if barcode_input and len(display_options) == 1 else []
 
     selected_displays = st.multiselect(
@@ -297,15 +285,13 @@ if page == "🛒 前台：下單作業":
 
     selected_products_batch = [display_to_name[disp] for disp in selected_displays]
 
-    # --- 批次輸入表單 ---
     if selected_products_batch:
         st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
         
         with st.form(key=f"batch_form{input_suffix}"):
-            prod_dict = df_products.drop_duplicates(subset=["產品名稱"]).set_index("產品名稱").to_dict('index')
-            
             for p_name in selected_products_batch:
-                p_info = prod_dict.get(p_name, {})
+                # ★ 優化 3：直接從全域字典拿資料，不再重複建立 ★
+                p_info = global_prod_dict.get(p_name, {})
                 p_cat = p_info.get('品類', '一般')
                 p_barcode = p_info.get('國際條碼', '')
                 barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
@@ -340,7 +326,7 @@ if page == "🛒 前台：下單作業":
                         g_val = int(g_raw) if g_raw is not None else 0
                         
                         if q_val > 0 or g_val > 0:
-                            p_info = prod_dict.get(p_name, {})
+                            p_info = global_prod_dict.get(p_name, {})
                             st.session_state.cart_list.insert(0, {
                                 "業務名稱": selected_sales_name,
                                 "客戶名稱": selected_cust_name,
@@ -386,37 +372,38 @@ if page == "🛒 前台：下單作業":
             key="final_cart_editor"
         )
         
+        # ★ 優化 1：拔除 st.rerun()，解決手機點擊表格會失焦卡頓的 Bug ★
         if not edited_cart.equals(cart_df):
             st.session_state.cart_list = edited_cart.to_dict('records')
-            st.rerun()
 
         st.markdown("")
         col_submit_space, col_submit_btn = st.columns([1, 2])
         with col_submit_btn:
-            # 【優化 4】重構結帳區塊，程式碼非常乾淨
             if st.button("✅ 確認結帳，送出訂單", type="primary", use_container_width=True):
-                with st.spinner("⏳ 正在寫入雲端..."):
-                    # 呼叫頂部的封裝函式處理所有複雜邏輯
-                    generated_bill_no = submit_new_order(
-                        st.session_state.cart_list, 
-                        selected_sales_name, 
-                        selected_cust_name, 
-                        order_date, 
-                        conn, 
-                        df_salespeople, 
-                        df_customers
-                    )
-                    
-                    # 狀態重置與清理
-                    st.session_state.cart_list = []
-                    st.session_state.input_reset_trigger += 1 
-                    st.session_state.form_reset_trigger += 1  
-                    st.cache_data.clear()
-                    
-                    st.balloons()
-                    st.success(f"🎉 訂單 {generated_bill_no} 建立成功！")
-                    time.sleep(2)
-                    st.rerun()
+                # ★ 優化 2：二次防呆攔截，防止業務員送出前把選單清空 ★
+                if not selected_sales_name or not selected_cust_name:
+                    st.error("⚠️ 請確認最上方已正確選擇「業務」與「客戶」！")
+                else:
+                    with st.spinner("⏳ 正在寫入雲端..."):
+                        generated_bill_no = submit_new_order(
+                            st.session_state.cart_list, 
+                            selected_sales_name, 
+                            selected_cust_name, 
+                            order_date, 
+                            conn, 
+                            df_salespeople, 
+                            df_customers
+                        )
+                        
+                        st.session_state.cart_list = []
+                        st.session_state.input_reset_trigger += 1 
+                        st.session_state.form_reset_trigger += 1  
+                        st.cache_data.clear()
+                        
+                        st.balloons()
+                        st.success(f"🎉 訂單 {generated_bill_no} 建立成功！")
+                        time.sleep(2)
+                        st.rerun()
     else:
         st.info("👇 請在上方篩選並加入商品")
 
@@ -439,7 +426,6 @@ elif page == "📥 訂單匯出":
         st.caption("將目前的訂單紀錄完整下載為 Excel 檔案。")
         
         if not df_order_history.empty:
-            # 【優化 2】呼叫快取的 Excel 生成函式，不浪費伺服器資源
             excel_data = generate_excel_file(df_order_history)
             download_name = f"訂單紀錄_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
             
