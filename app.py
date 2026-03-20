@@ -7,18 +7,19 @@ import traceback
 import io 
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (條碼快搜版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統 (精緻排版版)", layout="wide", page_icon="🛍️")
 
-# --- CSS 優化 ---
+# --- CSS 優化 (★ 更新：縮小輸入框，優化排版) ---
 st.markdown("""
     <style>
+    /* 將輸入框高度與字體稍微縮小，看起來更精緻 */
     div[data-testid="stNumberInput"] input {
-        font-size: 20px !important;
-        height: 50px !important;
+        font-size: 16px !important;
+        height: 40px !important;
         text-align: center !important;
         font-weight: bold;
     }
-    /* 讓 placeholder 顏色淡一點，看起來更像浮水印 */
+    /* Placeholder 顏色調淡 */
     div[data-testid="stNumberInput"] input::placeholder {
         color: #cccccc;
         font-weight: normal;
@@ -34,6 +35,16 @@ st.markdown("""
         border-color: #28a745;
     }
     hr { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+    
+    /* 左側標籤的垂直置中對齊魔法 */
+    .input-label {
+        display: flex; 
+        align-items: center; 
+        justify-content: flex-end; 
+        height: 40px; 
+        font-weight: bold;
+        color: #555;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -241,18 +252,20 @@ if page == "🛒 前台：下單作業":
                 
                 st.markdown(f"**{p_name}** <span style='color:gray; font-size:0.8em'>({p_cat}{barcode_text})</span>", unsafe_allow_html=True)
                 
-                c_q, c_g = st.columns(2)
-                # ★★★ 關鍵修改 1：設定 value=None 讓格子預設全空，並加上 placeholder ★★★
-                with c_q:
-                    st.number_input(
-                        "訂購", min_value=0, step=1, value=None, placeholder="0", 
-                        key=f"q_{p_name}", label_visibility="collapsed"
-                    )
-                with c_g:
-                    st.number_input(
-                        "搭贈", min_value=0, step=1, value=None, placeholder="0", 
-                        key=f"g_{p_name}", label_visibility="collapsed"
-                    )
+                # ★★★ 視覺微調：改用 4 個 Column 來排版標籤與輸入框 ★★★
+                # [ 標籤1(窄) | 輸入1(寬) | 標籤2(窄) | 輸入2(寬) ]
+                c_label_q, c_input_q, c_label_g, c_input_g = st.columns([1.2, 2.5, 1.2, 2.5], gap="small")
+                
+                with c_label_q:
+                    st.markdown("<div class='input-label'>訂購數</div>", unsafe_allow_html=True)
+                with c_input_q:
+                    st.number_input("訂購", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}", label_visibility="collapsed")
+                
+                with c_label_g:
+                    st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
+                with c_input_g:
+                    st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
+                    
                 st.divider()
 
             submitted = st.form_submit_button("⬇️ 全部加入購物車", type="primary", use_container_width=True)
@@ -265,11 +278,9 @@ if page == "🛒 前台：下單作業":
                     keys_to_clear = [] 
                     
                     for p_name in selected_products_batch:
-                        # 從 session 取出值 (可能會是 None)
                         q_raw = st.session_state.get(f"q_{p_name}")
                         g_raw = st.session_state.get(f"g_{p_name}")
                         
-                        # ★★★ 關鍵修改 2：如果沒有填 (None)，自動轉成整數 0 ★★★
                         q_val = int(q_raw) if q_raw is not None else 0
                         g_val = int(g_raw) if g_raw is not None else 0
                         
