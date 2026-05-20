@@ -9,87 +9,103 @@ import io
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
 
-# --- CSS 優化（第二步：商務藍與 iOS 計算機米色風格升級 - 手機字體與遮擋防護版） ---
+# --- CSS 優化（改版：Google 經典極簡搜尋風格，網頁/手機雙端完美適配版） ---
 st.markdown("""
     <style>
-    /* 全局背景微調與商務藍功能分區 */
-    .stApp { background-color: #f8fafc; }
-    
-    /* 修正手機版標題隱形：確保非表單區域的標題維持清晰的深灰色 */
-    .stApp label p, .stApp .stMarkdown p, .stApp h1, .stApp h2, .stApp h3 {
-        color: #1e293b !important;
+    /* 全局背景校正：Google 經典純白與輕盈灰 */
+    .stApp { 
+        background-color: #ffffff !important; 
+        font-family: Roboto, Helvetica, Arial, sans-serif !important;
     }
     
-    /* 數量輸入框：極簡 iOS 計算機風格 */
+    /* 確保所有層級的文字顏色回歸 Google 深碳灰，手機版絕不隱形 */
+    .stApp label p, .stApp .stMarkdown p, .stApp h1, .stApp h2, .stApp h3, .stApp span {
+        color: #202124 !important;
+    }
+    
+    /* 數量輸入框：Google 乾淨清清爽風格 */
     div[data-testid="stNumberInput"] {
-        background-color: #f4f4f0 !important; /* iOS 計算機溫潤米色 */
-        border-radius: 14px !important;
-        border: none !important;
-        padding: 4px !important;
-        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        background-color: #ffffff !important; 
+        border-radius: 8px !important;
+        border: 1px solid #dadce0 !important; /* Google 標準輕灰色邊框 */
+        padding: 2px !important;
+        transition: all 0.2s ease;
+    }
+    /* 當輸入框被點擊/聚焦時，模擬 Google 搜尋框的微陰影發光效果 */
+    div[data-testid="stNumberInput"]:focus-within {
+        border-color: #1a73e8 !important; /* Google 招牌藍 */
+        box-shadow: 0 1px 6px rgba(32,33,36,0.28) !important;
     }
     div[data-testid="stNumberInput"] input {
-        font-size: 18px !important; /* 手機端字體微調，避免寬度撐爆 */
-        height: 42px !important;
+        font-size: 16px !important; 
+        height: 40px !important;
         background-color: transparent !important;
         border: none !important;
         text-align: center !important;
-        font-weight: 700 !important;
-        color: #1e293b !important;
+        font-weight: 500 !important;
+        color: #202124 !important;
     }
     div[data-testid="stNumberInput"] button {
         background-color: transparent !important;
         border: none !important;
-        color: #2563eb !important;
+        color: #1a73e8 !important; /* 控制按鈕改為 Google 藍 */
     }
 
-    /* 功能分區背景卡片（深邃商務藍） */
+    /* 將原本深色的 stForm 容器改裝為 Google 經典的「搜尋結果輕卡片」 */
     div[data-testid="stForm"] {
-        background-color: #1e293b !important; 
-        border-radius: 16px !important;
-        border: none !important;
-        padding: 1.5rem !important; /* 縮小手機端表單內襯，留給內容更多空間 */
+        background-color: #f8fafc !important; /* 輕盈淡底色 */
+        border-radius: 12px !important;
+        border: 1px solid #ebebeb !important; /* 極細微邊框 */
+        box-shadow: 0 1px 6px rgba(32,33,36,0.05) !important; /* Google 標誌性卡片微陰影 */
+        padding: 1.5rem !important; 
     }
     
-    /* 精準鎖定：只有在深色表單表單內的標題字，才顯示為清晰的亮白/淡藍灰色 */
+    /* 修正表單內部文字：一律維持 Google 深灰與產品名稱商務藍 */
     div[data-testid="stForm"] .input-label, 
     div[data-testid="stForm"] label p,
     div[data-testid="stForm"] span {
-        color: #e2e8f0 !important; 
-        font-weight: bold !important;
+        color: #3c4043 !important; 
+        font-weight: 500 !important;
     }
     div[data-testid="stForm"] strong {
-        color: #ffffff !important; 
-        font-size: 1.1em;
+        color: #1a0dab !important; /* 核心：換成 Google 搜尋結果最經典的超連結藍色！ */
+        font-size: 1.15em;
+        text-decoration: none;
+    }
+    div[data-testid="stForm"] strong:hover {
+        text-decoration: underline; /* 模擬 Google 搜尋結果滑過時的下底線 */
     }
 
-    /* 功能按鈕：藍色無邊框白字 */
+    /* 功能按鈕：Google 扁平化極簡藍色按鈕 */
     div.stButton > button {
-        height: 48px !important;
-        font-size: 15px !important;
-        font-weight: bold !important;
-        border-radius: 12px !important;
-        border: none !important;
-        transition: all 0.2s ease;
+        height: 44px !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important; /* Google 現代扁平化圓角 */
+        border: 1px solid transparent !important;
+        transition: background-color 0.2s, box-shadow 0.2s;
     }
     div.stButton > button, div.stButton > button[kind="primary"] {
-        background-color: #2563eb !important; 
+        background-color: #1a73e8 !important; /* Google 核心商務藍 */
         color: #ffffff !important;
+        box-shadow: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15) !important;
     }
     div.stButton > button:hover {
-        background-color: #1d4ed8 !important;
+        background-color: #1557b0 !important; /* 懸停時深藍 */
+        box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15) !important;
     }
 
-    /* 手機端底部固定懸浮購物車條（開啟 GPU 頂級硬體加速） */
+    /* 手機端底部固定懸浮購物車條：升級為 Google 潔淨風 */
     .sticky-cart-bar {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        height: 65px; /* 固限高，便於網頁底部精準留空 */
-        background-color: #0f172a !important; 
+        height: 60px; 
+        background-color: #ffffff !important; /* 改為純白底 */
         padding: 0px 20px;
-        box-shadow: 0 -8px 20px rgba(0,0,0,0.2);
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.08); /* 輕量向上陰影 */
+        border-top: 1px solid #dadce0;
         z-index: 999992;
         display: flex;
         justify-content: center;
@@ -98,24 +114,29 @@ st.markdown("""
         transform: translateZ(0); 
     }
     
-    /* 調整主線排版間距 */
-    hr { margin-top: 0.6rem; margin-bottom: 0.6rem; border-color: #e2e8f0; }
-    .input-label {
-        display: flex; align-items: center; justify-content: flex-end; 
-        height: 42px; font-weight: bold; color: #475569;
+    /* 頂部下拉選單容器（業務/客戶）轉為 Google 搜尋框質感 */
+    div[data-testid="stContainer"] {
+        background-color: #ffffff !important;
     }
     
-    /* 核心安全防禦：大幅擴展網頁底部的空白緩衝墊，防止任何字體與按鈕被底部懸浮條擋住 */
+    /* 調整間距與分隔線 */
+    hr { margin-top: 0.6rem; margin-bottom: 0.6rem; border-color: #dadce0; }
+    .input-label {
+        display: flex; align-items: center; justify-content: flex-end; 
+        height: 40px; font-weight: 500; color: #475569;
+    }
+    
+    /* 網頁底部安全防禦留白，避免被懸浮條擋住 */
     .main .block-container { 
-        padding-bottom: 160px !important; 
+        padding-bottom: 150px !important; 
     }
     
     /* 針對手機極窄螢幕（RWD）的防禦性微調 */
     @media (max-width: 768px) {
-        .main .block-container { padding-top: 2rem !important; padding-bottom: 180px !important; }
-        .sticky-cart-bar span { font-size: 15px !important; } /* 縮小懸浮條字體防止手機換行錯位 */
+        .main .block-container { padding-top: 1.5rem !important; padding-bottom: 160px !important; }
+        .sticky-cart-bar span { color: #202124 !important; font-size: 14px !important; } 
         .input-label { justify-content: flex-start !important; height: auto !important; margin-bottom: 2px; }
-        div[data-testid="stForm"] strong { font-size: 1.0em !important; }
+        div[data-testid="stForm"] strong { font-size: 1.05em !important; }
     }
     </style>
     """, unsafe_allow_html=True)
