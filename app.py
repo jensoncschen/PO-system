@@ -9,113 +9,103 @@ import io
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
 
-# --- CSS 優化（深度解鎖版：強制洗白手機端多選標籤與 Select 黑色輸入框） ---
+# --- CSS 優化（全球頂級防禦版：深層阻斷手機端原生黑色遮罩，完美還原 Google 極簡風格） ---
 st.markdown("""
     <style>
-    /* 1. 全局背景與文字：Google 純白主義 */
+    /* 1. 全局基底校正：Google 純白主義 */
     .stApp { 
         background-color: #ffffff !important; 
         font-family: Roboto, Helvetica, Arial, sans-serif !important;
     }
+    
+    /* 強制所有標準文字回歸 Google 深碳灰 */
     .stApp label p, .stApp .stMarkdown p, .stApp h1, .stApp h2, .stApp h3, .stApp span {
         color: #202124 !important;
     }
 
-    /* 2. 精準洗白：斬斷 Selectbox 與 Multiselect 輸入框的手機版黑色底色 */
-    div[data-baseweb="select"] > div {
-        background-color: #ffffff !important; /* 強制改為純白底 */
-        border: 1px solid #dadce0 !important; /* Google 標準細灰邊框 */
+    /* 2. 重點打擊：深層阻斷所有輸入框（文字、數字、日期、下拉選單）在手機端的黑色填滿框 */
+    div[data-baseweb="input"], 
+    div[data-baseweb="base-input"],
+    div[data-baseweb="select"],
+    div[data-baseweb="select"] > div,
+    div[data-testid="stNumberInput"],
+    div[data-testid="stTextInput"],
+    div[data-testid="stDateInput"] {
+        background-color: #ffffff !important; /* 強制所有巢狀容器底色為白 */
+        border: 1px solid #dadce0 !important; /* 統一改為 Google 細灰邊框 */
         border-radius: 8px !important;
-        color: #202124 !important;
-        transition: all 0.2s;
     }
-    div[data-baseweb="select"]:focus-within > div {
-        border-color: #1a73e8 !important; /* 聚焦時呈現 Google 藍 */
-        box-shadow: 0 1px 6px rgba(32,33,36,0.15) !important;
+    
+    /* 清除所有層級子元件的次級背景顏色填滿 */
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="base-input"] > div,
+    div[data-baseweb="select"] div,
+    div[data-testid="stNumberInput"] div {
+        background-color: transparent !important;
     }
 
-    /* 3. 重塑多選商品標籤（Multiselect Tags）：消滅橘紅色大色塊，改為 Google 淺灰極簡標籤 */
-    div[data-baseweb="select"] div[role="button"] {
-        background-color: #f1f3f4 !important; /* Google 經典淡灰標籤底 */
-        color: #3c4043 !important; /* 深灰文字 */
-        border-radius: 16px !important; /* 圓角化膠囊風格 */
-        border: 1px solid #dadce0 !important;
-        padding: 2px 10px !important;
+    /* 3. 解決字體被遮擋：強制網頁與手機端瀏覽器（含 iOS Safari）輸入字體為清晰深灰色 */
+    input, select, textarea {
+        color: #202124 !important;
+        background-color: transparent !important;
+        font-size: 16px !important;
+        -webkit-text-fill-color: #202124 !important; /* 強制修正手機端原生渲染遮擋 */
     }
-    /* 多選標籤內部的「X」刪除按鈕與文字校正 */
+
+    /* 4. 條碼快搜特別優化：維持 Google Search 靈魂大圓角 */
+    div[data-testid="stTextInput"] > div[data-baseweb="base-input"] {
+        border-radius: 24px !important; 
+        padding: 4px 14px !important;
+    }
+    div[data-testid="stTextInput"] > div[data-baseweb="base-input"]:focus-within {
+        box-shadow: 0 1px 6px rgba(32,33,36,0.2) !important; 
+    }
+
+    /* 5. 數量計數器微調：徹底消滅加減按鈕的異常紅色或黑色底色 */
+    div[data-testid="stNumberInput"] button {
+        background-color: transparent !important;
+        color: #1a73e8 !important; 
+        border: none !important;
+    }
+
+    /* 6. 多選商品標籤（Multiselect Tags）洗白 */
+    div[data-baseweb="select"] div[role="button"] {
+        background-color: #f1f3f4 !important; 
+        color: #3c4043 !important; 
+        border-radius: 16px !important; 
+        border: 1px solid #dadce0 !important;
+    }
     div[data-baseweb="select"] div[role="button"] span,
     div[data-baseweb="select"] div[role="button"] svg {
         color: #5f6368 !important;
     }
+    div[data-baseweb="select"] svg {
+        color: #70757a !important; 
+    }
 
-    /* 4. 強制洗白點開下拉選單後的彈出式列表（Popover） */
+    /* 下拉彈出選單（Popover）強制轉 Google 白 */
     div[data-baseweb="popover"], div[data-baseweb="dropdown"], ul[role="listbox"] {
         background-color: #ffffff !important;
-        border-radius: 12px !important;
-        box-shadow: 0 4px 16px rgba(32,33,36,0.15) !important;
-        border: 1px solid #dadce0 !important;
         z-index: 999995 !important;
     }
     div[data-baseweb="popover"] li, ul[role="listbox"] li, div[role="option"] {
         color: #202124 !important;
         background-color: #ffffff !important;
-        font-size: 15px !important;
-        padding: 10px 14px !important;
     }
     div[data-baseweb="popover"] li:hover, ul[role="listbox"] li:hover, div[role="option"]:hover {
         background-color: #f1f3f4 !important;
         color: #1a73e8 !important;
     }
 
-    /* 下拉選單右側的「小箭頭」與「清除所有」按鈕圖示顏色校正（防遮擋） */
-    div[data-baseweb="select"] svg {
-        color: #70757a !important; 
-    }
-
-    /* 5. 靈魂大圓角：條碼快搜文字輸入框改裝為 Google Search 風格 */
-    div[data-testid="stTextInput"] > div[data-baseweb="base-input"] {
-        border-radius: 24px !important; 
-        border: 1px solid #dadce0 !important;
-        background-color: #ffffff !important;
-        padding: 4px 14px !important;
-    }
-    div[data-testid="stTextInput"] > div[data-baseweb="base-input"]:focus-within {
-        border-color: transparent !important;
-        box-shadow: 0 1px 6px rgba(32,33,36,0.2) !important; 
-    }
-    div[data-testid="stTextInput"] input {
-        color: #202124 !important;
-    }
-
-    /* 6. 數量輸入框：Google 內嵌扁平風 */
-    div[data-testid="stNumberInput"] {
-        background-color: #ffffff !important; 
-        border-radius: 8px !important;
-        border: 1px solid #dadce0 !important;
-        padding: 2px !important;
-    }
-    div[data-testid="stNumberInput"]:focus-within {
-        border-color: #1a73e8 !important;
-    }
-    div[data-testid="stNumberInput"] input {
-        font-size: 16px !important; 
-        height: 38px !important;
-        color: #202124 !important;
-    }
-    div[data-testid="stNumberInput"] button {
-        color: #1a73e8 !important; 
-    }
-
-    /* 7. 表單外殼完全透明極簡化 */
+    /* 7. 表單外殼完全極簡化（拔除深色塊） */
     div[data-testid="stForm"] {
         background-color: #ffffff !important; 
-        border-radius: 0px !important;
         border: none !important;
         box-shadow: none !important;
         padding: 0rem !important; 
     }
     div[data-testid="stForm"] strong {
-        color: #1a0dab !important; 
+        color: #1a0dab !important; /* Google 搜尋結果經典超連結藍 */
         font-size: 1.12em;
     }
     div[data-testid="stForm"] strong:hover {
@@ -125,18 +115,24 @@ st.markdown("""
         color: #4c4e52 !important;
     }
 
-    /* 8. 功能按鈕：Google 經典商務藍扁平樣式 */
-    div.stButton > button {
-        height: 40px !important;
+    /* 8. 徹底解決按鈕黑塊：強制將「全部加入購物車」及所有按鈕改為 Google 商務藍底白字 */
+    button, 
+    div.stButton > button, 
+    button[data-testid="stFormSubmitButton"] {
+        height: 42px !important;
+        background-color: #1a73e8 !important; /* Google 核心商務藍 */
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 6px !important; 
         font-size: 14px !important;
         font-weight: 500 !important;
-        border-radius: 4px !important; 
-        border: none !important;
-        background-color: #1a73e8 !important;
-        color: #ffffff !important;
         box-shadow: 0 1px 2px rgba(60,64,67,0.15) !important;
     }
-    div.stButton > button:hover {
+    /* 強制按鈕內文字與圖示不隱形 */
+    button p, button span, button div {
+        color: #ffffff !important;
+    }
+    button:hover, button[data-testid="stFormSubmitButton"]:hover {
         background-color: #1557b0 !important;
     }
 
