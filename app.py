@@ -9,34 +9,95 @@ import io
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
 
-# --- CSS 優化 ---
+# --- CSS 優化（第二步：商務藍與 iOS 計算機米色風格升級） ---
 st.markdown("""
     <style>
+    /* 全局背景微調與商務藍功能分區 */
+    .stApp { background-color: #f8fafc; }
+    
+    /* 數量輸入框：極簡 iOS 計算機風格 */
+    div[data-testid="stNumberInput"] {
+        background-color: #f4f4f0 !important; /* iOS 計算機溫潤米色 */
+        border-radius: 14px !important;
+        border: none !important;
+        padding: 4px !important;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    }
     div[data-testid="stNumberInput"] input {
-        font-size: 16px !important;
-        height: 40px !important;
+        font-size: 20px !important; /* 加大字體更像計算機 */
+        height: 45px !important;
+        background-color: transparent !important;
+        border: none !important;
         text-align: center !important;
-        font-weight: bold;
+        font-weight: 700 !important;
+        color: #1e293b !important;
     }
-    div[data-testid="stNumberInput"] input::placeholder {
-        color: #cccccc;
-        font-weight: normal;
+    div[data-testid="stNumberInput"] button {
+        background-color: transparent !important;
+        border: none !important;
+        color: #2563eb !important; /* 調整加減號顏色 */
     }
+
+    /* 功能分區背景卡片（商務藍色調） */
+    div[data-testid="stForm"] {
+        background-color: #1e293b !important; /* 深邃商務藍 */
+        border-radius: 16px !important;
+        border: none !important;
+        padding: 2rem !important;
+    }
+    div[data-testid="stForm"] .input-label {
+        color: #e2e8f0 !important; /* 商務藍分區內的白字提示 */
+    }
+    div[data-testid="stForm"] strong {
+        color: #ffffff !important; /* 商品名稱反白 */
+        font-size: 1.1em;
+    }
+
+    /* 功能按鈕：藍色無邊框白字（強烈對比） */
     div.stButton > button {
-        height: 55px !important;
-        font-size: 18px !important;
+        height: 50px !important;
+        font-size: 16px !important;
         font-weight: bold !important;
-        border-radius: 12px;
+        border-radius: 12px !important;
+        border: none !important;
+        transition: all 0.2s ease;
     }
-    div.stButton > button[kind="primary"] {
-        background-color: #28a745;
-        border-color: #28a745;
+    /* Primary 按鈕與一般功能按鈕的藍色極簡調配 */
+    div.stButton > button, div.stButton > button[kind="primary"] {
+        background-color: #2563eb !important; /* 明亮商務藍 */
+        color: #ffffff !important;
     }
-    hr { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+    div.stButton > button:hover {
+        background-color: #1d4ed8 !important;
+        transform: translateY(-1px);
+    }
+
+    /* 手機端底部固定懸浮購物車條（開啟 GPU 頂級硬體加速，順暢省電） */
+    .sticky-cart-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #0f172a !important; /* 更深的內斂商務藍 */
+        padding: 15px 30px;
+        box-shadow: 0 -10px 25px rgba(0,0,0,0.15);
+        z-index: 999992;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        will-change: transform;
+        transform: translateZ(0); /* 核心：強制手機調用顯卡渲染 */
+    }
+    
+    /* 調整主線排版間距 */
+    hr { margin-top: 0.8rem; margin-bottom: 0.8rem; border-color: #e2e8f0; }
     .input-label {
         display: flex; align-items: center; justify-content: flex-end; 
-        height: 40px; font-weight: bold; color: #555;
+        height: 45px; font-weight: bold; color: #475569;
     }
+    
+    /* 為了不被底部懸浮條遮擋，幫頁面尾部留出呼吸空間 */
+    .main .block-container { padding-bottom: 120px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -200,7 +261,7 @@ if page == "🛒 前台：下單作業":
 
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
-    # 頂部狀態小卡片
+    # 頂部狀態小卡片（極簡緊湊化）
     with st.container(border=True):
         c1, c2, c3 = st.columns([1.5, 2, 1.5])
         with c1:
@@ -218,7 +279,7 @@ if page == "🛒 前台：下單作業":
         with c3:
             order_date = st.date_input("📅 日期", datetime.now())
 
-    # 【第一步優化：抽取結帳共同核心，供雙向按鈕呼叫】
+    # 【核心升級：宣告統一結帳動作，供雙向按鈕同時呼叫】
     def trigger_order_submission():
         if not selected_sales_name or not selected_cust_name:
             st.error("⚠️ 請確認最上方已正確選擇「業務」與「客戶」！")
@@ -242,23 +303,26 @@ if page == "🛒 前台：下單作業":
                 time.sleep(2)
                 st.rerun()
 
-    # 【第一步優化：購物車動態橫條 + 雙向結帳按鈕 (第一向：頂部結帳)】
+    # 【功能與風格升級：第一向結帳 ── 手機端底部固定懸浮購物車橫條】
     cart_count = len(st.session_state.cart_list)
     if cart_count > 0:
-        with st.container(border=True):
-            cb1, cb2 = st.columns([3, 1])
-            with cb1:
-                st.markdown(f"### 🛒 當前購物車已加入 **{cart_count}** 項商品")
-            with cb2:
-                # 頂部快速錨點/快速結帳防呆按鈕
-                if st.button("🚀 快速跳至結帳區", use_container_width=True):
-                    st.toast("👇 已為您就位，請直接下滑至下方結帳區！")
+        # 利用 HTML 創造無視滾動的固定懸浮條
+        st.markdown(f"""
+            <div class="sticky-cart-bar">
+                <span style="color: white; font-size: 18px; font-weight: bold;">
+                    🛒 購物車：已動態累計 {cart_count} 項商品
+                </span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # 將真正的頂部快速結帳按鈕置於顯眼處（雙向結帳第一向）
+        if st.button("⚡ 頂部快速結帳 (免下滑)", type="primary", use_container_width=True, key="top_checkout_btn"):
+            trigger_order_submission()
 
-    st.divider()
-    st.subheader("➕ 新增商品")
+    st.markdown("### ➕ 新增商品")
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
-    st.markdown("#### 📷 步驟一：條碼快搜 (支援條碼槍或輸入部分數字)")
+    st.markdown("#### 📷 步驟一：條碼快搜")
     barcode_input = st.text_input(
         "輸入條碼或商品名稱關鍵字後按 Enter", 
         placeholder="例如輸入 12345 尋找條碼，或輸入 iPhone...",
@@ -324,6 +388,7 @@ if page == "🛒 前台：下單作業":
     if selected_products_batch:
         st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
         
+        # 進入深色商務藍分區表單
         with st.form(key=f"batch_form{input_suffix}"):
             for p_name in selected_products_batch:
                 p_info = global_prod_dict.get(p_name, {})
@@ -331,20 +396,22 @@ if page == "🛒 前台：下單作業":
                 p_barcode = p_info.get('國際條碼', '')
                 barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
                 
-                st.markdown(f"**{p_name}** <span style='color:gray; font-size:0.8em'>({p_cat}{barcode_text})</span>", unsafe_allow_html=True)
+                st.markdown(f"**{p_name}** <span style='color:#94a3b8; font-size:0.8em'>({p_cat}{barcode_text})</span>", unsafe_allow_html=True)
                 
                 c_label_q, c_input_q, c_label_g, c_input_g = st.columns([1.2, 2.5, 1.2, 2.5], gap="small")
                 with c_label_q:
                     st.markdown("<div class='input-label'>訂購數</div>", unsafe_allow_html=True)
                 with c_input_q:
+                    # 套用 iOS 風格米色輸入框樣式
                     st.number_input("訂購", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}", label_visibility="collapsed")
                 with c_label_g:
                     st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
                 with c_input_g:
                     st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
-                st.divider()
+                st.markdown("<hr style='border-color: #334155;'>", unsafe_allow_html=True)
 
-            submitted = st.form_submit_button("⬇️ 全部加入購物車", type="primary", use_container_width=True)
+            # 藍色無邊框白字按鈕
+            submitted = st.form_submit_button("⬇️ 全部加入購物車", use_container_width=True)
             
             if submitted:
                 if not selected_sales_name or not selected_cust_name:
@@ -413,8 +480,8 @@ if page == "🛒 前台：下單作業":
         st.markdown("")
         col_submit_space, col_submit_btn = st.columns([1, 2])
         with col_submit_btn:
-            # 【第一步優化：雙向結帳按鈕 (第二向：底部結帳)】
-            if st.button("✅ 確認結帳，送出訂單", type="primary", use_container_width=True, key="bottom_checkout_btn"):
+            # 【雙向結帳第二向 ── 底部傳統核對結帳】
+            if st.button("✅ 確認結帳，送出訂單", use_container_width=True, key="bottom_checkout_btn"):
                 trigger_order_submission()
     else:
         st.info("👇 請在上方篩選並加入商品")
