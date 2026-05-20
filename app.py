@@ -248,10 +248,11 @@ if page == "🛒 前台：下單作業":
         with st.container(border=True):
             cb1, cb2 = st.columns([3, 1])
             with cb1:
-                st.markdown(f"### 🛒 購物車：動態累計已加入 **{cart_count}** 項商品")
+                st.markdown(f"### 🛒 當前購物車已加入 **{cart_count}** 項商品")
             with cb2:
-                if st.button("⚡ 頂部快速結帳", type="primary", use_container_width=True, key="top_checkout_btn"):
-                    trigger_order_submission()
+                # 頂部快速錨點/快速結帳防呆按鈕
+                if st.button("🚀 快速跳至結帳區", use_container_width=True):
+                    st.toast("👇 已為您就位，請直接下滑至下方結帳區！")
 
     st.divider()
     st.subheader("➕ 新增商品")
