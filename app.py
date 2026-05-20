@@ -9,11 +9,16 @@ import io
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
 
-# --- CSS 優化（第二步：商務藍與 iOS 計算機米色風格升級） ---
+# --- CSS 優化（第二步：商務藍與 iOS 計算機米色風格升級 - 手機字體與遮擋防護版） ---
 st.markdown("""
     <style>
     /* 全局背景微調與商務藍功能分區 */
     .stApp { background-color: #f8fafc; }
+    
+    /* 修正手機版標題隱形：確保非表單區域的標題維持清晰的深灰色 */
+    .stApp label p, .stApp .stMarkdown p, .stApp h1, .stApp h2, .stApp h3 {
+        color: #1e293b !important;
+    }
     
     /* 數量輸入框：極簡 iOS 計算機風格 */
     div[data-testid="stNumberInput"] {
@@ -24,8 +29,8 @@ st.markdown("""
         box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
     }
     div[data-testid="stNumberInput"] input {
-        font-size: 20px !important; /* 加大字體更像計算機 */
-        height: 45px !important;
+        font-size: 18px !important; /* 手機端字體微調，避免寬度撐爆 */
+        height: 42px !important;
         background-color: transparent !important;
         border: none !important;
         text-align: center !important;
@@ -35,69 +40,83 @@ st.markdown("""
     div[data-testid="stNumberInput"] button {
         background-color: transparent !important;
         border: none !important;
-        color: #2563eb !important; /* 調整加減號顏色 */
+        color: #2563eb !important;
     }
 
-    /* 功能分區背景卡片（商務藍色調） */
+    /* 功能分區背景卡片（深邃商務藍） */
     div[data-testid="stForm"] {
-        background-color: #1e293b !important; /* 深邃商務藍 */
+        background-color: #1e293b !important; 
         border-radius: 16px !important;
         border: none !important;
-        padding: 2rem !important;
+        padding: 1.5rem !important; /* 縮小手機端表單內襯，留給內容更多空間 */
     }
-    div[data-testid="stForm"] .input-label {
-        color: #e2e8f0 !important; /* 商務藍分區內的白字提示 */
+    
+    /* 精準鎖定：只有在深色表單表單內的標題字，才顯示為清晰的亮白/淡藍灰色 */
+    div[data-testid="stForm"] .input-label, 
+    div[data-testid="stForm"] label p,
+    div[data-testid="stForm"] span {
+        color: #e2e8f0 !important; 
+        font-weight: bold !important;
     }
     div[data-testid="stForm"] strong {
-        color: #ffffff !important; /* 商品名稱反白 */
+        color: #ffffff !important; 
         font-size: 1.1em;
     }
 
-    /* 功能按鈕：藍色無邊框白字（強烈對比） */
+    /* 功能按鈕：藍色無邊框白字 */
     div.stButton > button {
-        height: 50px !important;
-        font-size: 16px !important;
+        height: 48px !important;
+        font-size: 15px !important;
         font-weight: bold !important;
         border-radius: 12px !important;
         border: none !important;
         transition: all 0.2s ease;
     }
-    /* Primary 按鈕與一般功能按鈕的藍色極簡調配 */
     div.stButton > button, div.stButton > button[kind="primary"] {
-        background-color: #2563eb !important; /* 明亮商務藍 */
+        background-color: #2563eb !important; 
         color: #ffffff !important;
     }
     div.stButton > button:hover {
         background-color: #1d4ed8 !important;
-        transform: translateY(-1px);
     }
 
-    /* 手機端底部固定懸浮購物車條（開啟 GPU 頂級硬體加速，順暢省電） */
+    /* 手機端底部固定懸浮購物車條（開啟 GPU 頂級硬體加速） */
     .sticky-cart-bar {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        background-color: #0f172a !important; /* 更深的內斂商務藍 */
-        padding: 15px 30px;
-        box-shadow: 0 -10px 25px rgba(0,0,0,0.15);
+        height: 65px; /* 固限高，便於網頁底部精準留空 */
+        background-color: #0f172a !important; 
+        padding: 0px 20px;
+        box-shadow: 0 -8px 20px rgba(0,0,0,0.2);
         z-index: 999992;
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
         will-change: transform;
-        transform: translateZ(0); /* 核心：強制手機調用顯卡渲染 */
+        transform: translateZ(0); 
     }
     
     /* 調整主線排版間距 */
-    hr { margin-top: 0.8rem; margin-bottom: 0.8rem; border-color: #e2e8f0; }
+    hr { margin-top: 0.6rem; margin-bottom: 0.6rem; border-color: #e2e8f0; }
     .input-label {
         display: flex; align-items: center; justify-content: flex-end; 
-        height: 45px; font-weight: bold; color: #475569;
+        height: 42px; font-weight: bold; color: #475569;
     }
     
-    /* 為了不被底部懸浮條遮擋，幫頁面尾部留出呼吸空間 */
-    .main .block-container { padding-bottom: 120px !important; }
+    /* 核心安全防禦：大幅擴展網頁底部的空白緩衝墊，防止任何字體與按鈕被底部懸浮條擋住 */
+    .main .block-container { 
+        padding-bottom: 160px !important; 
+    }
+    
+    /* 針對手機極窄螢幕（RWD）的防禦性微調 */
+    @media (max-width: 768px) {
+        .main .block-container { padding-top: 2rem !important; padding-bottom: 180px !important; }
+        .sticky-cart-bar span { font-size: 15px !important; } /* 縮小懸浮條字體防止手機換行錯位 */
+        .input-label { justify-content: flex-start !important; height: auto !important; margin-bottom: 2px; }
+        div[data-testid="stForm"] strong { font-size: 1.0em !important; }
+    }
     </style>
     """, unsafe_allow_html=True)
 
