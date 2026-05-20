@@ -7,7 +7,7 @@ import traceback
 import io 
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統 (完美拋光版)", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
 
 # --- CSS 優化 ---
 st.markdown("""
@@ -82,7 +82,10 @@ def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sale
     cust_row = df_cust[df_cust["客戶名稱"] == cust_name]
     c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
     
-    current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
+    # 【優化：結帳時才即時讀取最新訂單紀錄計算序號】
+    with st.spinner("⏳ 正在取得最新訂單序號..."):
+        current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
+    
     if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
     current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
     
@@ -126,15 +129,14 @@ def fetch_all_data():
         df_cust = conn.read(worksheet="客戶資料")
         df_prod = conn.read(worksheet="產品資料")
         df_sales = conn.read(worksheet="業務資料") 
-        df_order = conn.read(worksheet="訂單紀錄")
+        # 【優化：移除了全域的 df_order 讀取，前台開檔速度翻倍】
         
-        for df in [df_cust, df_sales, df_prod, df_order]:
-            if df is None: return None, None, None, None
+        for df in [df_cust, df_sales, df_prod]:
+            if df is None: return None, None, None
             
         df_cust.columns = df_cust.columns.str.strip()
         df_prod.columns = df_prod.columns.str.strip()
         df_sales.columns = df_sales.columns.str.strip()
-        df_order.columns = df_order.columns.str.strip()
             
         if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
         if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
@@ -142,30 +144,26 @@ def fetch_all_data():
         if "品類" not in df_prod.columns: df_prod["品類"] = "一般"
         if "國際條碼" not in df_prod.columns: df_prod["國際條碼"] = ""
         
-        if "BillNo" not in df_order.columns: df_order["BillNo"] = ""
-        if "PersonID" not in df_order.columns: df_order["PersonID"] = ""
-        
         df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
         df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
-        df_order["BillNo"] = df_order["BillNo"].astype(str).str.replace("'", "", regex=False)
-        df_order["PersonID"] = df_order["PersonID"].astype(str).str.replace("'", "", regex=False)
         
         df_prod["品類"] = df_prod["品類"].fillna("一般")
         df_prod["國際條碼"] = df_prod["國際條碼"].apply(clean_barcode)
         
-        return df_cust, df_prod, df_sales, df_order
+        return df_cust, df_prod, df_sales
         
     except Exception as e:
         st.error(f"⚠️ 資料庫連線異常，錯誤原因：{e}")
         print(traceback.format_exc())
-        return None, None, None, None
+        return None, None, None
 
-df_customers, df_products, df_salespeople, df_order_history = fetch_all_data()
+# 【優化：接收參數同步減少一個】
+df_customers, df_products, df_salespeople = fetch_all_data()
 
 if df_customers is None:
     st.stop()
 
-# ★ 優化 3：建立全域產品查表字典 (O(1) 效能提昇，拔除迴圈內的多餘建立) ★
+# ★ 建立全域產品查表字典 ★
 global_prod_dict = df_products.drop_duplicates(subset=["產品名稱"]).set_index("產品名稱").to_dict('index')
 
 # --- Session State ---
@@ -218,16 +216,25 @@ if page == "🛒 前台：下單作業":
             )
         order_date = st.date_input("📅 日期", datetime.now())
 
-    st.divider()
+    # 【優化：緊湊化移除 st.divider()】
     st.subheader("➕ 新增商品")
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
     st.markdown("#### 📷 步驟一：條碼快搜 (支援條碼槍或輸入部分數字)")
-    barcode_input = st.text_input(
-        "輸入條碼或商品名稱關鍵字後按 Enter", 
-        placeholder="例如輸入 12345 尋找條碼，或輸入 iPhone...",
-        key=f"barcode_scan{input_suffix}"
-    )
+    
+    # 【優化：新增清除搜尋按鈕配置】
+    col_search_input, col_clear_search = st.columns([5, 1])
+    with col_search_input:
+        barcode_input = st.text_input(
+            "輸入條碼或商品名稱關鍵字後按 Enter", 
+            placeholder="例如輸入 12345 尋找條碼，或輸入 iPhone...",
+            key=f"barcode_scan{input_suffix}",
+            label_visibility="collapsed"
+        )
+    with col_clear_search:
+        if st.button("❌ 清除搜尋", use_container_width=True):
+            st.session_state.input_reset_trigger += 1
+            st.rerun()
 
     st.markdown("#### 👆 步驟二：手動篩選")
     col_filter_brand, col_filter_cat = st.columns(2)
@@ -290,7 +297,6 @@ if page == "🛒 前台：下單作業":
         
         with st.form(key=f"batch_form{input_suffix}"):
             for p_name in selected_products_batch:
-                # ★ 優化 3：直接從全域字典拿資料，不再重複建立 ★
                 p_info = global_prod_dict.get(p_name, {})
                 p_cat = p_info.get('品類', '一般')
                 p_barcode = p_info.get('國際條碼', '')
@@ -302,15 +308,17 @@ if page == "🛒 前台：下單作業":
                 with c_label_q:
                     st.markdown("<div class='input-label'>訂購數</div>", unsafe_allow_html=True)
                 with c_input_q:
-                    st.number_input("訂購", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}", label_visibility="collapsed")
+                    # 【優化：value 改為 0，方便鍵盤按 Tab 快速切換輸入】
+                    st.number_input("訂購", min_value=0, step=1, value=0, key=f"q_{p_name}", label_visibility="collapsed")
                 with c_label_g:
                     st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
                 with c_input_g:
-                    st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
+                    # 【優化：value 改為 0】
+                    st.number_input("搭贈", min_value=0, step=1, value=0, key=f"g_{p_name}", label_visibility="collapsed")
                 st.divider()
 
             submitted = st.form_submit_button("⬇️ 全部加入購物車", type="primary", use_container_width=True)
-            
+                     
             if submitted:
                 if not selected_sales_name or not selected_cust_name:
                     st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
@@ -413,6 +421,14 @@ if page == "🛒 前台：下單作業":
 elif page == "📥 訂單匯出":
     st.title("📥 訂單匯出與清理")
     st.info("💡 內勤人員專屬：您可在此下載完整訂單 Excel，並在處理完畢後一鍵清空雲端紀錄。")
+
+    # 【優化：只有進到此頁面時才單獨去讀取歷史紀錄，不卡前台速度】
+    with st.spinner("⏳ 正在讀取雲端訂單紀錄..."):
+        df_order_history = conn.read(worksheet="訂單紀錄", ttl=0)
+        if "BillNo" in df_order_history.columns:
+            df_order_history["BillNo"] = df_order_history["BillNo"].astype(str).str.replace("'", "", regex=False)
+        if "PersonID" in df_order_history.columns:
+            df_order_history["PersonID"] = df_order_history["PersonID"].astype(str).str.replace("'", "", regex=False)
 
     st.subheader(f"📋 目前雲端共有 {len(df_order_history)} 筆訂單紀錄")
     st.dataframe(df_order_history, use_container_width=True, height=400)
