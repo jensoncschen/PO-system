@@ -196,12 +196,14 @@ if st.sidebar.button("🔄 強制更新雲端資料"):
 # 🚀 1. 🛒 前台：下單作業
 # ==========================================
 if page == "🛒 前台：下單作業":
+    # 【第一步優化：主視覺標題與頂部資訊卡片化緊湊排版】
     st.title("🚀 快速下單系統")
 
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
+    # 頂部狀態小卡片
     with st.container(border=True):
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns([1.5, 2, 1.5])
         with c1:
             sales_list = df_salespeople["業務名稱"].unique().tolist()
             selected_sales_name = st.selectbox(
@@ -214,27 +216,31 @@ if page == "🛒 前台：下單作業":
             selected_cust_name = st.selectbox(
                 "🏢 客戶", current_cust, index=None, placeholder="選擇客戶...", key=f"cust_sb{form_suffix}"
             )
-        order_date = st.date_input("📅 日期", datetime.now())
+        with c3:
+            order_date = st.date_input("📅 日期", datetime.now())
 
-    # 【優化：緊湊化移除 st.divider()】
+    # 【第一步優化：新增頂部動態購物車狀態橫條，免去上下滾動的痛苦】
+    cart_count = len(st.session_state.cart_list)
+    if cart_count > 0:
+        with st.container(border=True):
+            cb1, cb2 = st.columns([3, 1])
+            with cb1:
+                st.markdown(f"### 🛒 當前購物車已加入 **{cart_count}** 項商品")
+            with cb2:
+                # 頂部快速錨點/快速結帳防呆按鈕
+                if st.button("🚀 快速跳至結帳區", use_container_width=True):
+                    st.toast("👇 已為您就位，請直接下滑至下方結帳區！")
+
+    st.divider()
     st.subheader("➕ 新增商品")
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
     st.markdown("#### 📷 步驟一：條碼快搜 (支援條碼槍或輸入部分數字)")
-    
-    # 【優化：新增清除搜尋按鈕配置】
-    col_search_input, col_clear_search = st.columns([5, 1])
-    with col_search_input:
-        barcode_input = st.text_input(
-            "輸入條碼或商品名稱關鍵字後按 Enter", 
-            placeholder="例如輸入 12345 尋找條碼，或輸入 iPhone...",
-            key=f"barcode_scan{input_suffix}",
-            label_visibility="collapsed"
-        )
-    with col_clear_search:
-        if st.button("❌ 清除搜尋", use_container_width=True):
-            st.session_state.input_reset_trigger += 1
-            st.rerun()
+    barcode_input = st.text_input(
+        "輸入條碼或商品名稱關鍵字後按 Enter", 
+        placeholder="例如輸入 12345 尋找條碼，或輸入 iPhone...",
+        key=f"barcode_scan{input_suffix}"
+    )
 
     st.markdown("#### 👆 步驟二：手動篩選")
     col_filter_brand, col_filter_cat = st.columns(2)
@@ -308,17 +314,15 @@ if page == "🛒 前台：下單作業":
                 with c_label_q:
                     st.markdown("<div class='input-label'>訂購數</div>", unsafe_allow_html=True)
                 with c_input_q:
-                    # 【優化：value 改為 0，方便鍵盤按 Tab 快速切換輸入】
-                    st.number_input("訂購", min_value=0, step=1, value=0, key=f"q_{p_name}", label_visibility="collapsed")
+                    st.number_input("訂購", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}", label_visibility="collapsed")
                 with c_label_g:
                     st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
                 with c_input_g:
-                    # 【優化：value 改為 0】
-                    st.number_input("搭贈", min_value=0, step=1, value=0, key=f"g_{p_name}", label_visibility="collapsed")
+                    st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
                 st.divider()
 
             submitted = st.form_submit_button("⬇️ 全部加入購物車", type="primary", use_container_width=True)
-                     
+            
             if submitted:
                 if not selected_sales_name or not selected_cust_name:
                     st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
@@ -380,7 +384,6 @@ if page == "🛒 前台：下單作業":
             key="final_cart_editor"
         )
         
-        # ★ 優化 1：拔除 st.rerun()，解決手機點擊表格會失焦卡頓的 Bug ★
         if not edited_cart.equals(cart_df):
             st.session_state.cart_list = edited_cart.to_dict('records')
 
@@ -388,7 +391,6 @@ if page == "🛒 前台：下單作業":
         col_submit_space, col_submit_btn = st.columns([1, 2])
         with col_submit_btn:
             if st.button("✅ 確認結帳，送出訂單", type="primary", use_container_width=True):
-                # ★ 優化 2：二次防呆攔截，防止業務員送出前把選單清空 ★
                 if not selected_sales_name or not selected_cust_name:
                     st.error("⚠️ 請確認最上方已正確選擇「業務」與「客戶」！")
                 else:
