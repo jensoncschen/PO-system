@@ -166,6 +166,68 @@ st.markdown("""
         border-color: var(--border);
     }
 
+
+    .phase-section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin: 1.25rem 0 0.55rem 0;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+
+    .phase-section-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: var(--primary);
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .phase-section-note {
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        margin-top: -0.25rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* 手機版黑底按鈕修正：先把所有按鈕變成可讀白底，再指定主要按鈕藍底白字 */
+    button,
+    button *,
+    div.stButton > button,
+    div.stButton > button *,
+    button[data-testid="stFormSubmitButton"],
+    button[data-testid="stFormSubmitButton"] * {
+        color: var(--text-main) !important;
+        -webkit-text-fill-color: var(--text-main) !important;
+    }
+
+    button,
+    div.stButton > button {
+        background: #ffffff !important;
+        border-color: var(--border) !important;
+    }
+
+    div.stButton > button[kind="primary"],
+    button[data-testid="stFormSubmitButton"] {
+        background: var(--primary) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: var(--primary) !important;
+    }
+
+    div.stButton > button[kind="primary"] *,
+    button[data-testid="stFormSubmitButton"] * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
     @media (max-width: 768px) {
         .main .block-container {
             padding: 1rem 0.9rem 7rem 0.9rem;
@@ -349,11 +411,19 @@ if st.sidebar.button("🔄 強制更新雲端資料"):
 # ==========================================
 if page == "🛒 前台：下單作業":
     st.markdown("<div class='page-title'>快速下單</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-subtitle'>先選訂單資訊，再搜尋商品並加入購物車。</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-subtitle'>三個區塊完成下單：訂單資訊 → 新增商品 → 購物車。</div>", unsafe_allow_html=True)
 
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
-    st.markdown("<div class='section-title'>訂單資訊</div>", unsafe_allow_html=True)
+    # 區塊 1：訂單資訊
+    st.markdown("""
+        <div class='phase-section-header'>
+            <span class='phase-section-number'>1</span>
+            <span>訂單資訊區</span>
+        </div>
+        <div class='phase-section-note'>先選業務、客戶與訂單日期。</div>
+    """, unsafe_allow_html=True)
+
     with st.container(border=True):
         c1, c2, c3 = st.columns([1.5, 2, 1.5])
         with c1:
@@ -371,10 +441,12 @@ if page == "🛒 前台：下單作業":
         with c3:
             order_date = st.date_input("日期", datetime.now())
 
-    # 【核心升級：宣告統一結帳動作，供雙向按鈕同時呼叫】
+    # 統一結帳動作，保留原本訂單邏輯
     def trigger_order_submission():
         if not selected_sales_name or not selected_cust_name:
             st.error("⚠️ 請確認最上方已正確選擇「業務」與「客戶」！")
+        elif len(st.session_state.cart_list) == 0:
+            st.warning("⚠️ 購物車目前是空的，請先加入商品。")
         else:
             with st.spinner("⏳ 正在寫入雲端..."):
                 generated_bill_no = submit_new_order(
@@ -395,190 +467,196 @@ if page == "🛒 前台：下單作業":
                 time.sleep(2)
                 st.rerun()
 
-    # 【功能與風格升級：第一向結帳 ── 手機端底部固定懸浮購物車橫條】
     cart_count = len(st.session_state.cart_list)
     if cart_count > 0:
-        # 利用 HTML 創造無視滾動的固定懸浮條
         st.markdown(f"""
             <div class="sticky-cart-bar">
-                <span style="color: white; font-size: 18px; font-weight: bold;">
-                    購物車：{cart_count} 項商品，可送出訂單
-                </span>
+                <span>購物車：{cart_count} 項商品，可在購物車區送出訂單</span>
             </div>
         """, unsafe_allow_html=True)
-        
-        # 將真正的頂部快速結帳按鈕置於顯眼處（雙向結帳第一向）
-        if st.button("送出訂單", type="primary", use_container_width=True, key="top_checkout_btn"):
-            trigger_order_submission()
 
-    st.markdown("<div class='section-title'>新增商品</div>", unsafe_allow_html=True)
+    # 區塊 2：新增商品
+    st.markdown("""
+        <div class='phase-section-header'>
+            <span class='phase-section-number'>2</span>
+            <span>新增商品區</span>
+        </div>
+        <div class='phase-section-note'>搜尋、篩選、選擇商品並輸入數量。</div>
+    """, unsafe_allow_html=True)
+
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
-    st.markdown("<div class='section-title'>商品搜尋</div>", unsafe_allow_html=True)
-    st.markdown("<div class='section-caption'>可輸入條碼或商品名稱關鍵字。</div>", unsafe_allow_html=True)
-    barcode_input = st.text_input(
-        "條碼或商品名稱", 
-        placeholder="輸入條碼或商品名稱",
-        key=f"barcode_scan{input_suffix}"
-    )
-
-    st.markdown("<div class='section-title'>篩選商品</div>", unsafe_allow_html=True)
-    col_filter_brand, col_filter_cat = st.columns(2)
-
-    with col_filter_brand:
-        brand_options = ["全部"] + df_products["品牌"].unique().tolist()
-        selected_brand_filter = st.selectbox("品牌", brand_options, key=f"brand{input_suffix}")
-
-    with col_filter_cat:
-        df_step1 = df_products.copy()
-        if selected_brand_filter != "全部":
-            df_step1 = df_step1[df_step1["品牌"] == selected_brand_filter]
-        
-        cat_options = ["全部"] + df_step1["品類"].unique().tolist()
-        selected_cat_filter = st.selectbox("品類", cat_options, key=f"cat{input_suffix}")
-
-    if barcode_input:
-        clean_input = barcode_input.strip()
-        if clean_input.isdigit() and len(clean_input) >= 4:
-            mask_barcode = df_products["國際條碼"].astype(str) == clean_input
-        else:
-            mask_barcode = pd.Series(False, index=df_products.index)
-            
-        mask_name = df_products["產品名稱"].astype(str).str.contains(clean_input, case=False, na=False)
-        df_step2 = df_products[mask_barcode | mask_name]
-        
-        if df_step2.empty:
-            st.error(f"❌ 找不到包含「{clean_input}」的條碼或商品名稱！")
-    else:
-        df_step2 = df_step1.copy()
-        if selected_cat_filter != "全部":
-            df_step2 = df_step2[df_step2["品類"] == selected_cat_filter]
-
-    display_to_name = {}
-    for _, row in df_step2.iterrows():
-        p_name = row["產品名稱"]
-        barcode = str(row["國際條碼"]).strip()
-        if barcode:
-            display_str = f"{p_name} ［條碼: {barcode}］"
-        else:
-            display_str = p_name
-        display_to_name[display_str] = p_name
-
-    display_options = list(display_to_name.keys())
-    default_selections = display_options if barcode_input and len(display_options) == 1 else []
-
-    selected_displays = st.multiselect(
-        "選擇商品", 
-        options=display_options, 
-        default=default_selections, 
-        max_selections=20,
-        placeholder="可一次選擇多項商品",
-        key=f"prod_multi{input_suffix}"
-    )
-
-    selected_products_batch = [display_to_name[disp] for disp in selected_displays]
-
-    if selected_products_batch:
-        st.info(f"已選擇 {len(selected_products_batch)} 項商品，請輸入數量後加入購物車")
-        
-        # 進入深色商務藍分區表單
-        with st.form(key=f"batch_form{input_suffix}"):
-            for p_name in selected_products_batch:
-                p_info = global_prod_dict.get(p_name, {})
-                p_cat = p_info.get('品類', '一般')
-                p_barcode = p_info.get('國際條碼', '')
-                barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
-                
-                st.markdown(f"**{p_name}**", unsafe_allow_html=True)
-                st.markdown(f"<div class='product-meta'>{p_cat}{barcode_text}</div>", unsafe_allow_html=True)
-                
-                c_label_q, c_input_q, c_label_g, c_input_g = st.columns([1.2, 2.5, 1.2, 2.5], gap="small")
-                with c_label_q:
-                    st.markdown("<div class='input-label'>訂購數</div>", unsafe_allow_html=True)
-                with c_input_q:
-                    # 套用 iOS 風格米色輸入框樣式
-                    st.number_input("訂購", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}", label_visibility="collapsed")
-                with c_label_g:
-                    st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
-                with c_input_g:
-                    st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
-                st.markdown("<hr>", unsafe_allow_html=True)
-
-            # 藍色無邊框白字按鈕
-            submitted = st.form_submit_button("加入購物車", use_container_width=True)
-            
-            if submitted:
-                if not selected_sales_name or not selected_cust_name:
-                    st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
-                else:
-                    items_added_count = 0
-                    keys_to_clear = [] 
-                    
-                    for p_name in selected_products_batch:
-                        q_raw = st.session_state.get(f"q_{p_name}")
-                        g_raw = st.session_state.get(f"g_{p_name}")
-                        
-                        q_val = int(q_raw) if q_raw is not None else 0
-                        g_val = int(g_raw) if g_raw is not None else 0
-                        
-                        if q_val > 0 or g_val > 0:
-                            p_info = global_prod_dict.get(p_name, {})
-                            st.session_state.cart_list.insert(0, {
-                                "業務名稱": selected_sales_name,
-                                "客戶名稱": selected_cust_name,
-                                "產品編號": p_info.get("產品編號", "N/A"),
-                                "產品名稱": p_name,
-                                "品牌": p_info.get("品牌", ""),
-                                "品類": p_info.get("品類", ""),
-                                "訂購數量": q_val,
-                                "搭贈數量": g_val
-                            })
-                            items_added_count += 1
-                        
-                        keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
-                    
-                    if items_added_count > 0:
-                        for k in keys_to_clear:
-                            if k in st.session_state:
-                                del st.session_state[k]
-                                
-                        st.session_state.input_reset_trigger += 1 
-                        st.toast(f"✅ 成功加入 {items_added_count} 項商品！")
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ 所有商品的數量皆未輸入，未加入任何項目")
-
-    st.divider()
-    st.markdown(f"<div class='section-title'>購物車（{len(st.session_state.cart_list)}）</div>", unsafe_allow_html=True)
-
-    if len(st.session_state.cart_list) > 0:
-        cart_df = pd.DataFrame(st.session_state.cart_list)
-        
-        edited_cart = st.data_editor(
-            cart_df,
-            column_config={
-                "產品名稱": st.column_config.TextColumn(disabled=True),
-                "訂購數量": st.column_config.NumberColumn(min_value=0, step=1),
-                "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1),
-            },
-            column_order=["產品名稱", "訂購數量", "搭贈數量"],
-            use_container_width=True,
-            num_rows="dynamic",
-            key="final_cart_editor"
+    with st.container(border=True):
+        st.markdown("<div class='section-title'>商品搜尋</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-caption'>可輸入條碼或商品名稱關鍵字。</div>", unsafe_allow_html=True)
+        barcode_input = st.text_input(
+            "條碼或商品名稱", 
+            placeholder="輸入條碼或商品名稱",
+            key=f"barcode_scan{input_suffix}"
         )
-        
-        if not edited_cart.equals(cart_df):
-            st.session_state.cart_list = edited_cart.to_dict('records')
 
-        st.markdown("")
-        col_submit_space, col_submit_btn = st.columns([1, 2])
-        with col_submit_btn:
-            # 【雙向結帳第二向 ── 底部傳統核對結帳】
-            if st.button("送出訂單", type="primary", use_container_width=True, key="bottom_checkout_btn"):
-                trigger_order_submission()
-    else:
-        st.info("請在上方搜尋或篩選商品，加入購物車後即可送出訂單。")
+        st.markdown("<div class='section-title'>篩選商品</div>", unsafe_allow_html=True)
+        col_filter_brand, col_filter_cat = st.columns(2)
+
+        with col_filter_brand:
+            brand_options = ["全部"] + df_products["品牌"].unique().tolist()
+            selected_brand_filter = st.selectbox("品牌", brand_options, key=f"brand{input_suffix}")
+
+        with col_filter_cat:
+            df_step1 = df_products.copy()
+            if selected_brand_filter != "全部":
+                df_step1 = df_step1[df_step1["品牌"] == selected_brand_filter]
+            
+            cat_options = ["全部"] + df_step1["品類"].unique().tolist()
+            selected_cat_filter = st.selectbox("品類", cat_options, key=f"cat{input_suffix}")
+
+        if barcode_input:
+            clean_input = barcode_input.strip()
+            if clean_input.isdigit() and len(clean_input) >= 4:
+                mask_barcode = df_products["國際條碼"].astype(str) == clean_input
+            else:
+                mask_barcode = pd.Series(False, index=df_products.index)
+                
+            mask_name = df_products["產品名稱"].astype(str).str.contains(clean_input, case=False, na=False)
+            df_step2 = df_products[mask_barcode | mask_name]
+            
+            if df_step2.empty:
+                st.error(f"❌ 找不到包含「{clean_input}」的條碼或商品名稱！")
+        else:
+            df_step2 = df_step1.copy()
+            if selected_cat_filter != "全部":
+                df_step2 = df_step2[df_step2["品類"] == selected_cat_filter]
+
+        display_to_name = {}
+        for _, row in df_step2.iterrows():
+            p_name = row["產品名稱"]
+            barcode = str(row["國際條碼"]).strip()
+            if barcode:
+                display_str = f"{p_name} ［條碼: {barcode}］"
+            else:
+                display_str = p_name
+            display_to_name[display_str] = p_name
+
+        display_options = list(display_to_name.keys())
+        default_selections = display_options if barcode_input and len(display_options) == 1 else []
+
+        selected_displays = st.multiselect(
+            "選擇商品", 
+            options=display_options, 
+            default=default_selections, 
+            max_selections=20,
+            placeholder="可一次選擇多項商品",
+            key=f"prod_multi{input_suffix}"
+        )
+
+        selected_products_batch = [display_to_name[disp] for disp in selected_displays]
+
+        if selected_products_batch:
+            st.info(f"已選擇 {len(selected_products_batch)} 項商品，請輸入數量後加入購物車")
+            
+            with st.form(key=f"batch_form{input_suffix}"):
+                for p_name in selected_products_batch:
+                    p_info = global_prod_dict.get(p_name, {})
+                    p_cat = p_info.get('品類', '一般')
+                    p_barcode = p_info.get('國際條碼', '')
+                    barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
+                    
+                    st.markdown(f"**{p_name}**", unsafe_allow_html=True)
+                    st.markdown(f"<div class='product-meta'>{p_cat}{barcode_text}</div>", unsafe_allow_html=True)
+                    
+                    c_label_q, c_input_q, c_label_g, c_input_g = st.columns([1.2, 2.5, 1.2, 2.5], gap="small")
+                    with c_label_q:
+                        st.markdown("<div class='input-label'>訂購數</div>", unsafe_allow_html=True)
+                    with c_input_q:
+                        st.number_input("訂購", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}", label_visibility="collapsed")
+                    with c_label_g:
+                        st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
+                    with c_input_g:
+                        st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
+                    st.markdown("<hr>", unsafe_allow_html=True)
+
+                submitted = st.form_submit_button("加入購物車", use_container_width=True)
+                
+                if submitted:
+                    if not selected_sales_name or not selected_cust_name:
+                        st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
+                    else:
+                        items_added_count = 0
+                        keys_to_clear = [] 
+                        
+                        for p_name in selected_products_batch:
+                            q_raw = st.session_state.get(f"q_{p_name}")
+                            g_raw = st.session_state.get(f"g_{p_name}")
+                            
+                            q_val = int(q_raw) if q_raw is not None else 0
+                            g_val = int(g_raw) if g_raw is not None else 0
+                            
+                            if q_val > 0 or g_val > 0:
+                                p_info = global_prod_dict.get(p_name, {})
+                                st.session_state.cart_list.insert(0, {
+                                    "業務名稱": selected_sales_name,
+                                    "客戶名稱": selected_cust_name,
+                                    "產品編號": p_info.get("產品編號", "N/A"),
+                                    "產品名稱": p_name,
+                                    "品牌": p_info.get("品牌", ""),
+                                    "品類": p_info.get("品類", ""),
+                                    "訂購數量": q_val,
+                                    "搭贈數量": g_val
+                                })
+                                items_added_count += 1
+                            
+                            keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
+                        
+                        if items_added_count > 0:
+                            for k in keys_to_clear:
+                                if k in st.session_state:
+                                    del st.session_state[k]
+                                    
+                            st.session_state.input_reset_trigger += 1 
+                            st.toast(f"✅ 成功加入 {items_added_count} 項商品！")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ 所有商品的數量皆未輸入，未加入任何項目")
+
+    # 區塊 3：購物車
+    st.markdown("""
+        <div class='phase-section-header'>
+            <span class='phase-section-number'>3</span>
+            <span>購物車</span>
+        </div>
+        <div class='phase-section-note'>確認商品與數量後送出訂單。</div>
+    """, unsafe_allow_html=True)
+
+    with st.container(border=True):
+        st.markdown(f"<div class='section-title'>目前購物車（{len(st.session_state.cart_list)}）</div>", unsafe_allow_html=True)
+
+        if len(st.session_state.cart_list) > 0:
+            cart_df = pd.DataFrame(st.session_state.cart_list)
+            
+            edited_cart = st.data_editor(
+                cart_df,
+                column_config={
+                    "產品名稱": st.column_config.TextColumn(disabled=True),
+                    "訂購數量": st.column_config.NumberColumn(min_value=0, step=1),
+                    "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1),
+                },
+                column_order=["產品名稱", "訂購數量", "搭贈數量"],
+                use_container_width=True,
+                num_rows="dynamic",
+                key="final_cart_editor"
+            )
+            
+            if not edited_cart.equals(cart_df):
+                st.session_state.cart_list = edited_cart.to_dict('records')
+
+            st.markdown("")
+            col_submit_space, col_submit_btn = st.columns([1, 2])
+            with col_submit_btn:
+                if st.button("送出訂單", type="primary", use_container_width=True, key="bottom_checkout_btn"):
+                    trigger_order_submission()
+        else:
+            st.info("請在上方搜尋或篩選商品，加入購物車後即可送出訂單。")
 
 # ==========================================
 # 📥 2. 中台：訂單匯出
