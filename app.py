@@ -8,7 +8,7 @@ import io
 import html
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
+st.set_page_config(page_title="雲端訂購系統", layout="wide")
 
 # --- CSS：Phase 1 極簡清晰介面（手機優先、少量覆蓋） ---
 st.markdown("""
@@ -40,7 +40,7 @@ st.markdown("""
     .main .block-container {
         max-width: 1120px;
         padding-top: 1.25rem;
-        padding-bottom: 7.5rem;
+        padding-bottom: 6.5rem;
     }
 
     h1, h2, h3, .stMarkdown p, label, span {
@@ -408,13 +408,15 @@ st.markdown("""
 
     .sticky-cart-bar {
         position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        min-height: 64px;
-        background: rgba(255, 255, 255, 0.94);
-        border-top: 1px solid var(--border);
-        box-shadow: 0 -12px 28px rgba(15, 23, 42, 0.08);
+        left: 50%;
+        bottom: 1rem;
+        transform: translateX(-50%);
+        width: min(720px, calc(100% - 2rem));
+        min-height: 50px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
         z-index: 999992;
         display: flex;
         justify-content: center;
@@ -424,19 +426,19 @@ st.markdown("""
     }
 
     .sticky-cart-content {
-        width: min(1040px, 100%);
+        width: 100%;
         display: flex;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
-        gap: 1rem;
+        gap: 0.5rem;
         color: var(--text-main) !important;
-        font-weight: 800;
+        font-weight: 850;
+        font-size: 0.95rem;
+        white-space: nowrap;
     }
 
     .sticky-cart-muted {
-        color: var(--text-muted) !important;
-        font-size: 0.88rem;
-        font-weight: 650;
+        display: none;
     }
 
     hr {
@@ -666,7 +668,7 @@ st.markdown("""
 
     @media (max-width: 768px) {
         .main .block-container {
-            padding: 0.85rem 0.85rem 7.25rem 0.85rem;
+            padding: 0.85rem 0.85rem 6.25rem 0.85rem;
         }
 
 
@@ -759,8 +761,11 @@ st.markdown("""
         }
 
         .sticky-cart-bar {
-            min-height: calc(70px + env(safe-area-inset-bottom));
-            padding-bottom: env(safe-area-inset-bottom);
+            bottom: calc(0.85rem + env(safe-area-inset-bottom));
+            width: calc(100% - 1.5rem);
+            min-height: 48px;
+            padding: 0.65rem 0.9rem;
+            border-radius: 16px;
         }
 
 
@@ -800,9 +805,9 @@ st.markdown("""
         }
 
         .sticky-cart-content {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.15rem;
+            justify-content: center;
+            font-size: 0.9rem;
+            line-height: 1.25;
         }
     }
     </style>
@@ -812,7 +817,7 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # ==========================================
-# 🛠️ 核心輔助函式
+# 核心輔助函式
 # ==========================================
 def get_sales_id_3digits(sales_name, df_sales):
     if not sales_name: return "000"
@@ -854,7 +859,7 @@ def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sale
     c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
     
     # 【優化：結帳時才即時讀取最新訂單紀錄計算序號】
-    with st.spinner("⏳ 正在取得最新訂單序號..."):
+    with st.spinner("正在取得最新訂單序號..."):
         current_history = conn.read(worksheet="訂單紀錄", ttl=0) 
     
     if "BillNo" not in current_history.columns: current_history["BillNo"] = ""
@@ -924,7 +929,7 @@ def fetch_all_data():
         return df_cust, df_prod, df_sales
         
     except Exception as e:
-        st.error(f"⚠️ 資料庫連線異常，錯誤原因：{e}")
+        st.error(f"資料庫連線異常，錯誤原因：{e}")
         print(traceback.format_exc())
         return None, None, None
 
@@ -934,7 +939,7 @@ df_customers, df_products, df_salespeople = fetch_all_data()
 if df_customers is None:
     st.stop()
 
-# ★ 建立全域產品查表字典 ★
+# 建立全域產品查表字典
 global_prod_dict = df_products.drop_duplicates(subset=["產品名稱"]).set_index("產品名稱").to_dict('index')
 
 # --- Session State ---
@@ -968,7 +973,7 @@ st.sidebar.markdown(
 )
 
 # ==========================================
-# 🚀 1. 🛒 前台：下單作業
+# 1. 前台：下單作業
 # ==========================================
 if page == "前台下單":
     st.markdown("""
@@ -1048,8 +1053,7 @@ if page == "前台下單":
         st.markdown(f"""
             <div class="sticky-cart-bar">
                 <div class="sticky-cart-content">
-                    <span>{cart_count} 項商品｜訂購 {total_quantity}｜搭贈 {total_gift}</span>
-                    <span class="sticky-cart-muted">請到購物車區確認後送出</span>
+                    <span>購物車｜{cart_count} 項｜訂購 {total_quantity}｜搭贈 {total_gift}</span>
                 </div>
             </div>
         """, unsafe_allow_html=True)
@@ -1287,7 +1291,7 @@ if page == "前台下單":
             st.info("購物車目前是空的。請先在新增商品區加入商品。")
 
 # ==========================================
-# 📥 2. 中台：訂單匯出
+# 2. 中台：訂單匯出
 # ==========================================
 elif page == "訂單匯出":
     st.markdown("""
@@ -1405,7 +1409,7 @@ elif page == "訂單匯出":
                     st.rerun()
 
 # ==========================================
-# 🔧 3. 後台：資料管理
+# 3. 後台：資料管理
 # ==========================================
 elif page == "後台管理":
     st.markdown("""
