@@ -576,6 +576,94 @@ st.markdown("""
         margin: 0.35rem 0 0.55rem;
     }
 
+
+
+    .operation-card {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 1rem;
+        height: 100%;
+    }
+
+    .operation-title {
+        color: var(--text-main) !important;
+        font-size: 1.02rem;
+        font-weight: 850;
+        margin-bottom: 0.25rem;
+    }
+
+    .operation-desc {
+        color: var(--text-muted) !important;
+        font-size: 0.88rem;
+        font-weight: 650;
+        line-height: 1.55;
+        margin-bottom: 0.8rem;
+    }
+
+    .warning-card {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 18px;
+        padding: 0.85rem 0.95rem;
+        margin: 0.65rem 0 0.8rem;
+    }
+
+    .warning-title {
+        color: #9a3412 !important;
+        font-size: 0.9rem;
+        font-weight: 850;
+        margin-bottom: 0.25rem;
+    }
+
+    .warning-text {
+        color: #9a3412 !important;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        font-weight: 650;
+    }
+
+    .admin-link-card {
+        display: block;
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 1rem;
+        text-decoration: none !important;
+        margin: 0.5rem 0 0.8rem;
+    }
+
+    .admin-link-title {
+        color: var(--text-main) !important;
+        font-size: 1.04rem;
+        font-weight: 850;
+        margin-bottom: 0.25rem;
+    }
+
+    .admin-link-desc {
+        color: var(--text-muted) !important;
+        font-size: 0.88rem;
+        font-weight: 650;
+        line-height: 1.5;
+    }
+
+    .admin-link-url {
+        color: var(--primary) !important;
+        font-size: 0.86rem;
+        font-weight: 800;
+        margin-top: 0.7rem;
+    }
+
+    .empty-state-card {
+        background: var(--surface-soft);
+        border: 1px dashed var(--border-strong);
+        border-radius: 18px;
+        padding: 1rem;
+        color: var(--text-muted) !important;
+        font-weight: 700;
+        line-height: 1.5;
+    }
+
     @media (max-width: 768px) {
         .main .block-container {
             padding: 0.85rem 0.85rem 7.25rem 0.85rem;
@@ -1202,65 +1290,182 @@ if page == "前台下單":
 # 📥 2. 中台：訂單匯出
 # ==========================================
 elif page == "訂單匯出":
-    st.title("📥 訂單匯出與清理")
-    st.info("💡 內勤人員專屬：您可在此下載完整訂單 Excel，並在處理完畢後一鍵清空雲端紀錄。")
+    st.markdown("""
+        <div class='hero-card'>
+            <div class='page-title'>訂單匯出</div>
+            <div class='page-subtitle'>內勤人員使用。下載雲端訂單紀錄，確認備份後再清除已處理資料。</div>
+            <div class='hero-steps'>
+                <span class='hero-pill'>1 查看紀錄</span>
+                <span class='hero-pill'>2 下載 Excel</span>
+                <span class='hero-pill'>3 清除雲端紀錄</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     # 【優化：只有進到此頁面時才單獨去讀取歷史紀錄，不卡前台速度】
-    with st.spinner("⏳ 正在讀取雲端訂單紀錄..."):
+    with st.spinner("正在讀取雲端訂單紀錄..."):
         df_order_history = conn.read(worksheet="訂單紀錄", ttl=0)
         if "BillNo" in df_order_history.columns:
             df_order_history["BillNo"] = df_order_history["BillNo"].astype(str).str.replace("'", "", regex=False)
         if "PersonID" in df_order_history.columns:
             df_order_history["PersonID"] = df_order_history["PersonID"].astype(str).str.replace("'", "", regex=False)
 
-    st.subheader(f"📋 目前雲端共有 {len(df_order_history)} 筆訂單紀錄")
-    st.dataframe(df_order_history, use_container_width=True, height=400)
+    st.markdown("""
+        <div class='section-header'>
+            <div class='section-title-wrap'>
+                <span class='section-index'>1</span>
+                <div>
+                    <div class='section-title-text'>雲端訂單紀錄</div>
+                    <div class='section-note'>這裡顯示目前等待匯出的訂單資料。</div>
+                </div>
+            </div>
+            <span class='section-tag'>查看</span>
+        </div>
+    """, unsafe_allow_html=True)
 
-    st.divider()
-    st.subheader("⚙️ 匯出與清理操作")
+    with st.container(border=True):
+        order_count = len(df_order_history)
+        st.markdown(f"""
+            <div class='cart-summary'>
+                <div class='summary-card'>
+                    <div class='summary-label'>目前筆數</div>
+                    <div class='summary-value'>{order_count}</div>
+                </div>
+                <div class='summary-card'>
+                    <div class='summary-label'>資料來源</div>
+                    <div class='summary-value'>Google Sheets</div>
+                </div>
+                <div class='summary-card'>
+                    <div class='summary-label'>用途</div>
+                    <div class='summary-value'>ERP 匯入</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        if df_order_history.empty:
+            st.markdown("<div class='empty-state-card'>目前沒有可匯出的訂單紀錄。</div>", unsafe_allow_html=True)
+        else:
+            st.dataframe(df_order_history, use_container_width=True, height=420)
+
+    st.markdown("""
+        <div class='section-header'>
+            <div class='section-title-wrap'>
+                <span class='section-index'>2</span>
+                <div>
+                    <div class='section-title-text'>匯出與清理</div>
+                    <div class='section-note'>建議先下載 Excel 備份，確認檔案正常後再清除雲端紀錄。</div>
+                </div>
+            </div>
+            <span class='section-tag'>操作</span>
+        </div>
+    """, unsafe_allow_html=True)
+
     col_export, col_clear = st.columns(2, gap="large")
 
     with col_export:
-        st.markdown("##### 1️⃣ 下載 Excel 備份")
-        st.caption("將目前的訂單紀錄完整下載為 Excel 檔案。")
-        
-        if not df_order_history.empty:
-            excel_data = generate_excel_file(df_order_history)
-            download_name = f"訂單紀錄_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        with st.container(border=True):
+            st.markdown("""
+                <div class='operation-title'>下載 Excel 備份</div>
+                <div class='operation-desc'>將目前雲端訂單紀錄下載為 Excel 檔，供後續匯入 ERP 或留存備份。</div>
+            """, unsafe_allow_html=True)
             
-            st.download_button(
-                label="📥 點擊下載 Excel 檔",
-                data=excel_data,
-                file_name=download_name,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                type="primary"
-            )
-        else:
-            st.button("📥 目前無資料可匯出", disabled=True, use_container_width=True)
+            if not df_order_history.empty:
+                excel_data = generate_excel_file(df_order_history)
+                download_name = f"訂單紀錄_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+                st.download_button(
+                    label="下載 Excel",
+                    data=excel_data,
+                    file_name=download_name,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    type="primary"
+                )
+            else:
+                st.button("目前無資料可匯出", disabled=True, use_container_width=True)
 
     with col_clear:
-        st.markdown("##### 2️⃣ 清除雲端紀錄")
-        st.caption("⚠️ 警告：清除後將徹底刪除雲端訂單資料。請務必先執行左側下載備份！")
-        confirm_clear = st.checkbox("✅ 我確認已下載 Excel 備份，同意徹底清除雲端紀錄", key="confirm_clear_cb")
-        
-        if st.button("🗑️ 清空所有訂單紀錄", type="primary", use_container_width=True, disabled=not confirm_clear):
-            with st.spinner("正在安全刪除雲端紀錄..."):
-                empty_df = pd.DataFrame(columns=df_order_history.columns)
-                conn.update(worksheet="訂單紀錄", data=empty_df)
-                st.cache_data.clear()
-                st.success("✅ 雲端訂單紀錄已完全清空！")
-                time.sleep(2)
-                st.rerun()
+        with st.container(border=True):
+            st.markdown("""
+                <div class='operation-title'>清除雲端紀錄</div>
+                <div class='operation-desc'>只在已下載並確認備份後使用。清除後，雲端訂單紀錄會變成空白。</div>
+                <div class='warning-card'>
+                    <div class='warning-title'>操作前提醒</div>
+                    <div class='warning-text'>請先確認 Excel 已下載且可開啟，再勾選確認並清除資料。</div>
+                </div>
+            """, unsafe_allow_html=True)
+            confirm_clear = st.checkbox("我已下載並確認 Excel 備份", key="confirm_clear_cb")
+            
+            if st.button("清空訂單紀錄", type="primary", use_container_width=True, disabled=not confirm_clear):
+                with st.spinner("正在清除雲端訂單紀錄..."):
+                    empty_df = pd.DataFrame(columns=df_order_history.columns)
+                    conn.update(worksheet="訂單紀錄", data=empty_df)
+                    st.cache_data.clear()
+                    st.success("雲端訂單紀錄已清空。")
+                    time.sleep(2)
+                    st.rerun()
 
 # ==========================================
 # 🔧 3. 後台：資料管理
 # ==========================================
 elif page == "後台管理":
-    st.title("🔧 後台管理")
-    try:
-        sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
-        st.markdown(f"👉 [開啟 Google 試算表編輯基礎資料]({sheet_url})")
-    except: pass
-    st.divider()
-    st.info("💡 如需查看或匯出訂單，請前往左側選單的「📥 訂單匯出」頁面。")
+    st.markdown("""
+        <div class='hero-card'>
+            <div class='page-title'>後台管理</div>
+            <div class='page-subtitle'>管理基礎資料來源。產品、客戶與業務資料仍以 Google Sheets 為主要編輯入口。</div>
+            <div class='hero-steps'>
+                <span class='hero-pill'>客戶資料</span>
+                <span class='hero-pill'>產品資料</span>
+                <span class='hero-pill'>業務資料</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+        <div class='section-header'>
+            <div class='section-title-wrap'>
+                <span class='section-index'>1</span>
+                <div>
+                    <div class='section-title-text'>基礎資料編輯</div>
+                    <div class='section-note'>目前後台資料仍直接在 Google 試算表維護，修改後可用左側重新整理雲端資料。</div>
+                </div>
+            </div>
+            <span class='section-tag'>資料來源</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    with st.container(border=True):
+        try:
+            sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+            st.markdown(f"""
+                <a class='admin-link-card' href='{safe_html(sheet_url)}' target='_blank'>
+                    <div class='admin-link-title'>開啟 Google 試算表</div>
+                    <div class='admin-link-desc'>前往試算表編輯客戶資料、產品資料與業務資料。</div>
+                    <div class='admin-link-url'>在新分頁開啟 →</div>
+                </a>
+            """, unsafe_allow_html=True)
+        except Exception:
+            st.warning("目前無法讀取 Google 試算表連結，請確認 secrets 設定。")
+
+    st.markdown("""
+        <div class='section-header'>
+            <div class='section-title-wrap'>
+                <span class='section-index'>2</span>
+                <div>
+                    <div class='section-title-text'>使用提醒</div>
+                    <div class='section-note'>這裡先保留為輕量後台，避免過早把資料管理做得太複雜。</div>
+                </div>
+            </div>
+            <span class='section-tag'>說明</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    with st.container(border=True):
+        st.markdown("""
+            <div class='operation-title'>資料更新流程</div>
+            <div class='operation-desc'>
+                1. 到 Google 試算表修改基礎資料。<br>
+                2. 回到系統左側點選「重新整理雲端資料」。<br>
+                3. 回前台下單頁確認新資料是否出現。<br><br>
+                訂單匯出與清除請前往「訂單匯出」分頁處理。
+            </div>
+        """, unsafe_allow_html=True)
