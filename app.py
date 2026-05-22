@@ -61,6 +61,88 @@ st.markdown("""
         color: var(--text-main) !important;
     }
 
+    [data-testid="stSidebar"] {
+        background: #ffffff;
+        border-right: 1px solid var(--border);
+    }
+
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 1.25rem;
+    }
+
+    .sidebar-brand {
+        padding: 0.15rem 0 0.75rem;
+        margin-bottom: 0.65rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-title {
+        font-size: 1.05rem;
+        font-weight: 850;
+        letter-spacing: -0.02em;
+        color: var(--text-main) !important;
+        margin-bottom: 0.18rem;
+    }
+
+    .sidebar-subtitle {
+        font-size: 0.82rem;
+        color: var(--text-muted) !important;
+        line-height: 1.45;
+    }
+
+    .sidebar-section-label {
+        margin: 1rem 0 0.45rem;
+        font-size: 0.76rem;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        color: var(--text-soft) !important;
+    }
+
+    [data-testid="stSidebar"] [role="radiogroup"] {
+        gap: 0.35rem;
+    }
+
+    [data-testid="stSidebar"] label[data-baseweb="radio"] {
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 0.6rem 0.7rem;
+        margin-bottom: 0.35rem;
+        transition: all 0.15s ease;
+    }
+
+    [data-testid="stSidebar"] label[data-baseweb="radio"]:hover {
+        border-color: var(--border-strong);
+        background: #ffffff;
+    }
+
+    [data-testid="stSidebar"] label[data-baseweb="radio"] p {
+        font-weight: 750;
+        color: var(--text-main) !important;
+    }
+
+    [data-testid="stSidebar"] div.stButton > button {
+        width: 100%;
+        justify-content: center;
+        background: #ffffff !important;
+        border: 1px solid var(--border-strong) !important;
+        color: var(--text-main) !important;
+        border-radius: 14px !important;
+        min-height: 44px !important;
+        font-weight: 750 !important;
+    }
+
+    [data-testid="stSidebar"] .sidebar-note {
+        margin-top: 0.6rem;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface-soft);
+        color: var(--text-muted) !important;
+        font-size: 0.8rem;
+        line-height: 1.45;
+    }
+
     .hero-card {
         background: rgba(255, 255, 255, 0.88);
         border: 1px solid var(--border);
@@ -772,31 +854,35 @@ if 'cart_list' not in st.session_state: st.session_state.cart_list = []
 if 'input_reset_trigger' not in st.session_state: st.session_state.input_reset_trigger = 0
 if 'form_reset_trigger' not in st.session_state: st.session_state.form_reset_trigger = 0
 
-# --- 左側導航 ---
-st.sidebar.title("雲端訂購")
-page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "📥 訂單匯出", "🔧 後台：資料管理"])
-st.sidebar.markdown("---")
+# --- 左側快捷區 ---
+st.sidebar.markdown("""
+<div class="sidebar-brand">
+    <div class="sidebar-title">雲端訂購</div>
+    <div class="sidebar-subtitle">快速建立訂單與匯出資料</div>
+</div>
+<div class="sidebar-section-label">功能</div>
+""", unsafe_allow_html=True)
 
-st.sidebar.markdown("### 購物車")
-cart_len = len(st.session_state.cart_list)
-if cart_len > 0:
-    st.sidebar.success(f"{cart_len} 筆商品")
-    st.sidebar.dataframe(pd.DataFrame(st.session_state.cart_list)[["產品名稱","訂購數量"]], hide_index=True)
-    if st.sidebar.button("清空購物車"):
-        st.session_state.cart_list = []
-        st.rerun()
-else:
-    st.sidebar.info("購物車是空的")
+page = st.sidebar.radio(
+    "功能選單",
+    ["前台下單", "訂單匯出", "後台管理"],
+    label_visibility="collapsed"
+)
 
-st.sidebar.markdown("---")
-if st.sidebar.button("更新雲端資料"):
+st.sidebar.markdown("<div class='sidebar-section-label'>資料</div>", unsafe_allow_html=True)
+if st.sidebar.button("重新整理雲端資料"):
     st.cache_data.clear()
     st.rerun()
+
+st.sidebar.markdown(
+    "<div class='sidebar-note'>購物車操作已整合到前台主畫面，避免手機版重複操作。</div>",
+    unsafe_allow_html=True
+)
 
 # ==========================================
 # 🚀 1. 🛒 前台：下單作業
 # ==========================================
-if page == "🛒 前台：下單作業":
+if page == "前台下單":
     st.markdown("""
         <div class='hero-card'>
             <div class='page-title'>快速下單</div>
@@ -1115,7 +1201,7 @@ if page == "🛒 前台：下單作業":
 # ==========================================
 # 📥 2. 中台：訂單匯出
 # ==========================================
-elif page == "📥 訂單匯出":
+elif page == "訂單匯出":
     st.title("📥 訂單匯出與清理")
     st.info("💡 內勤人員專屬：您可在此下載完整訂單 Excel，並在處理完畢後一鍵清空雲端紀錄。")
 
@@ -1170,7 +1256,7 @@ elif page == "📥 訂單匯出":
 # ==========================================
 # 🔧 3. 後台：資料管理
 # ==========================================
-elif page == "🔧 後台：資料管理":
+elif page == "後台管理":
     st.title("🔧 後台管理")
     try:
         sheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
