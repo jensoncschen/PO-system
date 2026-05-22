@@ -832,26 +832,6 @@ if page == "🛒 前台：下單作業":
         with c3:
             order_date = st.date_input("日期", datetime.now())
 
-        selected_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇"
-        selected_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇"
-        selected_date_label = safe_html(order_date.strftime('%Y/%m/%d'))
-        st.markdown(f"""
-            <div class='mobile-status-card'>
-                <div>
-                    <div class='mobile-status-title'>目前業務</div>
-                    <div class='mobile-status-value'>{selected_sales_label}</div>
-                </div>
-                <div>
-                    <div class='mobile-status-title'>目前客戶</div>
-                    <div class='mobile-status-value'>{selected_cust_label}</div>
-                </div>
-                <div>
-                    <div class='mobile-status-title'>訂單日期</div>
-                    <div class='mobile-status-value'>{selected_date_label}</div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
     # 統一結帳動作，保留原本訂單邏輯
     def trigger_order_submission():
         if not selected_sales_name or not selected_cust_name:
@@ -1077,25 +1057,10 @@ if page == "🛒 前台：下單作業":
                 </div>
             """, unsafe_allow_html=True)
 
-            cart_item_html_parts = []
-            for _, row in cart_df.iterrows():
-                product_name = safe_html(row.get("產品名稱", ""))
-                brand = safe_html(row.get("品牌", ""))
-                category = safe_html(row.get("品類", ""))
-                order_qty = int(row.get("訂購數量", 0) or 0)
-                gift_qty = int(row.get("搭贈數量", 0) or 0)
-                cart_item_html_parts.append(
-                    "<div class='cart-review-item'>"
-                    "<div class='cart-review-main'>"
-                    f"<div class='cart-review-name'>{product_name}</div>"
-                    f"<div class='cart-review-meta'>{brand}｜{category}</div>"
-                    "</div>"
-                    f"<div class='cart-review-qty'>訂購 {order_qty}｜搭贈 {gift_qty}</div>"
-                    "</div>"
-                )
-            cart_items_html = "".join(cart_item_html_parts)
-            st.markdown("<div class='cart-review-list'>" + cart_items_html + "</div>", unsafe_allow_html=True)
-            st.markdown("<div class='mobile-edit-note'>需要修改數量時，可直接在下方表格調整；刪除某列可用表格左側列操作。</div>", unsafe_allow_html=True)
+            st.markdown(
+                "<div class='mobile-edit-note'>請在下方表格確認商品與數量；需要修改時可直接調整數字。</div>",
+                unsafe_allow_html=True
+            )
             
             edited_cart = st.data_editor(
                 cart_df,
