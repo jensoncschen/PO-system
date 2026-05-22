@@ -4,7 +4,8 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import time
 import traceback
-import io 
+import io
+import html
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
@@ -362,10 +363,226 @@ st.markdown("""
         border-color: var(--border);
     }
 
+
+
+    .mobile-status-card {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 0.8rem 0.9rem;
+        margin-top: 0.55rem;
+    }
+
+    .mobile-status-title {
+        color: var(--text-muted) !important;
+        font-size: 0.78rem;
+        font-weight: 750;
+        margin-bottom: 0.15rem;
+    }
+
+    .mobile-status-value {
+        color: var(--text-main) !important;
+        font-size: 0.95rem;
+        font-weight: 800;
+        line-height: 1.35;
+    }
+
+    .action-hint {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a !important;
+        border-radius: 16px;
+        padding: 0.75rem 0.85rem;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        font-weight: 650;
+        margin: 0.55rem 0 0.75rem;
+    }
+
+    .product-count-chip {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--border);
+        background: #ffffff;
+        color: var(--text-muted) !important;
+        border-radius: 999px;
+        padding: 0.28rem 0.62rem;
+        font-size: 0.8rem;
+        font-weight: 750;
+        margin: 0.2rem 0 0.6rem;
+    }
+
+    .cart-review-list {
+        display: grid;
+        gap: 0.55rem;
+        margin: 0.75rem 0 0.75rem;
+    }
+
+    .cart-review-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 0.75rem 0.85rem;
+    }
+
+    .cart-review-name {
+        color: var(--text-main) !important;
+        font-size: 0.94rem;
+        font-weight: 800;
+        line-height: 1.35;
+    }
+
+    .cart-review-meta {
+        color: var(--text-muted) !important;
+        font-size: 0.82rem;
+        font-weight: 650;
+        margin-top: 0.18rem;
+    }
+
+    .cart-review-qty {
+        flex: 0 0 auto;
+        color: var(--text-main) !important;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.28rem 0.55rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .cart-final-panel {
+        background: #111827;
+        color: #ffffff !important;
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        margin: 0.85rem 0;
+    }
+
+    .cart-final-panel * {
+        color: #ffffff !important;
+    }
+
+    .cart-final-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        opacity: 0.72;
+        margin-bottom: 0.25rem;
+    }
+
+    .cart-final-value {
+        font-size: 1rem;
+        font-weight: 850;
+        line-height: 1.4;
+    }
+
+    .mobile-edit-note {
+        color: var(--text-muted) !important;
+        font-size: 0.82rem;
+        font-weight: 650;
+        margin: 0.35rem 0 0.55rem;
+    }
+
     @media (max-width: 768px) {
         .main .block-container {
             padding: 0.85rem 0.85rem 7.25rem 0.85rem;
         }
+
+
+
+        [data-testid="stSidebar"] {
+            border-right: none;
+        }
+
+        .hero-steps {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.4rem;
+        }
+
+        .hero-pill {
+            justify-content: center;
+            padding: 0.48rem 0.65rem;
+        }
+
+        .section-header {
+            gap: 0.55rem;
+        }
+
+        .section-index {
+            width: 32px;
+            height: 32px;
+            border-radius: 11px;
+        }
+
+        .mobile-status-card {
+            display: block;
+            padding: 0.85rem;
+        }
+
+        .mobile-status-card > div + div {
+            margin-top: 0.7rem;
+            padding-top: 0.7rem;
+            border-top: 1px solid var(--border);
+        }
+
+        div[data-testid="column"] {
+            min-width: 100% !important;
+        }
+
+        div[data-baseweb="input"],
+        div[data-baseweb="select"],
+        div[data-baseweb="base-input"],
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stNumberInput"] input {
+            min-height: 50px !important;
+        }
+
+        button,
+        div.stButton > button,
+        button[data-testid="stFormSubmitButton"],
+        div[data-testid="stDownloadButton"] button {
+            min-height: 50px !important;
+            font-size: 0.98rem !important;
+        }
+
+        .product-meta {
+            display: flex;
+            width: fit-content;
+            max-width: 100%;
+            white-space: normal;
+            line-height: 1.35;
+        }
+
+        .cart-review-item {
+            display: block;
+        }
+
+        .cart-review-qty {
+            display: inline-flex;
+            margin-top: 0.55rem;
+        }
+
+        .cart-final-panel {
+            padding: 0.85rem;
+        }
+
+        .sticky-cart-bar {
+            min-height: calc(70px + env(safe-area-inset-bottom));
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
 
         .hero-card {
             padding: 1rem;
@@ -432,6 +649,9 @@ def clean_barcode(val):
     if s.endswith('.0'): s = s[:-2]
     if s.lower() in ['nan', 'none', '']: return ''
     return s
+
+def safe_html(value):
+    return html.escape(str(value))
 
 @st.cache_data(show_spinner=False)
 def generate_excel_file(df):
@@ -570,7 +790,7 @@ if page == "🛒 前台：下單作業":
     st.markdown("""
         <div class='hero-card'>
             <div class='page-title'>快速下單</div>
-            <div class='page-subtitle'>手機優先的訂單建立流程。依序完成訂單資訊、新增商品、購物車確認即可送出。</div>
+            <div class='page-subtitle'>手機優先的訂單建立流程。單手操作、先加商品、最後一次確認送出。</div>
             <div class='hero-steps'>
                 <span class='hero-pill'>1 訂單資訊</span>
                 <span class='hero-pill'>2 新增商品</span>
@@ -611,6 +831,26 @@ if page == "🛒 前台：下單作業":
             )
         with c3:
             order_date = st.date_input("日期", datetime.now())
+
+        selected_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇"
+        selected_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇"
+        selected_date_label = safe_html(order_date.strftime('%Y/%m/%d'))
+        st.markdown(f"""
+            <div class='mobile-status-card'>
+                <div>
+                    <div class='mobile-status-title'>目前業務</div>
+                    <div class='mobile-status-value'>{selected_sales_label}</div>
+                </div>
+                <div>
+                    <div class='mobile-status-title'>目前客戶</div>
+                    <div class='mobile-status-value'>{selected_cust_label}</div>
+                </div>
+                <div>
+                    <div class='mobile-status-title'>訂單日期</div>
+                    <div class='mobile-status-value'>{selected_date_label}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
     # 統一結帳動作，保留原本訂單邏輯
     def trigger_order_submission():
@@ -735,7 +975,8 @@ if page == "🛒 前台：下單作業":
         selected_products_batch = [display_to_name[disp] for disp in selected_displays]
 
         if selected_products_batch:
-            st.caption(f"已選擇 {len(selected_products_batch)} 項商品。請輸入訂購數或搭贈數後加入購物車。")
+            st.markdown(f"<div class='product-count-chip'>已選擇 {len(selected_products_batch)} 項商品</div>", unsafe_allow_html=True)
+            st.markdown("<div class='action-hint'>手機操作建議：一次加入 1–3 項最穩。每項商品只要填訂購數或搭贈數其中之一，就會加入購物車。</div>", unsafe_allow_html=True)
             
             with st.form(key=f"batch_form{input_suffix}"):
                 for p_name in selected_products_batch:
@@ -747,9 +988,9 @@ if page == "🛒 前台：下單作業":
                     meta_text = "｜".join(meta_parts)
                     
                     with st.container(border=True):
-                        st.markdown(f"<div class='product-title'>{p_name}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='product-title'>{safe_html(p_name)}</div>", unsafe_allow_html=True)
                         if meta_text:
-                            st.markdown(f"<div class='product-meta'>{meta_text}</div>", unsafe_allow_html=True)
+                            st.markdown(f"<div class='product-meta'>{safe_html(meta_text)}</div>", unsafe_allow_html=True)
                         qty_col, gift_col = st.columns(2, gap="medium")
                         with qty_col:
                             st.number_input("訂購數", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}")
@@ -835,6 +1076,21 @@ if page == "🛒 前台：下單作業":
                     </div>
                 </div>
             """, unsafe_allow_html=True)
+
+            cart_items_html = "".join([
+                f"""
+                <div class='cart-review-item'>
+                    <div>
+                        <div class='cart-review-name'>{safe_html(row.get('產品名稱', ''))}</div>
+                        <div class='cart-review-meta'>{safe_html(row.get('品牌', ''))}｜{safe_html(row.get('品類', ''))}</div>
+                    </div>
+                    <div class='cart-review-qty'>訂購 {int(row.get('訂購數量', 0) or 0)}｜搭贈 {int(row.get('搭贈數量', 0) or 0)}</div>
+                </div>
+                """
+                for _, row in cart_df.iterrows()
+            ])
+            st.markdown(f"<div class='cart-review-list'>{cart_items_html}</div>", unsafe_allow_html=True)
+            st.markdown("<div class='mobile-edit-note'>需要修改數量時，可直接在下方表格調整；刪除某列可用表格左側列操作。</div>", unsafe_allow_html=True)
             
             edited_cart = st.data_editor(
                 cart_df,
@@ -851,6 +1107,17 @@ if page == "🛒 前台：下單作業":
             
             if not edited_cart.equals(cart_df):
                 st.session_state.cart_list = edited_cart.to_dict('records')
+
+            final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
+            final_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇客戶"
+            st.markdown(f"""
+                <div class='cart-final-panel'>
+                    <div class='cart-final-title'>送出前確認</div>
+                    <div class='cart-final-value'>{final_sales_label} → {final_cust_label}</div>
+                    <div class='cart-final-title' style='margin-top:0.45rem;'>本次合計</div>
+                    <div class='cart-final-value'>{len(st.session_state.cart_list)} 項商品｜訂購 {total_quantity}｜搭贈 {total_gift}</div>
+                </div>
+            """, unsafe_allow_html=True)
 
             st.markdown("")
             col_clear, col_submit = st.columns([1, 2], gap="medium")
