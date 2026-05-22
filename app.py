@@ -13,65 +13,231 @@ st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="�
 st.markdown("""
     <style>
     :root {
-        --app-bg: #f8fafc;
-        --card-bg: #ffffff;
+        --app-bg: #f6f7f9;
+        --surface: #ffffff;
+        --surface-soft: #f9fafb;
         --text-main: #111827;
         --text-muted: #6b7280;
+        --text-soft: #9ca3af;
         --border: #e5e7eb;
+        --border-strong: #d1d5db;
         --primary: #2563eb;
         --primary-hover: #1d4ed8;
         --success: #16a34a;
+        --danger: #dc2626;
+        --radius: 18px;
     }
 
     .stApp {
-        background: var(--app-bg);
+        background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.06), transparent 28rem),
+            var(--app-bg);
         color: var(--text-main);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
     }
 
     .main .block-container {
-        max-width: 1180px;
-        padding-top: 1.5rem;
-        padding-bottom: 7rem;
+        max-width: 1120px;
+        padding-top: 1.25rem;
+        padding-bottom: 7.5rem;
     }
 
     h1, h2, h3, .stMarkdown p, label, span {
         color: var(--text-main);
     }
 
+    [data-testid="stSidebar"] {
+        background: #ffffff;
+        border-right: 1px solid var(--border);
+    }
+
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] label {
+        color: var(--text-main) !important;
+    }
+
+    .hero-card {
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 1.25rem 1.35rem;
+        margin-bottom: 1.15rem;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    }
+
     .page-title {
-        font-size: 2rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.25rem;
+        font-size: 2.15rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.15;
+        margin-bottom: 0.35rem;
     }
 
     .page-subtitle {
         color: var(--text-muted);
-        margin-bottom: 1.25rem;
-        font-size: 0.95rem;
+        font-size: 0.98rem;
+        line-height: 1.6;
+        margin-bottom: 0.7rem;
     }
 
-    .section-title {
-        font-size: 1.05rem;
+    .hero-steps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.75rem;
+    }
+
+    .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.32rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--surface-soft);
+        color: var(--text-muted);
+        font-size: 0.82rem;
+        font-weight: 650;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: 1.15rem 0 0.65rem 0;
+    }
+
+    .section-title-wrap {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .section-index {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        background: #111827;
+        color: #ffffff !important;
+        font-size: 0.92rem;
+        font-weight: 800;
+        box-shadow: 0 6px 14px rgba(17, 24, 39, 0.12);
+    }
+
+    .section-title-text {
+        font-size: 1.18rem;
+        font-weight: 800;
+        letter-spacing: -0.015em;
+        margin-top: 0.05rem;
+    }
+
+    .section-note {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-top: 0.15rem;
+    }
+
+    .section-tag {
+        padding: 0.3rem 0.62rem;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3730a3 !important;
+        font-size: 0.78rem;
+        font-weight: 750;
+        white-space: nowrap;
+    }
+
+    .mini-label {
+        color: var(--text-muted);
+        font-size: 0.78rem;
         font-weight: 700;
-        margin: 1.2rem 0 0.6rem 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }
+
+    .subsection-title {
+        font-size: 0.98rem;
+        font-weight: 800;
+        margin: 0.25rem 0 0.2rem;
         color: var(--text-main);
     }
 
-    .section-caption {
+    .subsection-caption {
         color: var(--text-muted);
         font-size: 0.88rem;
-        margin-top: -0.25rem;
+        margin: 0 0 0.7rem 0;
+    }
+
+    .product-title {
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--text-main);
+        margin-bottom: 0.2rem;
+    }
+
+    .product-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        color: var(--text-muted);
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.8rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .cart-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
         margin-bottom: 0.75rem;
+    }
+
+    .summary-card {
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 0.75rem;
+    }
+
+    .summary-label {
+        color: var(--text-muted);
+        font-size: 0.78rem;
+        font-weight: 650;
+        margin-bottom: 0.25rem;
+    }
+
+    .summary-value {
+        color: var(--text-main);
+        font-size: 1.35rem;
+        line-height: 1;
+        font-weight: 850;
+        letter-spacing: -0.03em;
     }
 
     div[data-testid="stForm"],
     div[data-testid="stVerticalBlockBorderWrapper"] {
-        background: var(--card-bg);
-        border-color: var(--border) !important;
-        border-radius: 14px !important;
-        box-shadow: none !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: var(--radius) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03) !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] > div {
+        padding: 0.1rem;
     }
 
     input, textarea, select {
@@ -83,58 +249,78 @@ st.markdown("""
     div[data-baseweb="input"],
     div[data-baseweb="select"],
     div[data-baseweb="base-input"] {
-        border-radius: 12px !important;
-        border-color: var(--border) !important;
+        border-radius: 14px !important;
+        border-color: var(--border-strong) !important;
         background: #ffffff !important;
-        min-height: 44px;
+        min-height: 46px;
+        box-shadow: none !important;
+    }
+
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="base-input"]:focus-within,
+    div[data-baseweb="select"]:focus-within {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
     }
 
     div[data-testid="stTextInput"] input,
     div[data-testid="stNumberInput"] input {
-        min-height: 42px;
+        min-height: 44px;
     }
 
     button,
     div.stButton > button,
-    button[data-testid="stFormSubmitButton"] {
-        min-height: 44px !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        border: 1px solid var(--border) !important;
+    button[data-testid="stFormSubmitButton"],
+    div[data-testid="stDownloadButton"] button {
+        min-height: 46px !important;
+        border-radius: 14px !important;
+        font-weight: 750 !important;
+        border: 1px solid var(--border-strong) !important;
         box-shadow: none !important;
+        background: #ffffff !important;
+        color: var(--text-main) !important;
+        -webkit-text-fill-color: var(--text-main) !important;
+    }
+
+    button *,
+    div.stButton > button *,
+    button[data-testid="stFormSubmitButton"] *,
+    div[data-testid="stDownloadButton"] button * {
+        color: var(--text-main) !important;
+        -webkit-text-fill-color: var(--text-main) !important;
     }
 
     div.stButton > button[kind="primary"],
-    button[data-testid="stFormSubmitButton"] {
+    button[data-testid="stFormSubmitButton"],
+    div[data-testid="stDownloadButton"] button[kind="primary"] {
         background: var(--primary) !important;
-        color: #ffffff !important;
         border-color: var(--primary) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
     }
 
-    div.stButton > button[kind="primary"] p,
-    button[data-testid="stFormSubmitButton"] p {
+    div.stButton > button[kind="primary"] *,
+    button[data-testid="stFormSubmitButton"] *,
+    div[data-testid="stDownloadButton"] button[kind="primary"] * {
         color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    div.stButton > button:hover,
+    div[data-testid="stDownloadButton"] button:hover {
+        border-color: var(--text-soft) !important;
+        background: var(--surface-soft) !important;
     }
 
     div.stButton > button[kind="primary"]:hover,
-    button[data-testid="stFormSubmitButton"]:hover {
+    button[data-testid="stFormSubmitButton"]:hover,
+    div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
         background: var(--primary-hover) !important;
         border-color: var(--primary-hover) !important;
     }
 
-    .input-label {
-        display: flex;
-        align-items: center;
-        min-height: 38px;
-        color: var(--text-muted);
-        font-weight: 600;
-        font-size: 0.9rem;
-    }
-
-    .product-meta {
-        color: var(--text-muted);
-        font-size: 0.85rem;
-        margin-top: -0.35rem;
+    .stAlert {
+        border-radius: 16px !important;
     }
 
     .sticky-cart-bar {
@@ -142,22 +328,32 @@ st.markdown("""
         bottom: 0;
         left: 0;
         width: 100%;
-        min-height: 58px;
-        background: rgba(255, 255, 255, 0.96);
+        min-height: 64px;
+        background: rgba(255, 255, 255, 0.94);
         border-top: 1px solid var(--border);
-        box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 -12px 28px rgba(15, 23, 42, 0.08);
         z-index: 999992;
         display: flex;
         justify-content: center;
         align-items: center;
         padding: 0 1rem;
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(10px);
     }
 
-    .sticky-cart-bar span {
+    .sticky-cart-content {
+        width: min(1040px, 100%);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
         color: var(--text-main) !important;
-        font-size: 0.95rem;
-        font-weight: 700;
+        font-weight: 800;
+    }
+
+    .sticky-cart-muted {
+        color: var(--text-muted) !important;
+        font-size: 0.88rem;
+        font-weight: 650;
     }
 
     hr {
@@ -166,89 +362,50 @@ st.markdown("""
         border-color: var(--border);
     }
 
-
-    .phase-section-header {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        margin: 1.25rem 0 0.55rem 0;
-        font-size: 1.05rem;
-        font-weight: 800;
-        color: var(--text-main);
-    }
-
-    .phase-section-number {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 999px;
-        background: #eff6ff;
-        color: var(--primary);
-        font-size: 0.9rem;
-        font-weight: 800;
-    }
-
-    .phase-section-note {
-        color: var(--text-muted);
-        font-size: 0.88rem;
-        margin-top: -0.25rem;
-        margin-bottom: 0.75rem;
-    }
-
-    /* 手機版黑底按鈕修正：先把所有按鈕變成可讀白底，再指定主要按鈕藍底白字 */
-    button,
-    button *,
-    div.stButton > button,
-    div.stButton > button *,
-    button[data-testid="stFormSubmitButton"],
-    button[data-testid="stFormSubmitButton"] * {
-        color: var(--text-main) !important;
-        -webkit-text-fill-color: var(--text-main) !important;
-    }
-
-    button,
-    div.stButton > button {
-        background: #ffffff !important;
-        border-color: var(--border) !important;
-    }
-
-    div.stButton > button[kind="primary"],
-    button[data-testid="stFormSubmitButton"] {
-        background: var(--primary) !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        border-color: var(--primary) !important;
-    }
-
-    div.stButton > button[kind="primary"] *,
-    button[data-testid="stFormSubmitButton"] * {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-    }
-
     @media (max-width: 768px) {
         .main .block-container {
-            padding: 1rem 0.9rem 7rem 0.9rem;
+            padding: 0.85rem 0.85rem 7.25rem 0.85rem;
+        }
+
+        .hero-card {
+            padding: 1rem;
+            border-radius: 20px;
         }
 
         .page-title {
-            font-size: 1.65rem;
+            font-size: 1.7rem;
         }
 
-        .section-title {
-            font-size: 1rem;
+        .page-subtitle {
+            font-size: 0.92rem;
         }
 
-        .input-label {
-            min-height: auto;
-            margin-bottom: 0.25rem;
+        .section-header {
+            align-items: flex-start;
+            margin-top: 1rem;
+        }
+
+        .section-title-text {
+            font-size: 1.08rem;
+        }
+
+        .section-tag {
+            display: none;
+        }
+
+        .cart-summary {
+            grid-template-columns: 1fr;
         }
 
         div[data-testid="stDataFrame"],
         div[data-testid="stDataEditor"] {
-            font-size: 0.85rem;
+            font-size: 0.84rem;
+        }
+
+        .sticky-cart-content {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.15rem;
         }
     }
     </style>
@@ -386,23 +543,23 @@ if 'input_reset_trigger' not in st.session_state: st.session_state.input_reset_t
 if 'form_reset_trigger' not in st.session_state: st.session_state.form_reset_trigger = 0
 
 # --- 左側導航 ---
-st.sidebar.title("系統導航")
+st.sidebar.title("雲端訂購")
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "📥 訂單匯出", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
 
-st.sidebar.markdown("### 購物車狀態")
+st.sidebar.markdown("### 購物車")
 cart_len = len(st.session_state.cart_list)
 if cart_len > 0:
-    st.sidebar.success(f"已加入 {cart_len} 筆商品")
+    st.sidebar.success(f"{cart_len} 筆商品")
     st.sidebar.dataframe(pd.DataFrame(st.session_state.cart_list)[["產品名稱","訂購數量"]], hide_index=True)
-    if st.sidebar.button("🗑️ 清空購物車"):
+    if st.sidebar.button("清空購物車"):
         st.session_state.cart_list = []
         st.rerun()
 else:
     st.sidebar.info("購物車是空的")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("🔄 強制更新雲端資料"):
+if st.sidebar.button("更新雲端資料"):
     st.cache_data.clear()
     st.rerun()
 
@@ -410,22 +567,36 @@ if st.sidebar.button("🔄 強制更新雲端資料"):
 # 🚀 1. 🛒 前台：下單作業
 # ==========================================
 if page == "🛒 前台：下單作業":
-    st.markdown("<div class='page-title'>快速下單</div>", unsafe_allow_html=True)
-    st.markdown("<div class='page-subtitle'>三個區塊完成下單：訂單資訊 → 新增商品 → 購物車。</div>", unsafe_allow_html=True)
+    st.markdown("""
+        <div class='hero-card'>
+            <div class='page-title'>快速下單</div>
+            <div class='page-subtitle'>手機優先的訂單建立流程。依序完成訂單資訊、新增商品、購物車確認即可送出。</div>
+            <div class='hero-steps'>
+                <span class='hero-pill'>1 訂單資訊</span>
+                <span class='hero-pill'>2 新增商品</span>
+                <span class='hero-pill'>3 購物車確認</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
     # 區塊 1：訂單資訊
     st.markdown("""
-        <div class='phase-section-header'>
-            <span class='phase-section-number'>1</span>
-            <span>訂單資訊區</span>
+        <div class='section-header'>
+            <div class='section-title-wrap'>
+                <span class='section-index'>1</span>
+                <div>
+                    <div class='section-title-text'>訂單資訊</div>
+                    <div class='section-note'>先確認業務、客戶與日期。這三項會帶入本次訂單。</div>
+                </div>
+            </div>
+            <span class='section-tag'>必填</span>
         </div>
-        <div class='phase-section-note'>先選業務、客戶與訂單日期。</div>
     """, unsafe_allow_html=True)
 
     with st.container(border=True):
-        c1, c2, c3 = st.columns([1.5, 2, 1.5])
+        c1, c2, c3 = st.columns([1.25, 1.75, 1], gap="medium")
         with c1:
             sales_list = df_salespeople["業務名稱"].unique().tolist()
             selected_sales_name = st.selectbox(
@@ -444,11 +615,11 @@ if page == "🛒 前台：下單作業":
     # 統一結帳動作，保留原本訂單邏輯
     def trigger_order_submission():
         if not selected_sales_name or not selected_cust_name:
-            st.error("⚠️ 請確認最上方已正確選擇「業務」與「客戶」！")
+            st.error("請確認已選擇業務與客戶。")
         elif len(st.session_state.cart_list) == 0:
-            st.warning("⚠️ 購物車目前是空的，請先加入商品。")
+            st.warning("購物車目前是空的，請先加入商品。")
         else:
-            with st.spinner("⏳ 正在寫入雲端..."):
+            with st.spinner("正在寫入雲端..."):
                 generated_bill_no = submit_new_order(
                     st.session_state.cart_list, 
                     selected_sales_name, 
@@ -462,41 +633,51 @@ if page == "🛒 前台：下單作業":
                 st.session_state.input_reset_trigger += 1 
                 st.session_state.form_reset_trigger += 1  
                 st.cache_data.clear()
-                st.balloons()
-                st.success(f"🎉 訂單 {generated_bill_no} 建立成功！")
-                time.sleep(2)
+                st.success(f"訂單 {generated_bill_no} 建立成功。")
+                time.sleep(1.2)
                 st.rerun()
 
     cart_count = len(st.session_state.cart_list)
+    total_quantity = sum(int(item.get("訂購數量", 0) or 0) for item in st.session_state.cart_list)
+    total_gift = sum(int(item.get("搭贈數量", 0) or 0) for item in st.session_state.cart_list)
     if cart_count > 0:
         st.markdown(f"""
             <div class="sticky-cart-bar">
-                <span>購物車：{cart_count} 項商品，可在購物車區送出訂單</span>
+                <div class="sticky-cart-content">
+                    <span>{cart_count} 項商品｜訂購 {total_quantity}｜搭贈 {total_gift}</span>
+                    <span class="sticky-cart-muted">請到購物車區確認後送出</span>
+                </div>
             </div>
         """, unsafe_allow_html=True)
 
     # 區塊 2：新增商品
     st.markdown("""
-        <div class='phase-section-header'>
-            <span class='phase-section-number'>2</span>
-            <span>新增商品區</span>
+        <div class='section-header'>
+            <div class='section-title-wrap'>
+                <span class='section-index'>2</span>
+                <div>
+                    <div class='section-title-text'>新增商品</div>
+                    <div class='section-note'>先用條碼或名稱搜尋；需要瀏覽時再用品牌與品類縮小範圍。</div>
+                </div>
+            </div>
+            <span class='section-tag'>可重複加入</span>
         </div>
-        <div class='phase-section-note'>搜尋、篩選、選擇商品並輸入數量。</div>
     """, unsafe_allow_html=True)
 
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
     with st.container(border=True):
-        st.markdown("<div class='section-title'>商品搜尋</div>", unsafe_allow_html=True)
-        st.markdown("<div class='section-caption'>可輸入條碼或商品名稱關鍵字。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='mini-label'>SEARCH</div>", unsafe_allow_html=True)
+        st.markdown("<div class='subsection-title'>商品搜尋</div>", unsafe_allow_html=True)
         barcode_input = st.text_input(
             "條碼或商品名稱", 
-            placeholder="輸入條碼或商品名稱",
+            placeholder="掃描條碼，或輸入商品名稱關鍵字",
             key=f"barcode_scan{input_suffix}"
         )
 
-        st.markdown("<div class='section-title'>篩選商品</div>", unsafe_allow_html=True)
-        col_filter_brand, col_filter_cat = st.columns(2)
+        st.markdown("<div class='subsection-title'>商品篩選</div>", unsafe_allow_html=True)
+        st.markdown("<div class='subsection-caption'>沒有搜尋關鍵字時，可用品牌與品類瀏覽商品。</div>", unsafe_allow_html=True)
+        col_filter_brand, col_filter_cat = st.columns(2, gap="medium")
 
         with col_filter_brand:
             brand_options = ["全部"] + df_products["品牌"].unique().tolist()
@@ -521,7 +702,7 @@ if page == "🛒 前台：下單作業":
             df_step2 = df_products[mask_barcode | mask_name]
             
             if df_step2.empty:
-                st.error(f"❌ 找不到包含「{clean_input}」的條碼或商品名稱！")
+                st.error(f"找不到包含「{clean_input}」的條碼或商品名稱。")
         else:
             df_step2 = df_step1.copy()
             if selected_cat_filter != "全部":
@@ -532,7 +713,7 @@ if page == "🛒 前台：下單作業":
             p_name = row["產品名稱"]
             barcode = str(row["國際條碼"]).strip()
             if barcode:
-                display_str = f"{p_name} ［條碼: {barcode}］"
+                display_str = f"{p_name} ｜ 條碼 {barcode}"
             else:
                 display_str = p_name
             display_to_name[display_str] = p_name
@@ -540,46 +721,46 @@ if page == "🛒 前台：下單作業":
         display_options = list(display_to_name.keys())
         default_selections = display_options if barcode_input and len(display_options) == 1 else []
 
+        st.markdown("<div class='subsection-title'>選擇商品</div>", unsafe_allow_html=True)
         selected_displays = st.multiselect(
             "選擇商品", 
             options=display_options, 
             default=default_selections, 
             max_selections=20,
-            placeholder="可一次選擇多項商品",
-            key=f"prod_multi{input_suffix}"
+            placeholder="選擇一項或多項商品",
+            key=f"prod_multi{input_suffix}",
+            label_visibility="collapsed"
         )
 
         selected_products_batch = [display_to_name[disp] for disp in selected_displays]
 
         if selected_products_batch:
-            st.info(f"已選擇 {len(selected_products_batch)} 項商品，請輸入數量後加入購物車")
+            st.caption(f"已選擇 {len(selected_products_batch)} 項商品。請輸入訂購數或搭贈數後加入購物車。")
             
             with st.form(key=f"batch_form{input_suffix}"):
                 for p_name in selected_products_batch:
                     p_info = global_prod_dict.get(p_name, {})
                     p_cat = p_info.get('品類', '一般')
+                    p_brand = p_info.get('品牌', '')
                     p_barcode = p_info.get('國際條碼', '')
-                    barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
+                    meta_parts = [x for x in [p_brand, p_cat, f"條碼 {p_barcode}" if p_barcode else ""] if x]
+                    meta_text = "｜".join(meta_parts)
                     
-                    st.markdown(f"**{p_name}**", unsafe_allow_html=True)
-                    st.markdown(f"<div class='product-meta'>{p_cat}{barcode_text}</div>", unsafe_allow_html=True)
-                    
-                    c_label_q, c_input_q, c_label_g, c_input_g = st.columns([1.2, 2.5, 1.2, 2.5], gap="small")
-                    with c_label_q:
-                        st.markdown("<div class='input-label'>訂購數</div>", unsafe_allow_html=True)
-                    with c_input_q:
-                        st.number_input("訂購", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}", label_visibility="collapsed")
-                    with c_label_g:
-                        st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
-                    with c_input_g:
-                        st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
-                    st.markdown("<hr>", unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.markdown(f"<div class='product-title'>{p_name}</div>", unsafe_allow_html=True)
+                        if meta_text:
+                            st.markdown(f"<div class='product-meta'>{meta_text}</div>", unsafe_allow_html=True)
+                        qty_col, gift_col = st.columns(2, gap="medium")
+                        with qty_col:
+                            st.number_input("訂購數", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}")
+                        with gift_col:
+                            st.number_input("搭贈數", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}")
 
                 submitted = st.form_submit_button("加入購物車", use_container_width=True)
                 
                 if submitted:
                     if not selected_sales_name or not selected_cust_name:
-                        st.error("⚠️ 請先在最上方選擇「業務」與「客戶」！")
+                        st.error("請先在訂單資訊區選擇業務與客戶。")
                     else:
                         items_added_count = 0
                         keys_to_clear = [] 
@@ -613,26 +794,47 @@ if page == "🛒 前台：下單作業":
                                     del st.session_state[k]
                                     
                             st.session_state.input_reset_trigger += 1 
-                            st.toast(f"✅ 成功加入 {items_added_count} 項商品！")
+                            st.toast(f"成功加入 {items_added_count} 項商品")
                             time.sleep(0.5)
                             st.rerun()
                         else:
-                            st.warning("⚠️ 所有商品的數量皆未輸入，未加入任何項目")
+                            st.warning("所有商品的數量皆未輸入，未加入任何項目。")
 
     # 區塊 3：購物車
     st.markdown("""
-        <div class='phase-section-header'>
-            <span class='phase-section-number'>3</span>
-            <span>購物車</span>
+        <div class='section-header'>
+            <div class='section-title-wrap'>
+                <span class='section-index'>3</span>
+                <div>
+                    <div class='section-title-text'>購物車</div>
+                    <div class='section-note'>送出前請確認商品、訂購數與搭贈數。表格內可直接修改數量。</div>
+                </div>
+            </div>
+            <span class='section-tag'>最後確認</span>
         </div>
-        <div class='phase-section-note'>確認商品與數量後送出訂單。</div>
     """, unsafe_allow_html=True)
 
     with st.container(border=True):
-        st.markdown(f"<div class='section-title'>目前購物車（{len(st.session_state.cart_list)}）</div>", unsafe_allow_html=True)
-
         if len(st.session_state.cart_list) > 0:
             cart_df = pd.DataFrame(st.session_state.cart_list)
+            total_quantity = int(cart_df["訂購數量"].fillna(0).sum()) if "訂購數量" in cart_df.columns else 0
+            total_gift = int(cart_df["搭贈數量"].fillna(0).sum()) if "搭贈數量" in cart_df.columns else 0
+            st.markdown(f"""
+                <div class='cart-summary'>
+                    <div class='summary-card'>
+                        <div class='summary-label'>商品項目</div>
+                        <div class='summary-value'>{len(cart_df)}</div>
+                    </div>
+                    <div class='summary-card'>
+                        <div class='summary-label'>訂購數量</div>
+                        <div class='summary-value'>{total_quantity}</div>
+                    </div>
+                    <div class='summary-card'>
+                        <div class='summary-label'>搭贈數量</div>
+                        <div class='summary-value'>{total_gift}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
             
             edited_cart = st.data_editor(
                 cart_df,
@@ -651,12 +853,16 @@ if page == "🛒 前台：下單作業":
                 st.session_state.cart_list = edited_cart.to_dict('records')
 
             st.markdown("")
-            col_submit_space, col_submit_btn = st.columns([1, 2])
-            with col_submit_btn:
+            col_clear, col_submit = st.columns([1, 2], gap="medium")
+            with col_clear:
+                if st.button("清空購物車", use_container_width=True, key="clear_cart_main_btn"):
+                    st.session_state.cart_list = []
+                    st.rerun()
+            with col_submit:
                 if st.button("送出訂單", type="primary", use_container_width=True, key="bottom_checkout_btn"):
                     trigger_order_submission()
         else:
-            st.info("請在上方搜尋或篩選商品，加入購物車後即可送出訂單。")
+            st.info("購物車目前是空的。請先在新增商品區加入商品。")
 
 # ==========================================
 # 📥 2. 中台：訂單匯出
