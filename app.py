@@ -9,166 +9,185 @@ import io
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide", page_icon="🛍️")
 
-# --- CSS 優化（全球頂級防禦版：深層阻斷手機端原生黑色遮罩，完美還原 Google 極簡風格） ---
+# --- CSS：Phase 1 極簡清晰介面（手機優先、少量覆蓋） ---
 st.markdown("""
     <style>
-    /* 1. 全局基底校正：Google 純白主義 */
-    .stApp { 
-        background-color: #ffffff !important; 
-        font-family: Roboto, Helvetica, Arial, sans-serif !important;
-    }
-    
-    /* 強制所有標準文字回歸 Google 深碳灰 */
-    .stApp label p, .stApp .stMarkdown p, .stApp h1, .stApp h2, .stApp h3, .stApp span {
-        color: #202124 !important;
-    }
-
-    /* 2. 重點打擊：深層阻斷所有輸入框（文字、數字、日期、下拉選單）在手機端的黑色填滿框 */
-    div[data-baseweb="input"], 
-    div[data-baseweb="base-input"],
-    div[data-baseweb="select"],
-    div[data-baseweb="select"] > div,
-    div[data-testid="stNumberInput"],
-    div[data-testid="stTextInput"],
-    div[data-testid="stDateInput"] {
-        background-color: #ffffff !important; /* 強制所有巢狀容器底色為白 */
-        border: 1px solid #dadce0 !important; /* 統一改為 Google 細灰邊框 */
-        border-radius: 8px !important;
-    }
-    
-    /* 清除所有層級子元件的次級背景顏色填滿 */
-    div[data-baseweb="input"] > div,
-    div[data-baseweb="base-input"] > div,
-    div[data-baseweb="select"] div,
-    div[data-testid="stNumberInput"] div {
-        background-color: transparent !important;
+    :root {
+        --app-bg: #f8fafc;
+        --card-bg: #ffffff;
+        --text-main: #111827;
+        --text-muted: #6b7280;
+        --border: #e5e7eb;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --success: #16a34a;
     }
 
-    /* 3. 解決字體被遮擋：強制網頁與手機端瀏覽器（含 iOS Safari）輸入字體為清晰深灰色 */
-    input, select, textarea {
-        color: #202124 !important;
-        background-color: transparent !important;
-        font-size: 16px !important;
-        -webkit-text-fill-color: #202124 !important; /* 強制修正手機端原生渲染遮擋 */
+    .stApp {
+        background: var(--app-bg);
+        color: var(--text-main);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
     }
 
-    /* 4. 條碼快搜特別優化：維持 Google Search 靈魂大圓角 */
-    div[data-testid="stTextInput"] > div[data-baseweb="base-input"] {
-        border-radius: 24px !important; 
-        padding: 4px 14px !important;
-    }
-    div[data-testid="stTextInput"] > div[data-baseweb="base-input"]:focus-within {
-        box-shadow: 0 1px 6px rgba(32,33,36,0.2) !important; 
+    .main .block-container {
+        max-width: 1180px;
+        padding-top: 1.5rem;
+        padding-bottom: 7rem;
     }
 
-    /* 5. 數量計數器微調：徹底消滅加減按鈕的異常紅色或黑色底色 */
-    div[data-testid="stNumberInput"] button {
-        background-color: transparent !important;
-        color: #1a73e8 !important; 
-        border: none !important;
+    h1, h2, h3, .stMarkdown p, label, span {
+        color: var(--text-main);
     }
 
-    /* 6. 多選商品標籤（Multiselect Tags）洗白 */
-    div[data-baseweb="select"] div[role="button"] {
-        background-color: #f1f3f4 !important; 
-        color: #3c4043 !important; 
-        border-radius: 16px !important; 
-        border: 1px solid #dadce0 !important;
-    }
-    div[data-baseweb="select"] div[role="button"] span,
-    div[data-baseweb="select"] div[role="button"] svg {
-        color: #5f6368 !important;
-    }
-    div[data-baseweb="select"] svg {
-        color: #70757a !important; 
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.25rem;
     }
 
-    /* 下拉彈出選單（Popover）強制轉 Google 白 */
-    div[data-baseweb="popover"], div[data-baseweb="dropdown"], ul[role="listbox"] {
-        background-color: #ffffff !important;
-        z-index: 999995 !important;
-    }
-    div[data-baseweb="popover"] li, ul[role="listbox"] li, div[role="option"] {
-        color: #202124 !important;
-        background-color: #ffffff !important;
-    }
-    div[data-baseweb="popover"] li:hover, ul[role="listbox"] li:hover, div[role="option"]:hover {
-        background-color: #f1f3f4 !important;
-        color: #1a73e8 !important;
+    .page-subtitle {
+        color: var(--text-muted);
+        margin-bottom: 1.25rem;
+        font-size: 0.95rem;
     }
 
-    /* 7. 表單外殼完全極簡化（拔除深色塊） */
-    div[data-testid="stForm"] {
-        background-color: #ffffff !important; 
-        border: none !important;
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 1.2rem 0 0.6rem 0;
+        color: var(--text-main);
+    }
+
+    .section-caption {
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        margin-top: -0.25rem;
+        margin-bottom: 0.75rem;
+    }
+
+    div[data-testid="stForm"],
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--card-bg);
+        border-color: var(--border) !important;
+        border-radius: 14px !important;
         box-shadow: none !important;
-        padding: 0rem !important; 
-    }
-    div[data-testid="stForm"] strong {
-        color: #1a0dab !important; /* Google 搜尋結果經典超連結藍 */
-        font-size: 1.12em;
-    }
-    div[data-testid="stForm"] strong:hover {
-        text-decoration: underline;
-    }
-    div[data-testid="stForm"] .input-label {
-        color: #4c4e52 !important;
     }
 
-    /* 8. 徹底解決按鈕黑塊：強制將「全部加入購物車」及所有按鈕改為 Google 商務藍底白字 */
-    button, 
-    div.stButton > button, 
+    input, textarea, select {
+        font-size: 16px !important;
+        color: var(--text-main) !important;
+        -webkit-text-fill-color: var(--text-main) !important;
+    }
+
+    div[data-baseweb="input"],
+    div[data-baseweb="select"],
+    div[data-baseweb="base-input"] {
+        border-radius: 12px !important;
+        border-color: var(--border) !important;
+        background: #ffffff !important;
+        min-height: 44px;
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input {
+        min-height: 42px;
+    }
+
+    button,
+    div.stButton > button,
     button[data-testid="stFormSubmitButton"] {
-        height: 42px !important;
-        background-color: #1a73e8 !important; /* Google 核心商務藍 */
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 6px !important; 
-        font-size: 14px !important;
-        font-weight: 500 !important;
-        box-shadow: 0 1px 2px rgba(60,64,67,0.15) !important;
-    }
-    /* 強制按鈕內文字與圖示不隱形 */
-    button p, button span, button div {
-        color: #ffffff !important;
-    }
-    button:hover, button[data-testid="stFormSubmitButton"]:hover {
-        background-color: #1557b0 !important;
+        min-height: 44px !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        border: 1px solid var(--border) !important;
+        box-shadow: none !important;
     }
 
-    /* 9. 手機端底部固定懸浮購物車條 */
+    div.stButton > button[kind="primary"],
+    button[data-testid="stFormSubmitButton"] {
+        background: var(--primary) !important;
+        color: #ffffff !important;
+        border-color: var(--primary) !important;
+    }
+
+    div.stButton > button[kind="primary"] p,
+    button[data-testid="stFormSubmitButton"] p {
+        color: #ffffff !important;
+    }
+
+    div.stButton > button[kind="primary"]:hover,
+    button[data-testid="stFormSubmitButton"]:hover {
+        background: var(--primary-hover) !important;
+        border-color: var(--primary-hover) !important;
+    }
+
+    .input-label {
+        display: flex;
+        align-items: center;
+        min-height: 38px;
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .product-meta {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-top: -0.35rem;
+    }
+
     .sticky-cart-bar {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        height: 55px; 
-        background-color: #ffffff !important; 
-        padding: 0px 20px;
-        box-shadow: 0 -2px 12px rgba(0,0,0,0.06); 
-        border-top: 1px solid #eef0f2;
+        min-height: 58px;
+        background: rgba(255, 255, 255, 0.96);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
         z-index: 999992;
         display: flex;
         justify-content: center;
         align-items: center;
-        will-change: transform;
-        transform: translateZ(0); 
+        padding: 0 1rem;
+        backdrop-filter: blur(8px);
     }
-    
-    hr { margin-top: 0.5rem; margin-bottom: 0.5rem; border-color: #f1f3f4; }
-    .input-label {
-        display: flex; align-items: center; justify-content: flex-end; 
-        height: 38px; font-weight: 500; color: #5f6368;
+
+    .sticky-cart-bar span {
+        color: var(--text-main) !important;
+        font-size: 0.95rem;
+        font-weight: 700;
     }
-    
-    .main .block-container { 
-        padding-bottom: 140px !important; 
+
+    hr {
+        margin-top: 0.75rem;
+        margin-bottom: 0.75rem;
+        border-color: var(--border);
     }
-    
+
     @media (max-width: 768px) {
-        .main .block-container { padding-top: 1rem !important; padding-bottom: 150px !important; }
-        .sticky-cart-bar span { color: #202124 !important; font-size: 14px !important; } 
-        .input-label { justify-content: flex-start !important; height: auto !important; margin-bottom: 1px; }
+        .main .block-container {
+            padding: 1rem 0.9rem 7rem 0.9rem;
+        }
+
+        .page-title {
+            font-size: 1.65rem;
+        }
+
+        .section-title {
+            font-size: 1rem;
+        }
+
+        .input-label {
+            min-height: auto;
+            margin-bottom: 0.25rem;
+        }
+
+        div[data-testid="stDataFrame"],
+        div[data-testid="stDataEditor"] {
+            font-size: 0.85rem;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
@@ -305,11 +324,11 @@ if 'input_reset_trigger' not in st.session_state: st.session_state.input_reset_t
 if 'form_reset_trigger' not in st.session_state: st.session_state.form_reset_trigger = 0
 
 # --- 左側導航 ---
-st.sidebar.title("☁️ 系統導航")
+st.sidebar.title("系統導航")
 page = st.sidebar.radio("前往區塊", ["🛒 前台：下單作業", "📥 訂單匯出", "🔧 後台：資料管理"])
 st.sidebar.markdown("---")
 
-st.sidebar.markdown("### 🛒 購物車狀態")
+st.sidebar.markdown("### 購物車狀態")
 cart_len = len(st.session_state.cart_list)
 if cart_len > 0:
     st.sidebar.success(f"已加入 {cart_len} 筆商品")
@@ -329,27 +348,28 @@ if st.sidebar.button("🔄 強制更新雲端資料"):
 # 🚀 1. 🛒 前台：下單作業
 # ==========================================
 if page == "🛒 前台：下單作業":
-    st.title("🚀 快速下單系統")
+    st.markdown("<div class='page-title'>快速下單</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-subtitle'>先選訂單資訊，再搜尋商品並加入購物車。</div>", unsafe_allow_html=True)
 
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
-    # 頂部狀態小卡片（極簡緊湊化）
+    st.markdown("<div class='section-title'>訂單資訊</div>", unsafe_allow_html=True)
     with st.container(border=True):
         c1, c2, c3 = st.columns([1.5, 2, 1.5])
         with c1:
             sales_list = df_salespeople["業務名稱"].unique().tolist()
             selected_sales_name = st.selectbox(
-                "👤 業務", sales_list, index=None, placeholder="選擇業務...", key=f"sales_sb{form_suffix}"
+                "業務", sales_list, index=None, placeholder="選擇業務", key=f"sales_sb{form_suffix}"
             )
         with c2:
             current_cust = []
             if selected_sales_name:
                 current_cust = df_customers[df_customers["業務名稱"]==selected_sales_name]["客戶名稱"].unique().tolist()
             selected_cust_name = st.selectbox(
-                "🏢 客戶", current_cust, index=None, placeholder="選擇客戶...", key=f"cust_sb{form_suffix}"
+                "客戶", current_cust, index=None, placeholder="選擇客戶", key=f"cust_sb{form_suffix}"
             )
         with c3:
-            order_date = st.date_input("📅 日期", datetime.now())
+            order_date = st.date_input("日期", datetime.now())
 
     # 【核心升級：宣告統一結帳動作，供雙向按鈕同時呼叫】
     def trigger_order_submission():
@@ -382,31 +402,32 @@ if page == "🛒 前台：下單作業":
         st.markdown(f"""
             <div class="sticky-cart-bar">
                 <span style="color: white; font-size: 18px; font-weight: bold;">
-                    🛒 購物車：已動態累計 {cart_count} 項商品
+                    購物車：{cart_count} 項商品，可送出訂單
                 </span>
             </div>
         """, unsafe_allow_html=True)
         
         # 將真正的頂部快速結帳按鈕置於顯眼處（雙向結帳第一向）
-        if st.button("⚡ 頂部快速結帳 (免下滑)", type="primary", use_container_width=True, key="top_checkout_btn"):
+        if st.button("送出訂單", type="primary", use_container_width=True, key="top_checkout_btn"):
             trigger_order_submission()
 
-    st.markdown("### ➕ 新增商品")
+    st.markdown("<div class='section-title'>新增商品</div>", unsafe_allow_html=True)
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
-    st.markdown("#### 📷 步驟一：條碼快搜")
+    st.markdown("<div class='section-title'>商品搜尋</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-caption'>可輸入條碼或商品名稱關鍵字。</div>", unsafe_allow_html=True)
     barcode_input = st.text_input(
-        "輸入條碼或商品名稱關鍵字後按 Enter", 
-        placeholder="例如輸入 12345 尋找條碼，或輸入 iPhone...",
+        "條碼或商品名稱", 
+        placeholder="輸入條碼或商品名稱",
         key=f"barcode_scan{input_suffix}"
     )
 
-    st.markdown("#### 👆 步驟二：手動篩選")
+    st.markdown("<div class='section-title'>篩選商品</div>", unsafe_allow_html=True)
     col_filter_brand, col_filter_cat = st.columns(2)
 
     with col_filter_brand:
         brand_options = ["全部"] + df_products["品牌"].unique().tolist()
-        selected_brand_filter = st.selectbox("1️⃣ 品牌篩選", brand_options, key=f"brand{input_suffix}")
+        selected_brand_filter = st.selectbox("品牌", brand_options, key=f"brand{input_suffix}")
 
     with col_filter_cat:
         df_step1 = df_products.copy()
@@ -414,7 +435,7 @@ if page == "🛒 前台：下單作業":
             df_step1 = df_step1[df_step1["品牌"] == selected_brand_filter]
         
         cat_options = ["全部"] + df_step1["品類"].unique().tolist()
-        selected_cat_filter = st.selectbox("2️⃣ 品類篩選", cat_options, key=f"cat{input_suffix}")
+        selected_cat_filter = st.selectbox("品類", cat_options, key=f"cat{input_suffix}")
 
     if barcode_input:
         clean_input = barcode_input.strip()
@@ -447,18 +468,18 @@ if page == "🛒 前台：下單作業":
     default_selections = display_options if barcode_input and len(display_options) == 1 else []
 
     selected_displays = st.multiselect(
-        "3️⃣ 選擇商品 (可手動點選，最多20樣)", 
+        "選擇商品", 
         options=display_options, 
         default=default_selections, 
         max_selections=20,
-        placeholder="請點選加入多項商品...",
+        placeholder="可一次選擇多項商品",
         key=f"prod_multi{input_suffix}"
     )
 
     selected_products_batch = [display_to_name[disp] for disp in selected_displays]
 
     if selected_products_batch:
-        st.info(f"👇 您已選擇 {len(selected_products_batch)} 項商品，請輸入數量後一次送出")
+        st.info(f"已選擇 {len(selected_products_batch)} 項商品，請輸入數量後加入購物車")
         
         # 進入深色商務藍分區表單
         with st.form(key=f"batch_form{input_suffix}"):
@@ -468,7 +489,8 @@ if page == "🛒 前台：下單作業":
                 p_barcode = p_info.get('國際條碼', '')
                 barcode_text = f" | 條碼: {p_barcode}" if p_barcode else ""
                 
-                st.markdown(f"**{p_name}** <span style='color:#94a3b8; font-size:0.8em'>({p_cat}{barcode_text})</span>", unsafe_allow_html=True)
+                st.markdown(f"**{p_name}**", unsafe_allow_html=True)
+                st.markdown(f"<div class='product-meta'>{p_cat}{barcode_text}</div>", unsafe_allow_html=True)
                 
                 c_label_q, c_input_q, c_label_g, c_input_g = st.columns([1.2, 2.5, 1.2, 2.5], gap="small")
                 with c_label_q:
@@ -480,10 +502,10 @@ if page == "🛒 前台：下單作業":
                     st.markdown("<div class='input-label'>搭贈數</div>", unsafe_allow_html=True)
                 with c_input_g:
                     st.number_input("搭贈", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}", label_visibility="collapsed")
-                st.markdown("<hr style='border-color: #334155;'>", unsafe_allow_html=True)
+                st.markdown("<hr>", unsafe_allow_html=True)
 
             # 藍色無邊框白字按鈕
-            submitted = st.form_submit_button("⬇️ 全部加入購物車", use_container_width=True)
+            submitted = st.form_submit_button("加入購物車", use_container_width=True)
             
             if submitted:
                 if not selected_sales_name or not selected_cust_name:
@@ -528,7 +550,7 @@ if page == "🛒 前台：下單作業":
                         st.warning("⚠️ 所有商品的數量皆未輸入，未加入任何項目")
 
     st.divider()
-    st.subheader(f"📋 準備送出 ({len(st.session_state.cart_list)})")
+    st.markdown(f"<div class='section-title'>購物車（{len(st.session_state.cart_list)}）</div>", unsafe_allow_html=True)
 
     if len(st.session_state.cart_list) > 0:
         cart_df = pd.DataFrame(st.session_state.cart_list)
@@ -553,10 +575,10 @@ if page == "🛒 前台：下單作業":
         col_submit_space, col_submit_btn = st.columns([1, 2])
         with col_submit_btn:
             # 【雙向結帳第二向 ── 底部傳統核對結帳】
-            if st.button("✅ 確認結帳，送出訂單", use_container_width=True, key="bottom_checkout_btn"):
+            if st.button("送出訂單", type="primary", use_container_width=True, key="bottom_checkout_btn"):
                 trigger_order_submission()
     else:
-        st.info("👇 請在上方篩選並加入商品")
+        st.info("請在上方搜尋或篩選商品，加入購物車後即可送出訂單。")
 
 # ==========================================
 # 📥 2. 中台：訂單匯出
