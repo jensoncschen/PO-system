@@ -541,6 +541,16 @@ st.markdown("""
             min-width: 100% !important;
         }
 
+        /* 手機版：一般欄位維持單欄，但表單內的「訂購數／搭贈數」維持左右並排，減少長單滑動距離。 */
+        div[data-testid="stForm"] div[data-testid="column"] {
+            min-width: 0 !important;
+            flex: 1 1 0 !important;
+        }
+
+        div[data-testid="stForm"] div[data-testid="column"] > div {
+            width: 100% !important;
+        }
+
         div[data-baseweb="input"],
         div[data-baseweb="select"],
         div[data-baseweb="base-input"],
@@ -956,7 +966,7 @@ if page == "🛒 前台：下單作業":
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選擇 {len(selected_products_batch)} 項商品</div>", unsafe_allow_html=True)
-            st.markdown("<div class='action-hint'>手機操作建議：一次加入 1–3 項最穩。每項商品只要填訂購數或搭贈數其中之一，就會加入購物車。</div>", unsafe_allow_html=True)
+            st.markdown("<div class='action-hint'>手機操作建議：數量與搭贈數已左右並排；一次加入多項商品時，請送出前到購物車確認。</div>", unsafe_allow_html=True)
             
             with st.form(key=f"batch_form{input_suffix}"):
                 for p_name in selected_products_batch:
