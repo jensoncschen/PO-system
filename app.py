@@ -1058,19 +1058,20 @@ if page == "🛒 前台：下單作業":
             """, unsafe_allow_html=True)
 
             st.markdown(
-                "<div class='mobile-edit-note'>請在下方表格確認商品與數量；需要修改時可直接調整數字。</div>",
+                "<div class='mobile-edit-note'>請在下方表格確認商品與數量；需要修改時可直接調整數字，刪除商品可使用表格列操作。</div>",
                 unsafe_allow_html=True
             )
             
             edited_cart = st.data_editor(
                 cart_df,
                 column_config={
-                    "產品名稱": st.column_config.TextColumn(disabled=True),
-                    "訂購數量": st.column_config.NumberColumn(min_value=0, step=1),
-                    "搭贈數量": st.column_config.NumberColumn(min_value=0, step=1),
+                    "產品名稱": st.column_config.TextColumn("商品", disabled=True, width="large"),
+                    "訂購數量": st.column_config.NumberColumn("訂購", min_value=0, step=1, width="small"),
+                    "搭贈數量": st.column_config.NumberColumn("搭贈", min_value=0, step=1, width="small"),
                 },
                 column_order=["產品名稱", "訂購數量", "搭贈數量"],
                 use_container_width=True,
+                hide_index=True,
                 num_rows="dynamic",
                 key="final_cart_editor"
             )
