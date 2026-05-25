@@ -3,10 +3,10 @@ import pandas as pd
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import time
-import traceback
 from pathlib import Path
-from utils.formatters import clean_barcode, safe_html
+from utils.formatters import safe_html
 from services.export_service import generate_excel_file
+from services.data_service import fetch_all_data
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide")
@@ -93,43 +93,8 @@ def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sale
     conn.update(worksheet="訂單紀錄", data=updated_history)
     return raw_bill_no
 
-# --- 快取機制 ---
-@st.cache_data(ttl=300) 
-def fetch_all_data():
-    try:
-        df_cust = conn.read(worksheet="客戶資料")
-        df_prod = conn.read(worksheet="產品資料")
-        df_sales = conn.read(worksheet="業務資料") 
-        # 【優化：移除了全域的 df_order 讀取，前台開檔速度翻倍】
-        
-        for df in [df_cust, df_sales, df_prod]:
-            if df is None: return None, None, None
-            
-        df_cust.columns = df_cust.columns.str.strip()
-        df_prod.columns = df_prod.columns.str.strip()
-        df_sales.columns = df_sales.columns.str.strip()
-            
-        if "客戶名稱" not in df_cust.columns: df_cust["客戶名稱"] = ""
-        if "業務名稱" not in df_sales.columns: df_sales["業務名稱"] = ""
-        if "品牌" not in df_prod.columns: df_prod["品牌"] = "未分類"
-        if "品類" not in df_prod.columns: df_prod["品類"] = "一般"
-        if "國際條碼" not in df_prod.columns: df_prod["國際條碼"] = ""
-        
-        df_cust["業務名稱"] = df_cust["業務名稱"].astype(str).str.strip()
-        df_sales["業務名稱"] = df_sales["業務名稱"].astype(str).str.strip()
-        
-        df_prod["品類"] = df_prod["品類"].fillna("一般")
-        df_prod["國際條碼"] = df_prod["國際條碼"].apply(clean_barcode)
-        
-        return df_cust, df_prod, df_sales
-        
-    except Exception as e:
-        st.error(f"資料庫連線異常，錯誤原因：{e}")
-        print(traceback.format_exc())
-        return None, None, None
-
 # 【優化：接收參數同步減少一個】
-df_customers, df_products, df_salespeople = fetch_all_data()
+df_customers, df_products, df_salespeople = fetch_all_data(conn)
 
 if df_customers is None:
     st.stop()
