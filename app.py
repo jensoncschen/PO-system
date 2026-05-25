@@ -7,6 +7,7 @@ import traceback
 import io
 import html
 from pathlib import Path
+from utils.formatters import clean_barcode, safe_html
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide")
@@ -43,14 +44,6 @@ def get_sales_id_3digits(sales_name, df_sales):
     except:
         return str(raw_val).strip().zfill(3)[-3:]
 
-def clean_barcode(val):
-    s = str(val).strip() 
-    if s.endswith('.0'): s = s[:-2]
-    if s.lower() in ['nan', 'none', '']: return ''
-    return s
-
-def safe_html(value):
-    return html.escape(str(value))
 
 @st.cache_data(show_spinner=False)
 def generate_excel_file(df):
