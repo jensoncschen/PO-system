@@ -3,28 +3,22 @@ import pandas as pd
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import time
-from pathlib import Path
 from utils.formatters import safe_html
 from services.export_service import generate_excel_file
 from services.data_service import fetch_all_data
 from services.order_service import submit_new_order
+from ui.components import (
+    load_css,
+    render_page_header,
+    render_section_header,
+    render_sidebar,
+    render_sticky_cart_bar,
+)
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide")
 
-# --- CSS：Phase 1 極簡清晰介面（手機優先、少量覆蓋） ---
 # --- CSS：Phase 2 樣式模組化 ---
-def load_css(file_path: str) -> None:
-    css_path = Path(file_path)
-    if css_path.exists():
-        st.markdown(
-            f"<style>{css_path.read_text(encoding='utf-8')}</style>",
-            unsafe_allow_html=True
-        )
-    else:
-        st.warning(f"找不到樣式檔案：{file_path}")
-
-
 load_css("ui/styles.css")
 
 
@@ -46,61 +40,27 @@ if 'input_reset_trigger' not in st.session_state: st.session_state.input_reset_t
 if 'form_reset_trigger' not in st.session_state: st.session_state.form_reset_trigger = 0
 
 # --- 左側快捷區 ---
-st.sidebar.markdown("""
-<div class="sidebar-brand">
-    <div class="sidebar-title">雲端訂購</div>
-    <div class="sidebar-subtitle">快速建立訂單與匯出資料</div>
-</div>
-<div class="sidebar-section-label">功能</div>
-""", unsafe_allow_html=True)
-
-page = st.sidebar.radio(
-    "功能選單",
-    ["前台下單", "訂單匯出", "後台管理"],
-    label_visibility="collapsed"
-)
-
-st.sidebar.markdown("<div class='sidebar-section-label'>資料</div>", unsafe_allow_html=True)
-if st.sidebar.button("重新整理雲端資料"):
-    st.cache_data.clear()
-    st.rerun()
-
-st.sidebar.markdown(
-    "<div class='sidebar-note'>購物車操作已整合到前台主畫面，避免手機版重複操作。</div>",
-    unsafe_allow_html=True
-)
+page = render_sidebar()
 
 # ==========================================
 # 1. 前台：下單作業
 # ==========================================
 if page == "前台下單":
-    st.markdown("""
-        <div class='hero-card'>
-            <div class='page-title'>快速下單</div>
-            <div class='page-subtitle'>手機優先的訂單建立流程。單手操作、先加商品、最後一次確認送出。</div>
-            <div class='hero-steps'>
-                <span class='hero-pill'>1 訂單資訊</span>
-                <span class='hero-pill'>2 新增商品</span>
-                <span class='hero-pill'>3 購物車確認</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    render_page_header(
+        "快速下單",
+        "手機優先的訂單建立流程。單手操作、先加商品、最後一次確認送出。",
+        ["1 訂單資訊", "2 新增商品", "3 購物車確認"],
+    )
 
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
     # 區塊 1：訂單資訊
-    st.markdown("""
-        <div class='section-header'>
-            <div class='section-title-wrap'>
-                <span class='section-index'>1</span>
-                <div>
-                    <div class='section-title-text'>訂單資訊</div>
-                    <div class='section-note'>先確認業務、客戶與日期。這三項會帶入本次訂單。</div>
-                </div>
-            </div>
-            <span class='section-tag'>必填</span>
-        </div>
-    """, unsafe_allow_html=True)
+    render_section_header(
+        "1",
+        "訂單資訊",
+        "先確認業務、客戶與日期。這三項會帶入本次訂單。",
+        "必填",
+    )
 
     with st.container(border=True):
         c1, c2, c3 = st.columns([1.25, 1.75, 1], gap="medium")
@@ -148,27 +108,15 @@ if page == "前台下單":
     total_quantity = sum(int(item.get("訂購數量", 0) or 0) for item in st.session_state.cart_list)
     total_gift = sum(int(item.get("搭贈數量", 0) or 0) for item in st.session_state.cart_list)
     if cart_count > 0:
-        st.markdown(f"""
-            <div class="sticky-cart-bar">
-                <div class="sticky-cart-content">
-                    <span>購物車｜{cart_count} 項｜訂購 {total_quantity}｜搭贈 {total_gift}</span>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        render_sticky_cart_bar(cart_count, total_quantity, total_gift)
 
     # 區塊 2：新增商品
-    st.markdown("""
-        <div class='section-header'>
-            <div class='section-title-wrap'>
-                <span class='section-index'>2</span>
-                <div>
-                    <div class='section-title-text'>新增商品</div>
-                    <div class='section-note'>先用條碼或名稱搜尋；需要瀏覽時再用品牌與品類縮小範圍。</div>
-                </div>
-            </div>
-            <span class='section-tag'>可重複加入</span>
-        </div>
-    """, unsafe_allow_html=True)
+    render_section_header(
+        "2",
+        "新增商品",
+        "先用條碼或名稱搜尋；需要瀏覽時再用品牌與品類縮小範圍。",
+        "可重複加入",
+    )
 
     input_suffix = f"_{st.session_state.input_reset_trigger}"
 
@@ -308,18 +256,12 @@ if page == "前台下單":
                             st.warning("所有商品的數量皆未輸入，未加入任何項目。")
 
     # 區塊 3：購物車
-    st.markdown("""
-        <div class='section-header'>
-            <div class='section-title-wrap'>
-                <span class='section-index'>3</span>
-                <div>
-                    <div class='section-title-text'>購物車</div>
-                    <div class='section-note'>送出前請確認商品、訂購數與搭贈數。表格內可直接修改數量。</div>
-                </div>
-            </div>
-            <span class='section-tag'>最後確認</span>
-        </div>
-    """, unsafe_allow_html=True)
+    render_section_header(
+        "3",
+        "購物車",
+        "送出前請確認商品、訂購數與搭贈數。表格內可直接修改數量。",
+        "最後確認",
+    )
 
     with st.container(border=True):
         if len(st.session_state.cart_list) > 0:
@@ -392,17 +334,11 @@ if page == "前台下單":
 # 2. 中台：訂單匯出
 # ==========================================
 elif page == "訂單匯出":
-    st.markdown("""
-        <div class='hero-card'>
-            <div class='page-title'>訂單匯出</div>
-            <div class='page-subtitle'>內勤人員使用。下載雲端訂單紀錄，確認備份後再清除已處理資料。</div>
-            <div class='hero-steps'>
-                <span class='hero-pill'>1 查看紀錄</span>
-                <span class='hero-pill'>2 下載 Excel</span>
-                <span class='hero-pill'>3 清除雲端紀錄</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    render_page_header(
+        "訂單匯出",
+        "內勤人員使用。下載雲端訂單紀錄，確認備份後再清除已處理資料。",
+        ["1 查看紀錄", "2 下載 Excel", "3 清除雲端紀錄"],
+    )
 
     # 【優化：只有進到此頁面時才單獨去讀取歷史紀錄，不卡前台速度】
     with st.spinner("正在讀取雲端訂單紀錄..."):
@@ -412,18 +348,12 @@ elif page == "訂單匯出":
         if "PersonID" in df_order_history.columns:
             df_order_history["PersonID"] = df_order_history["PersonID"].astype(str).str.replace("'", "", regex=False)
 
-    st.markdown("""
-        <div class='section-header'>
-            <div class='section-title-wrap'>
-                <span class='section-index'>1</span>
-                <div>
-                    <div class='section-title-text'>雲端訂單紀錄</div>
-                    <div class='section-note'>這裡顯示目前等待匯出的訂單資料。</div>
-                </div>
-            </div>
-            <span class='section-tag'>查看</span>
-        </div>
-    """, unsafe_allow_html=True)
+    render_section_header(
+        "1",
+        "雲端訂單紀錄",
+        "這裡顯示目前等待匯出的訂單資料。",
+        "查看",
+    )
 
     with st.container(border=True):
         order_count = len(df_order_history)
@@ -449,18 +379,12 @@ elif page == "訂單匯出":
         else:
             st.dataframe(df_order_history, use_container_width=True, height=420)
 
-    st.markdown("""
-        <div class='section-header'>
-            <div class='section-title-wrap'>
-                <span class='section-index'>2</span>
-                <div>
-                    <div class='section-title-text'>匯出與清理</div>
-                    <div class='section-note'>建議先下載 Excel 備份，確認檔案正常後再清除雲端紀錄。</div>
-                </div>
-            </div>
-            <span class='section-tag'>操作</span>
-        </div>
-    """, unsafe_allow_html=True)
+    render_section_header(
+        "2",
+        "匯出與清理",
+        "建議先下載 Excel 備份，確認檔案正常後再清除雲端紀錄。",
+        "操作",
+    )
 
     col_export, col_clear = st.columns(2, gap="large")
 
@@ -510,30 +434,18 @@ elif page == "訂單匯出":
 # 3. 後台：資料管理
 # ==========================================
 elif page == "後台管理":
-    st.markdown("""
-        <div class='hero-card'>
-            <div class='page-title'>後台管理</div>
-            <div class='page-subtitle'>管理基礎資料來源。產品、客戶與業務資料仍以 Google Sheets 為主要編輯入口。</div>
-            <div class='hero-steps'>
-                <span class='hero-pill'>客戶資料</span>
-                <span class='hero-pill'>產品資料</span>
-                <span class='hero-pill'>業務資料</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    render_page_header(
+        "後台管理",
+        "管理基礎資料來源。產品、客戶與業務資料仍以 Google Sheets 為主要編輯入口。",
+        ["客戶資料", "產品資料", "業務資料"],
+    )
 
-    st.markdown("""
-        <div class='section-header'>
-            <div class='section-title-wrap'>
-                <span class='section-index'>1</span>
-                <div>
-                    <div class='section-title-text'>基礎資料編輯</div>
-                    <div class='section-note'>目前後台資料仍直接在 Google 試算表維護，修改後可用左側重新整理雲端資料。</div>
-                </div>
-            </div>
-            <span class='section-tag'>資料來源</span>
-        </div>
-    """, unsafe_allow_html=True)
+    render_section_header(
+        "1",
+        "基礎資料編輯",
+        "目前後台資料仍直接在 Google 試算表維護，修改後可用左側重新整理雲端資料。",
+        "資料來源",
+    )
 
     with st.container(border=True):
         try:
@@ -548,18 +460,12 @@ elif page == "後台管理":
         except Exception:
             st.warning("目前無法讀取 Google 試算表連結，請確認 secrets 設定。")
 
-    st.markdown("""
-        <div class='section-header'>
-            <div class='section-title-wrap'>
-                <span class='section-index'>2</span>
-                <div>
-                    <div class='section-title-text'>使用提醒</div>
-                    <div class='section-note'>這裡先保留為輕量後台，避免過早把資料管理做得太複雜。</div>
-                </div>
-            </div>
-            <span class='section-tag'>說明</span>
-        </div>
-    """, unsafe_allow_html=True)
+    render_section_header(
+        "2",
+        "使用提醒",
+        "這裡先保留為輕量後台，避免過早把資料管理做得太複雜。",
+        "說明",
+    )
 
     with st.container(border=True):
         st.markdown("""
