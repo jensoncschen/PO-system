@@ -4,10 +4,9 @@ from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 import time
 import traceback
-import io
-import html
 from pathlib import Path
 from utils.formatters import clean_barcode, safe_html
+from services.export_service import generate_excel_file
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="雲端訂購系統", layout="wide")
@@ -44,17 +43,6 @@ def get_sales_id_3digits(sales_name, df_sales):
     except:
         return str(raw_val).strip().zfill(3)[-3:]
 
-
-@st.cache_data(show_spinner=False)
-def generate_excel_file(df):
-    excel_buffer = io.BytesIO()
-    try:
-        with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='訂單紀錄')
-    except:
-        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='訂單紀錄')
-    return excel_buffer.getvalue()
 
 def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sales, df_cust):
     s_id_3digits = get_sales_id_3digits(sales_name, df_sales)
