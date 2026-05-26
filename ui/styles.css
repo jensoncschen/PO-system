@@ -880,3 +880,34 @@ div[data-testid="stCheckbox"] label p {
         min-height: 48px;
     }
 }
+
+/* Phase 4 Step 2：篩選細節收尾 */
+.filter-summary-search {
+    color: #92400e !important;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+/* 減少篩選區和商品選擇區的視覺斷層 */
+div[data-testid="stExpander"] {
+    border-radius: 16px !important;
+    border-color: var(--border) !important;
+    background: #ffffff !important;
+}
+
+div[data-testid="stExpander"] summary {
+    color: var(--text-main) !important;
+    font-weight: 850 !important;
+}
+
+/* 讓手機上篩選說明不要過於厚重 */
+@media (max-width: 768px) {
+    .filter-panel-note {
+        font-size: 0.82rem;
+        padding: 0.58rem 0.65rem;
+    }
+
+    .filter-group-title {
+        margin-top: 0.75rem;
+    }
+}
