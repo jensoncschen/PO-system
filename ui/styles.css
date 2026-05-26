@@ -795,3 +795,88 @@ hr {
         line-height: 1.25;
     }
 }
+
+/* Phase 4：商品篩選面板 */
+.filter-panel-note {
+    color: var(--text-muted) !important;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    font-weight: 650;
+    margin-bottom: 0.65rem;
+}
+
+.filter-group-title {
+    color: var(--text-main) !important;
+    font-size: 0.92rem;
+    font-weight: 850;
+    margin: 0.85rem 0 0.4rem;
+}
+
+.filter-empty {
+    color: var(--text-muted) !important;
+    border: 1px dashed var(--border-strong);
+    border-radius: 14px;
+    padding: 0.7rem;
+    font-size: 0.85rem;
+    font-weight: 650;
+}
+
+.filter-summary {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    color: #1e3a8a !important;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    font-weight: 750;
+    margin: 0.4rem 0 0.75rem;
+}
+
+.filter-summary-muted {
+    color: var(--text-muted) !important;
+    background: var(--surface-soft);
+    border-color: var(--border);
+}
+
+/* 讓篩選用 checkbox 更接近方塊型選單 */
+div[data-testid="stCheckbox"] label {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.58rem 0.65rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+div[data-testid="stCheckbox"] label:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-soft);
+}
+
+div[data-testid="stCheckbox"] label p {
+    color: var(--text-main) !important;
+    font-weight: 750;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .filter-summary {
+        display: flex;
+        width: 100%;
+        border-radius: 16px;
+        white-space: normal;
+    }
+
+    div[data-testid="stCheckbox"] label {
+        min-height: 48px;
+    }
+}
