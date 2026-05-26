@@ -1,3 +1,4 @@
+import hashlib
 import time
 from datetime import datetime
 
@@ -7,6 +8,51 @@ import streamlit as st
 from services.order_service import submit_new_order
 from ui.components import render_page_header, render_section_header, render_sticky_cart_bar
 from utils.formatters import safe_html
+
+
+def _make_filter_key(prefix: str, value: str) -> str:
+    """產生穩定的篩選 key，避免品牌或品類含特殊字元時影響 session_state。"""
+    digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()[:10]
+    return f"{prefix}_{digest}"
+
+
+def _get_unique_options(series: pd.Series) -> list[str]:
+    """取得乾淨且穩定排序的篩選選項。"""
+    values = series.dropna().astype(str).str.strip()
+    values = [value for value in values.unique().tolist() if value and value.lower() not in ["nan", "none"]]
+    return sorted(values)
+
+
+def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, columns: int = 3) -> list[str]:
+    """以方塊勾選方式呈現複選篩選。"""
+    st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
+
+    if not options:
+        st.markdown("<div class='filter-empty'>目前沒有可篩選的選項</div>", unsafe_allow_html=True)
+        return []
+
+    selected_values: list[str] = []
+    column_count = max(1, min(columns, len(options)))
+
+    for start in range(0, len(options), column_count):
+        row_options = options[start:start + column_count]
+        cols = st.columns(column_count, gap="small")
+        for col, option in zip(cols, row_options):
+            checkbox_key = _make_filter_key(key_prefix, option)
+            with col:
+                checked = st.checkbox(option, key=checkbox_key)
+                if checked:
+                    selected_values.append(option)
+
+    return selected_values
+
+
+def _clear_filter_states(key_prefixes: list[str]) -> None:
+    """清除指定前綴的篩選 checkbox 狀態。"""
+    for key in list(st.session_state.keys()):
+        if any(key.startswith(prefix) for prefix in key_prefixes):
+            st.session_state[key] = False
+
 
 
 def render_order_page(conn, df_customers, df_products, df_salespeople, global_prod_dict) -> None:
@@ -94,20 +140,44 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         )
 
         st.markdown("<div class='subsection-title'>商品篩選</div>", unsafe_allow_html=True)
-        st.markdown("<div class='subsection-caption'>沒有搜尋關鍵字時，可用品牌與品類瀏覽商品。</div>", unsafe_allow_html=True)
-        col_filter_brand, col_filter_cat = st.columns(2, gap="medium")
+        st.markdown("<div class='subsection-caption'>展開後可複選品牌與品類；沒有搜尋關鍵字時，篩選會套用到商品清單。</div>", unsafe_allow_html=True)
 
-        with col_filter_brand:
-            brand_options = ["全部"] + df_products["品牌"].unique().tolist()
-            selected_brand_filter = st.selectbox("品牌", brand_options, key=f"brand{input_suffix}")
+        brand_options = _get_unique_options(df_products["品牌"])
+        with st.expander("展開篩選面板", expanded=False):
+            st.markdown("<div class='filter-panel-note'>可同時選擇多個品牌與多個品類。若沒有勾選，代表不限制該條件。</div>", unsafe_allow_html=True)
+            if st.button("清除所有篩選", use_container_width=True, key="clear_product_filters"):
+                _clear_filter_states(["filter_brand_", "filter_category_"])
+                st.rerun()
 
-        with col_filter_cat:
-            df_step1 = df_products.copy()
-            if selected_brand_filter != "全部":
-                df_step1 = df_step1[df_step1["品牌"] == selected_brand_filter]
+            selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=3)
 
-            cat_options = ["全部"] + df_step1["品類"].unique().tolist()
-            selected_cat_filter = st.selectbox("品類", cat_options, key=f"cat{input_suffix}")
+            df_after_brand_filter = df_products.copy()
+            if selected_brand_filters:
+                df_after_brand_filter = df_after_brand_filter[df_after_brand_filter["品牌"].astype(str).isin(selected_brand_filters)]
+
+            category_options = _get_unique_options(df_after_brand_filter["品類"])
+            selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=3)
+
+        df_step1 = df_after_brand_filter.copy()
+        if selected_category_filters:
+            df_step1 = df_step1[df_step1["品類"].astype(str).isin(selected_category_filters)]
+
+        selected_filter_parts = []
+        if selected_brand_filters:
+            selected_filter_parts.append("品牌：" + "、".join(selected_brand_filters))
+        if selected_category_filters:
+            selected_filter_parts.append("品類：" + "、".join(selected_category_filters))
+
+        if selected_filter_parts:
+            st.markdown(
+                "<div class='filter-summary'>目前篩選｜" + safe_html("｜".join(selected_filter_parts)) + f"｜符合 {len(df_step1)} 項商品</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                f"<div class='filter-summary filter-summary-muted'>目前未套用篩選｜共 {len(df_step1)} 項商品</div>",
+                unsafe_allow_html=True,
+            )
 
         if barcode_input:
             clean_input = barcode_input.strip()
@@ -123,8 +193,6 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 st.error(f"找不到包含「{clean_input}」的條碼或商品名稱。")
         else:
             df_step2 = df_step1.copy()
-            if selected_cat_filter != "全部":
-                df_step2 = df_step2[df_step2["品類"] == selected_cat_filter]
 
         display_to_name = {}
         for _, row in df_step2.iterrows():
@@ -154,7 +222,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選擇 {len(selected_products_batch)} 項商品</div>", unsafe_allow_html=True)
-            st.markdown("<div class='action-hint'>手機操作建議：數量與搭贈數已左右並排；一次加入多項商品時，請送出前到購物車確認。</div>", unsafe_allow_html=True)
+            st.markdown("<div class='action-hint'>手機操作建議：一次加入多項商品時，請送出前到購物車確認。大量商品輸入會在下一階段繼續優化。</div>", unsafe_allow_html=True)
 
             with st.form(key=f"batch_form{input_suffix}"):
                 for p_name in selected_products_batch:
@@ -297,4 +365,3 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
     # ==========================================
     # 2. 中台：訂單匯出
     # ==========================================
-
