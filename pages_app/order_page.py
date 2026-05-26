@@ -143,8 +143,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         st.markdown("<div class='subsection-caption'>展開後可複選品牌與品類；沒有搜尋關鍵字時，篩選會套用到商品清單。</div>", unsafe_allow_html=True)
 
         brand_options = _get_unique_options(df_products["品牌"])
-        with st.expander("展開篩選面板", expanded=False):
-            st.markdown("<div class='filter-panel-note'>可同時選擇多個品牌與多個品類。若沒有勾選，代表不限制該條件。</div>", unsafe_allow_html=True)
+        with st.expander("篩選品牌與品類", expanded=False):
+            st.markdown("<div class='filter-panel-note'>可同時選擇多個品牌與多個品類。若沒有勾選，代表不限制該條件；輸入條碼或商品名稱時，搜尋會優先於篩選。</div>", unsafe_allow_html=True)
             if st.button("清除所有篩選", use_container_width=True, key="clear_product_filters"):
                 _clear_filter_states(["filter_brand_", "filter_category_"])
                 st.rerun()
@@ -168,17 +168,6 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         if selected_category_filters:
             selected_filter_parts.append("品類：" + "、".join(selected_category_filters))
 
-        if selected_filter_parts:
-            st.markdown(
-                "<div class='filter-summary'>目前篩選｜" + safe_html("｜".join(selected_filter_parts)) + f"｜符合 {len(df_step1)} 項商品</div>",
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f"<div class='filter-summary filter-summary-muted'>目前未套用篩選｜共 {len(df_step1)} 項商品</div>",
-                unsafe_allow_html=True,
-            )
-
         if barcode_input:
             clean_input = barcode_input.strip()
             if clean_input.isdigit() and len(clean_input) >= 4:
@@ -191,8 +180,32 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
             if df_step2.empty:
                 st.error(f"找不到包含「{clean_input}」的條碼或商品名稱。")
+
+            if selected_filter_parts:
+                st.markdown(
+                    "<div class='filter-summary filter-summary-search'>搜尋模式｜搜尋會優先於篩選｜符合 " + str(len(df_step2)) + " 項商品</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"<div class='filter-summary'>搜尋結果｜符合 {len(df_step2)} 項商品</div>",
+                    unsafe_allow_html=True,
+                )
         else:
             df_step2 = df_step1.copy()
+            if selected_filter_parts:
+                st.markdown(
+                    "<div class='filter-summary'>目前篩選｜" + safe_html("｜".join(selected_filter_parts)) + f"｜符合 {len(df_step2)} 項商品</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"<div class='filter-summary filter-summary-muted'>目前未套用篩選｜共 {len(df_step2)} 項商品</div>",
+                    unsafe_allow_html=True,
+                )
+
+        if df_step2.empty and not barcode_input:
+            st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
 
         display_to_name = {}
         for _, row in df_step2.iterrows():
@@ -362,6 +375,3 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         else:
             st.info("購物車目前是空的。請先在新增商品區加入商品。")
 
-    # ==========================================
-    # 2. 中台：訂單匯出
-    # ==========================================
