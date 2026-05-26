@@ -23,10 +23,10 @@ def _get_unique_options(series: pd.Series) -> list[str]:
     return sorted(values)
 
 
-def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, columns: int = 5) -> list[str]:
+def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, columns: int = 2) -> list[str]:
     """以方塊勾選方式呈現複選篩選。
 
-    桌面版最多顯示 5 欄，手機版由 CSS 強制改成 2 欄，避免單排過長。
+    使用 Streamlit 原生欄位將選項分成 2 欄，降低手機版單欄過長的問題。
     """
     st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
 
@@ -149,7 +149,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         st.markdown("<div class='filter-panel-note'>建議先展開品牌篩選，再依品牌縮小後的品類繼續篩選。若沒有勾選，代表不限制該條件；輸入條碼或商品名稱時，搜尋會優先於篩選。</div>", unsafe_allow_html=True)
 
         with st.expander("1. 品牌篩選", expanded=False):
-            selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=5)
+            selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=2)
 
         df_after_brand_filter = df_products.copy()
         if selected_brand_filters:
@@ -158,7 +158,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         category_options = _get_unique_options(df_after_brand_filter["品類"])
         with st.expander("2. 品類篩選", expanded=False):
             st.markdown("<div class='filter-subnote'>品類選項會依目前已選品牌自動更新。</div>", unsafe_allow_html=True)
-            selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=5)
+            selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=2)
 
         selected_brand_count = len(selected_brand_filters)
         selected_category_count = len(selected_category_filters)
