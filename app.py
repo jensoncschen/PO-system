@@ -24,7 +24,21 @@ if df_customers is None:
     st.stop()
 
 # 建立全域產品查表字典
-global_prod_dict = df_products.drop_duplicates(subset=["產品名稱"]).set_index("產品名稱").to_dict("index")
+if "產品名稱" not in df_products.columns:
+    st.error("產品資料缺少必要欄位：產品名稱")
+    st.write("目前讀到的產品資料欄位：")
+    st.write(df_products.columns.tolist())
+    st.stop()
+
+df_products["產品名稱"] = df_products["產品名稱"].astype(str).str.strip()
+df_products = df_products[df_products["產品名稱"] != ""]
+
+global_prod_dict = (
+    df_products
+    .drop_duplicates(subset=["產品名稱"])
+    .set_index("產品名稱")
+    .to_dict("index")
+)
 
 # --- Session State ---
 if "cart_list" not in st.session_state:
