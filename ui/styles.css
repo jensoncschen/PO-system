@@ -911,3 +911,97 @@ div[data-testid="stExpander"] summary {
         margin-top: 0.75rem;
     }
 }
+
+/* Phase 4 Step 3：方塊篩選 UI 精修 */
+.filter-subnote {
+    color: var(--text-muted) !important;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.58rem 0.7rem;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    font-weight: 650;
+    margin-bottom: 0.65rem;
+}
+
+.filter-compact-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-main) !important;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.86rem;
+    line-height: 1.35;
+    font-weight: 800;
+    margin: 0.55rem 0 0.55rem;
+}
+
+/* 讓篩選面板內的 checkbox 形成真正的響應式方塊網格 */
+div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap !important;
+    gap: 0.42rem !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="column"] {
+    flex: 0 0 calc(20% - 0.42rem) !important;
+    min-width: calc(20% - 0.42rem) !important;
+    width: calc(20% - 0.42rem) !important;
+}
+
+/* 已選取的篩選方塊更明顯 */
+div[data-testid="stCheckbox"] label:has(input:checked) {
+    background: #111827 !important;
+    border-color: #111827 !important;
+}
+
+div[data-testid="stCheckbox"] label:has(input:checked) p,
+div[data-testid="stCheckbox"] label:has(input:checked) span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+/* 壓低 checkbox 原生圖示的存在感，讓整體更像篩選籤 */
+div[data-testid="stCheckbox"] label > div:first-child {
+    margin-right: 0.32rem !important;
+}
+
+@media (max-width: 1100px) {
+    div[data-testid="stExpander"] div[data-testid="column"] {
+        flex-basis: calc(25% - 0.42rem) !important;
+        min-width: calc(25% - 0.42rem) !important;
+        width: calc(25% - 0.42rem) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    /* 手機版：篩選方塊固定兩欄並列，避免單欄下拉太長 */
+    div[data-testid="stExpander"] div[data-testid="column"] {
+        flex: 0 0 calc(50% - 0.42rem) !important;
+        min-width: calc(50% - 0.42rem) !important;
+        width: calc(50% - 0.42rem) !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+        gap: 0.42rem !important;
+    }
+
+    div[data-testid="stCheckbox"] label {
+        min-height: 44px !important;
+        padding: 0.52rem 0.56rem;
+    }
+
+    div[data-testid="stCheckbox"] label p {
+        font-size: 0.86rem;
+        line-height: 1.25;
+    }
+
+    .filter-compact-summary {
+        justify-content: flex-start;
+        font-size: 0.82rem;
+        padding: 0.55rem 0.65rem;
+    }
+}
