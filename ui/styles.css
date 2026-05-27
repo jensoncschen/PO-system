@@ -1091,3 +1091,76 @@ div[data-testid="stCheckbox"] label > div:first-child {
         padding: 0.62rem 0.58rem;
     }
 }
+
+
+/* Phase 4 Step 4 修正版：Streamlit button 網格互動，移除 HTML link 跳頁問題 */
+.streamlit-button-grid-scope {
+    margin-top: 0.2rem;
+}
+
+/* 篩選與產品清單 expander 內的按鈕，做成卡片感 */
+div[data-testid="stExpander"] div.stButton > button {
+    width: 100% !important;
+    min-height: 46px !important;
+    justify-content: center !important;
+    padding: 0.55rem 0.55rem !important;
+    border-radius: 14px !important;
+    font-size: 0.86rem !important;
+    line-height: 1.22 !important;
+    white-space: normal !important;
+}
+
+div[data-testid="stExpander"] div.stButton > button p {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal !important;
+    word-break: break-word;
+    line-height: 1.22 !important;
+}
+
+/* 產品清單的按鈕高度稍高，容納兩行商品名稱 */
+div[data-testid="stExpander"] div.stButton > button:has(p) {
+    min-height: 48px !important;
+}
+
+/* 在 expander 內盡量保留網格排列；桌面 4~6 欄，手機 2 欄 */
+div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 0.45rem !important;
+    align-items: stretch !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    min-width: 0 !important;
+    flex: 1 1 0 !important;
+    width: auto !important;
+}
+
+@media (max-width: 768px) {
+    /* 手機版：強制 Streamlit columns 不要再退回單欄 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 0.45rem !important;
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        min-width: 0 !important;
+        flex: 1 1 0 !important;
+        width: auto !important;
+    }
+
+    div[data-testid="stExpander"] div.stButton > button {
+        min-height: 48px !important;
+        padding: 0.52rem 0.42rem !important;
+        font-size: 0.82rem !important;
+        border-radius: 13px !important;
+    }
+}
