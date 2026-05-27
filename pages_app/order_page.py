@@ -10,6 +10,102 @@ from ui.components import render_page_header, render_section_header, render_stic
 from utils.formatters import safe_html
 
 
+MAX_PRODUCT_OPTIONS = 50
+
+
+def _normalize_search_text(value) -> str:
+    """將搜尋字串統一整理成小寫文字，避免空值或 NaN 影響比對。"""
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
+    return str(value).strip().lower()
+
+
+def _search_products(df_products: pd.DataFrame, search_text: str) -> pd.DataFrame:
+    """依多欄位與多關鍵字搜尋商品，並依符合程度排序。"""
+    clean_input = _normalize_search_text(search_text)
+    if not clean_input:
+        return df_products.copy()
+
+    keywords = [keyword for keyword in clean_input.split() if keyword]
+    if not keywords:
+        return df_products.copy()
+
+    scored_rows: list[tuple[int, int]] = []
+
+    for row in df_products.itertuples(index=True):
+        row_index = row.Index
+        score = 0
+
+        product_name = _normalize_search_text(getattr(row, "產品名稱", ""))
+        barcode = _normalize_search_text(getattr(row, "國際條碼", ""))
+        brand = _normalize_search_text(getattr(row, "品牌", ""))
+        category = _normalize_search_text(getattr(row, "品類", ""))
+        product_code = _normalize_search_text(getattr(row, "產品編號", ""))
+
+        searchable_text = " ".join([product_name, barcode, brand, category, product_code])
+
+        exact_match = False
+        if barcode and barcode == clean_input:
+            score += 1000
+            exact_match = True
+        if product_code and product_code == clean_input:
+            score += 900
+            exact_match = True
+        if product_name and product_name == clean_input:
+            score += 700
+            exact_match = True
+        elif product_name and clean_input in product_name:
+            score += 400
+            exact_match = True
+
+        matched_all_keywords = all(keyword in searchable_text for keyword in keywords)
+        if matched_all_keywords:
+            score += 200
+
+        if not exact_match and not matched_all_keywords:
+            continue
+
+        for keyword in keywords:
+            if keyword in product_name:
+                score += 80
+            if keyword in barcode:
+                score += 70
+            if keyword in product_code:
+                score += 60
+            if keyword in brand:
+                score += 35
+            if keyword in category:
+                score += 30
+
+        if score > 0:
+            scored_rows.append((row_index, score))
+
+    if not scored_rows:
+        return df_products.iloc[0:0].copy()
+
+    score_df = pd.DataFrame(scored_rows, columns=["_row_index", "_search_score"])
+    score_df["_original_order"] = range(len(score_df))
+
+    result = df_products.loc[score_df["_row_index"]].copy()
+    result["_search_score"] = score_df["_search_score"].to_numpy()
+    result["_original_order"] = score_df["_original_order"].to_numpy()
+    result = result.sort_values(["_search_score", "_original_order"], ascending=[False, True])
+    return result.drop(columns=["_search_score", "_original_order"])
+
+
+def _limit_product_options(product_options: list[str], max_count: int = MAX_PRODUCT_OPTIONS) -> tuple[list[str], int, bool]:
+    """限制商品 checkbox 顯示數量，避免一次渲染過多商品造成手機操作壓力。"""
+    total_count = len(product_options)
+    if total_count <= max_count:
+        return product_options, total_count, False
+    return product_options[:max_count], total_count, True
+
+
 def _make_filter_key(prefix: str, value: str) -> str:
     """產生穩定的篩選 key，避免品牌或品類含特殊字元時影響 session_state。"""
     digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()[:10]
@@ -253,16 +349,10 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
         if barcode_input:
             clean_input = barcode_input.strip()
-            if clean_input.isdigit() and len(clean_input) >= 4:
-                mask_barcode = df_products["國際條碼"].astype(str) == clean_input
-            else:
-                mask_barcode = pd.Series(False, index=df_products.index)
-
-            mask_name = df_products["產品名稱"].astype(str).str.contains(clean_input, case=False, na=False)
-            df_step2 = df_products[mask_barcode | mask_name]
+            df_step2 = _search_products(df_products, clean_input)
 
             if df_step2.empty:
-                st.error(f"找不到包含「{clean_input}」的條碼或商品名稱。")
+                st.error(f"找不到包含「{safe_html(clean_input)}」的商品資料。可搜尋產品名稱、條碼、品牌、品類或產品編號。")
 
             if selected_filter_parts:
                 st.markdown(
@@ -290,8 +380,14 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         if df_step2.empty and not barcode_input:
             st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
 
-        product_options = _get_product_options(df_step2)
+        all_product_options = _get_product_options(df_step2)
+        product_options, total_product_count, is_product_limited = _limit_product_options(all_product_options)
         product_key_prefix = f"select_product{input_suffix}"
+
+        if is_product_limited:
+            st.info(
+                f"符合 {total_product_count} 項，目前只顯示前 {len(product_options)} 項。請輸入更多關鍵字縮小範圍。"
+            )
 
         # 條碼或關鍵字搜尋只找到單一商品時，自動勾選，延續原本 multiselect 的預設選取體驗。
         if barcode_input and len(product_options) == 1:
@@ -300,7 +396,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 st.session_state[single_product_key] = True
 
         selected_product_count = len(_get_selected_values(product_options, product_key_prefix))
-        product_expander_label = f"3. 選擇商品｜符合 {len(product_options)} 項｜已選 {selected_product_count} 項"
+        product_expander_label = f"3. 選擇商品｜符合 {total_product_count} 項｜顯示 {len(product_options)} 項｜已選 {selected_product_count} 項"
         product_expander_expanded = bool(barcode_input or selected_filter_parts or selected_product_count > 0)
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
