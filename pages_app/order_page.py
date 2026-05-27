@@ -1,4 +1,3 @@
-import hashlib
 import time
 from datetime import datetime
 
@@ -13,17 +12,6 @@ from utils.formatters import safe_html
 BRAND_FILTER_STATE_KEY = "selected_brand_filters"
 CATEGORY_FILTER_STATE_KEY = "selected_category_filters"
 PRODUCT_SELECTION_STATE_KEY = "selected_product_names"
-
-
-def _make_filter_key(prefix: str, value: str) -> str:
-    """產生穩定 key，避免品牌、品類或商品名稱含特殊字元時影響 session_state。"""
-    digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()[:10]
-    return f"{prefix}_{digest}"
-
-
-def _make_token(value: str) -> str:
-    """產生用於 HTML 連結的穩定 token。"""
-    return hashlib.md5(str(value).encode("utf-8")).hexdigest()[:12]
 
 
 def _get_unique_options(series: pd.Series) -> list[str]:
@@ -51,20 +39,6 @@ def _toggle_list_value(state_key: str, value: str, max_items: int | None = None)
     st.session_state[state_key] = selected_values
 
 
-def _consume_query_toggle(param_name: str, options: list[str], state_key: str, max_items: int | None = None) -> None:
-    """讀取 HTML 連結帶回的 query param，更新選取狀態後清除 URL。"""
-    if param_name not in st.query_params:
-        return
-
-    token = st.query_params.get(param_name)
-    token_to_value = {_make_token(option): option for option in options}
-    if token in token_to_value:
-        _toggle_list_value(state_key, token_to_value[token], max_items=max_items)
-
-    st.query_params.clear()
-    st.rerun()
-
-
 def _clear_filter_states() -> None:
     """清除品牌與品類篩選狀態，並兼容清除舊 checkbox key。"""
     st.session_state[BRAND_FILTER_STATE_KEY] = []
@@ -74,16 +48,21 @@ def _clear_filter_states() -> None:
             st.session_state[key] = False
 
 
-def _render_link_grid(
+def _chunk_options(options: list[str], size: int) -> list[list[str]]:
+    """將選項依指定數量切成多列，配合 Streamlit button 呈現網格。"""
+    return [options[index:index + size] for index in range(0, len(options), size)]
+
+
+def _render_button_grid(
     title: str,
     options: list[str],
     state_key: str,
-    param_name: str,
-    grid_class: str = "filter-option-grid",
+    button_key_prefix: str,
+    per_row: int,
     max_items: int | None = None,
     empty_text: str = "目前沒有可選項目",
 ) -> list[str]:
-    """以 HTML + CSS Grid 呈現選項，避免手機版 Streamlit columns 自動堆疊。"""
+    """以 Streamlit 原生 button 呈現選項，避免 HTML link 造成開新分頁。"""
     selected_values = _ensure_list_state(state_key)
     valid_options = set(options)
     selected_values = [value for value in selected_values if value in valid_options]
@@ -101,32 +80,39 @@ def _render_link_grid(
             unsafe_allow_html=True,
         )
 
-    cards: list[str] = []
-    for option in options:
-        selected_class = " is-selected" if option in selected_values else ""
-        token = _make_token(option)
-        label = safe_html(option)
-        cards.append(
-            f"<a class='grid-choice{selected_class}' href='?{param_name}={token}' title='{label}'>"
-            f"<span>{label}</span>"
-            "</a>"
-        )
+    st.markdown("<div class='streamlit-button-grid-scope'></div>", unsafe_allow_html=True)
+    for row_index, row_options in enumerate(_chunk_options(options, per_row)):
+        columns = st.columns(per_row, gap="small")
+        for col_index in range(per_row):
+            with columns[col_index]:
+                if col_index >= len(row_options):
+                    st.empty()
+                    continue
 
-    st.markdown(
-        f"<div class='option-grid {grid_class}'>" + "".join(cards) + "</div>",
-        unsafe_allow_html=True,
-    )
-    return selected_values
+                option = row_options[col_index]
+                is_selected = option in selected_values
+                button_type = "primary" if is_selected else "secondary"
+                clicked = st.button(
+                    option,
+                    key=f"{button_key_prefix}_{row_index}_{col_index}",
+                    use_container_width=True,
+                    type=button_type,
+                )
+                if clicked:
+                    _toggle_list_value(state_key, option, max_items=max_items)
+                    st.rerun()
+
+    return _ensure_list_state(state_key)
 
 
 def _render_product_grid(options: list[str], max_items: int = 20) -> list[str]:
-    """呈現兩欄起跳的產品卡片清單。"""
-    return _render_link_grid(
+    """呈現產品卡片清單；手機版透過 CSS 盡量維持兩欄。"""
+    return _render_button_grid(
         title="產品",
         options=options,
         state_key=PRODUCT_SELECTION_STATE_KEY,
-        param_name="toggle_product",
-        grid_class="product-option-grid",
+        button_key_prefix="product_grid",
+        per_row=4,
         max_items=max_items,
         empty_text="目前沒有符合的商品",
     )
@@ -224,7 +210,6 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         )
 
         brand_options = _get_unique_options(df_products["品牌"])
-        _consume_query_toggle("toggle_brand", brand_options, BRAND_FILTER_STATE_KEY)
         selected_brand_filters = _ensure_list_state(BRAND_FILTER_STATE_KEY)
 
         st.markdown(
@@ -233,12 +218,12 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         )
 
         with st.expander(f"1. 品牌篩選（已選 {len(selected_brand_filters)} 個）", expanded=False):
-            selected_brand_filters = _render_link_grid(
+            selected_brand_filters = _render_button_grid(
                 "品牌",
                 brand_options,
                 BRAND_FILTER_STATE_KEY,
-                "toggle_brand",
-                grid_class="filter-option-grid",
+                "brand_grid",
+                per_row=6,
             )
 
         df_after_brand_filter = df_products.copy()
@@ -248,17 +233,16 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             ]
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
-        _consume_query_toggle("toggle_category", category_options, CATEGORY_FILTER_STATE_KEY)
         selected_category_filters = _ensure_list_state(CATEGORY_FILTER_STATE_KEY)
 
         with st.expander(f"2. 品類篩選（已選 {len(selected_category_filters)} 個）", expanded=False):
             st.markdown("<div class='filter-subnote'>品類選項會依目前已選品牌自動更新。</div>", unsafe_allow_html=True)
-            selected_category_filters = _render_link_grid(
+            selected_category_filters = _render_button_grid(
                 "品類",
                 category_options,
                 CATEGORY_FILTER_STATE_KEY,
-                "toggle_category",
-                grid_class="filter-option-grid",
+                "category_grid",
+                per_row=6,
             )
 
         selected_brand_count = len(selected_brand_filters)
@@ -336,11 +320,9 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             selected_product_names.append(product_names[0])
             st.session_state[PRODUCT_SELECTION_STATE_KEY] = selected_product_names
 
-        # 產品清單使用 HTML Grid 顯示，手機兩欄、桌機依寬度自動增加。
+        # 產品清單使用 Streamlit 原生按鈕，避免 HTML 連結造成開新分頁。
         display_limit = 30
         product_options_to_show = product_names[:display_limit]
-        _consume_query_toggle("toggle_product", product_options_to_show, PRODUCT_SELECTION_STATE_KEY, max_items=20)
-
         with st.expander(f"3. 產品清單（符合 {len(product_names)} 項）", expanded=bool(barcode_input or selected_filter_parts)):
             if len(product_names) > display_limit:
                 st.markdown(
