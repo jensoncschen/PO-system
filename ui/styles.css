@@ -1013,3 +1013,14 @@ div[data-testid="stCheckbox"] label > div:first-child {
         padding: 0.55rem 0.65rem;
     }
 }
+
+/* Phase 4 Step 7：商品選擇改成方塊勾選格式 */
+div[data-testid="stCheckbox"] label p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal !important;
+    line-height: 1.25;
+}
