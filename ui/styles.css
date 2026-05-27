@@ -1014,13 +1014,16 @@ div[data-testid="stCheckbox"] label > div:first-child {
     }
 }
 
-/* Phase 4 Step 7：商品選擇改成方塊勾選格式 */
+
+/* Phase 4 Step 8：商品選擇改為方塊勾選格式
+   商品、品牌、品類皆使用原生 checkbox 方塊；商品名稱較長時保持易讀。 */
 div[data-testid="stCheckbox"] label p {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.28 !important;
     white-space: normal !important;
-    line-height: 1.25;
+    word-break: break-word !important;
+}
+
+/* 桌面版：方塊內容靠左，長商品名最多自然分行，不顯示品牌、品類或條碼。 */
+div[data-testid="stCheckbox"] label {
+    align-items: flex-start !important;
 }
