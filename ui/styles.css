@@ -940,7 +940,7 @@ div[data-testid="stExpander"] summary {
     margin: 0.55rem 0 0.55rem;
 }
 
-/* 讓篩選面板內的 checkbox 形成真正的響應式方塊網格 */
+/* 篩選面板內的 checkbox：桌面版依螢幕寬度排列，手機版交給 Streamlit 自動堆疊 */
 div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
     flex-wrap: wrap !important;
     gap: 0.42rem !important;
@@ -977,12 +977,20 @@ div[data-testid="stCheckbox"] label > div:first-child {
     }
 }
 
-@media (max-width: 768px) {
-    /* 手機版：篩選方塊固定兩欄並列，避免單欄下拉太長 */
+@media (max-width: 900px) {
     div[data-testid="stExpander"] div[data-testid="column"] {
-        flex: 0 0 calc(50% - 0.42rem) !important;
-        min-width: calc(50% - 0.42rem) !important;
-        width: calc(50% - 0.42rem) !important;
+        flex-basis: calc(33.333% - 0.42rem) !important;
+        min-width: calc(33.333% - 0.42rem) !important;
+        width: calc(33.333% - 0.42rem) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    /* 手機版：不再強制兩欄，沿用全站手機單欄規則，確保點選與閱讀穩定。 */
+    div[data-testid="stExpander"] div[data-testid="column"] {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+        width: 100% !important;
     }
 
     div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
