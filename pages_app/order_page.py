@@ -50,6 +50,25 @@ def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, colum
     return selected_values
 
 
+def _get_selected_values(options: list[str], key_prefix: str) -> list[str]:
+    """依 checkbox key 讀取目前已選項目，用於在 expander 標題顯示狀態數量。"""
+    selected_values: list[str] = []
+    for option in options:
+        checkbox_key = _make_filter_key(key_prefix, option)
+        if st.session_state.get(checkbox_key):
+            selected_values.append(option)
+    return selected_values
+
+
+def _render_inline_heading(title: str, helper_text: str = "") -> None:
+    """顯示精簡的區塊標題，將輔助說明併到同一行。"""
+    helper_html = f"<span>{safe_html(helper_text)}</span>" if helper_text else ""
+    st.markdown(
+        f"<div class='inline-section-heading'><strong>{safe_html(title)}</strong>{helper_html}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _clear_filter_states(key_prefixes: list[str]) -> None:
     """清除指定前綴的篩選 checkbox 狀態。"""
     for key in list(st.session_state.keys()):
@@ -166,20 +185,19 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
     with st.container(border=True):
         st.markdown("<div class='mini-label'>SEARCH</div>", unsafe_allow_html=True)
-        st.markdown("<div class='subsection-title'>商品搜尋</div>", unsafe_allow_html=True)
+        _render_inline_heading("商品搜尋", "條碼或商品名稱")
         barcode_input = st.text_input(
             "條碼或商品名稱", 
             placeholder="掃描條碼，或輸入商品名稱關鍵字",
             key=f"barcode_scan{input_suffix}"
         )
 
-        st.markdown("<div class='subsection-title'>商品篩選</div>", unsafe_allow_html=True)
-        st.markdown("<div class='subsection-caption'>展開後可複選品牌與品類；沒有搜尋關鍵字時，篩選會套用到商品清單。</div>", unsafe_allow_html=True)
+        _render_inline_heading("商品篩選", "搜尋優先｜未勾選不限")
 
         brand_options = _get_unique_options(df_products["品牌"])
-        st.markdown("<div class='filter-panel-note'>建議先展開品牌篩選，再依品牌縮小後的品類繼續篩選。若沒有勾選，代表不限制該條件；輸入條碼或商品名稱時，搜尋會優先於篩選。</div>", unsafe_allow_html=True)
+        selected_brand_count = len(_get_selected_values(brand_options, "filter_brand"))
 
-        with st.expander("1. 品牌篩選", expanded=False):
+        with st.expander(f"1. 品牌篩選｜品牌 {selected_brand_count}", expanded=False):
             selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=5)
 
         df_after_brand_filter = df_products.copy()
@@ -187,17 +205,13 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             df_after_brand_filter = df_after_brand_filter[df_after_brand_filter["品牌"].astype(str).isin(selected_brand_filters)]
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
-        with st.expander("2. 品類篩選", expanded=False):
-            st.markdown("<div class='filter-subnote'>品類選項會依目前已選品牌自動更新。</div>", unsafe_allow_html=True)
+        selected_category_count = len(_get_selected_values(category_options, "filter_category"))
+        with st.expander(f"2. 品類篩選｜品類 {selected_category_count}", expanded=False):
             selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=5)
 
         selected_brand_count = len(selected_brand_filters)
         selected_category_count = len(selected_category_filters)
         if selected_brand_count or selected_category_count:
-            st.markdown(
-                f"<div class='filter-compact-summary'>已選條件｜品牌 {selected_brand_count} 個｜品類 {selected_category_count} 個</div>",
-                unsafe_allow_html=True,
-            )
             st.button(
                 "清除篩選",
                 use_container_width=True,
@@ -231,24 +245,24 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
             if selected_filter_parts:
                 st.markdown(
-                    "<div class='filter-summary filter-summary-search'>搜尋模式｜搜尋會優先於篩選｜符合 " + str(len(df_step2)) + " 項商品</div>",
+                    "<div class='filter-summary filter-summary-search'>搜尋結果｜符合 " + str(len(df_step2)) + " 項｜篩選暫不套用</div>",
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
-                    f"<div class='filter-summary'>搜尋結果｜符合 {len(df_step2)} 項商品</div>",
+                    f"<div class='filter-summary'>搜尋結果｜符合 {len(df_step2)} 項</div>",
                     unsafe_allow_html=True,
                 )
         else:
             df_step2 = df_step1.copy()
             if selected_filter_parts:
                 st.markdown(
-                    "<div class='filter-summary'>目前篩選｜" + safe_html("｜".join(selected_filter_parts)) + f"｜符合 {len(df_step2)} 項商品</div>",
+                    f"<div class='filter-summary'>品牌 {selected_brand_count}｜品類 {selected_category_count}｜符合 {len(df_step2)} 項</div>",
                     unsafe_allow_html=True,
                 )
             else:
                 st.markdown(
-                    f"<div class='filter-summary filter-summary-muted'>目前未套用篩選｜共 {len(df_step2)} 項商品</div>",
+                    f"<div class='filter-summary filter-summary-muted'>未套用篩選｜共 {len(df_step2)} 項</div>",
                     unsafe_allow_html=True,
                 )
 
@@ -263,20 +277,15 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             if single_product_key not in st.session_state:
                 st.session_state[single_product_key] = True
 
-        st.markdown("<div class='subsection-title'>選擇商品</div>", unsafe_allow_html=True)
-        product_expander_label = f"3. 選擇商品｜符合 {len(product_options)} 項"
+        selected_product_count = len(_get_selected_values(product_options, "select_product"))
+        product_expander_label = f"3. 選擇商品｜符合 {len(product_options)} 項｜已選 {selected_product_count} 項"
         product_expander_expanded = bool(barcode_input or selected_filter_parts)
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
-            st.markdown(
-                "<div class='filter-subnote'>勾選要加入本次訂單的商品。商品方塊只顯示產品名稱，可一次選擇多項，沒有 20 項限制。</div>",
-                unsafe_allow_html=True,
-            )
             selected_products_batch = _render_checkbox_grid("商品", product_options, "select_product", columns=5)
 
         if selected_products_batch:
-            st.markdown(f"<div class='product-count-chip'>已選擇 {len(selected_products_batch)} 項商品</div>", unsafe_allow_html=True)
-            st.markdown("<div class='action-hint'>已選商品可在下方輸入訂購數與搭贈數；若選錯商品，可直接按該商品的取消選擇，不必回到商品清單。</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
 
             for p_name in selected_products_batch:
                 with st.container(border=True):
