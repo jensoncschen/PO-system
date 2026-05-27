@@ -1014,16 +1014,27 @@ div[data-testid="stCheckbox"] label > div:first-child {
     }
 }
 
-
-/* Phase 4 Step 8：商品選擇改為方塊勾選格式
-   商品、品牌、品類皆使用原生 checkbox 方塊；商品名稱較長時保持易讀。 */
-div[data-testid="stCheckbox"] label p {
-    line-height: 1.28 !important;
-    white-space: normal !important;
-    word-break: break-word !important;
+/* Phase 4 Step 9：選擇商品展開收合與取消選擇 */
+.product-title {
+    line-height: 1.35;
+    word-break: break-word;
 }
 
-/* 桌面版：方塊內容靠左，長商品名最多自然分行，不顯示品牌、品類或條碼。 */
-div[data-testid="stCheckbox"] label {
-    align-items: flex-start !important;
+/* 讓已選商品卡片中的取消按鈕低調一點，避免被誤認為主要送出動作。 */
+div.stButton > button[kind="secondary"] {
+    background: #ffffff !important;
+    border-color: var(--border) !important;
+    color: var(--text-muted) !important;
+    -webkit-text-fill-color: var(--text-muted) !important;
+}
+
+div.stButton > button[kind="secondary"] * {
+    color: var(--text-muted) !important;
+    -webkit-text-fill-color: var(--text-muted) !important;
+}
+
+@media (max-width: 768px) {
+    .product-title {
+        font-size: 0.94rem;
+    }
 }
