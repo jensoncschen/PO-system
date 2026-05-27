@@ -23,17 +23,25 @@ def _get_unique_options(series: pd.Series) -> list[str]:
     return sorted(values)
 
 
-def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, columns: int = 5) -> list[str]:
-    """以方塊勾選方式呈現複選篩選。
+def _render_checkbox_grid(
+    title: str,
+    options: list[str],
+    key_prefix: str,
+    columns: int = 5,
+    default_selected: set[str] | None = None,
+) -> list[str]:
+    """以方塊勾選方式呈現複選選項。
 
     使用 Streamlit 原生欄位建立桌面版響應式排列；手機版若被 Streamlit 自動堆疊為單欄也可正常使用。
+    default_selected 只會在 checkbox 第一次建立時套用，避免覆蓋使用者後續操作。
     """
     st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
 
     if not options:
-        st.markdown("<div class='filter-empty'>目前沒有可篩選的選項</div>", unsafe_allow_html=True)
+        st.markdown("<div class='filter-empty'>目前沒有可選擇的項目</div>", unsafe_allow_html=True)
         return []
 
+    default_selected = default_selected or set()
     selected_values: list[str] = []
     column_count = max(1, min(columns, len(options)))
 
@@ -43,7 +51,11 @@ def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, colum
         for col, option in zip(cols, row_options):
             checkbox_key = _make_filter_key(key_prefix, option)
             with col:
-                checked = st.checkbox(option, key=checkbox_key)
+                checked = st.checkbox(
+                    option,
+                    value=option in default_selected,
+                    key=checkbox_key,
+                )
                 if checked:
                     selected_values.append(option)
 
@@ -224,35 +236,32 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         if df_step2.empty and not barcode_input:
             st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
 
-        display_to_name = {}
+        product_options = []
+        seen_product_names = set()
         for _, row in df_step2.iterrows():
-            p_name = row["產品名稱"]
-            barcode = str(row["國際條碼"]).strip()
-            if barcode:
-                display_str = f"{p_name} ｜ 條碼 {barcode}"
-            else:
-                display_str = p_name
-            display_to_name[display_str] = p_name
+            p_name = str(row["產品名稱"]).strip()
+            if p_name and p_name not in seen_product_names:
+                product_options.append(p_name)
+                seen_product_names.add(p_name)
 
-        display_options = list(display_to_name.keys())
-        default_selections = display_options if barcode_input and len(display_options) == 1 else []
+        default_product_selections = set(product_options) if barcode_input and len(product_options) == 1 else set()
 
         st.markdown("<div class='subsection-title'>選擇商品</div>", unsafe_allow_html=True)
-        selected_displays = st.multiselect(
-            "選擇商品", 
-            options=display_options, 
-            default=default_selections, 
-            max_selections=20,
-            placeholder="選擇一項或多項商品",
-            key=f"prod_multi{input_suffix}",
-            label_visibility="collapsed"
+        st.markdown(
+            "<div class='subsection-caption'>勾選商品後，下方會出現訂購數與搭贈數輸入區；本區不限制選取品項數。</div>",
+            unsafe_allow_html=True,
         )
-
-        selected_products_batch = [display_to_name[disp] for disp in selected_displays]
+        selected_products_batch = _render_checkbox_grid(
+            "商品",
+            product_options,
+            f"select_product{input_suffix}",
+            columns=5,
+            default_selected=default_product_selections,
+        )
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選擇 {len(selected_products_batch)} 項商品</div>", unsafe_allow_html=True)
-            st.markdown("<div class='action-hint'>手機操作建議：一次加入多項商品時，請送出前到購物車確認。大量商品輸入會在下一階段繼續優化。</div>", unsafe_allow_html=True)
+            st.markdown("<div class='action-hint'>手機操作建議：一次加入多項商品時，請送出前到購物車確認。</div>", unsafe_allow_html=True)
 
             with st.form(key=f"batch_form{input_suffix}"):
                 for p_name in selected_products_batch:
