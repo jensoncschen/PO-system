@@ -76,28 +76,6 @@ def _clear_filter_states(key_prefixes: list[str]) -> None:
             st.session_state[key] = False
 
 
-def _toggle_panel(panel_key: str) -> None:
-    """切換自訂展開區塊，避免 st.expander 無法被程式穩定收合。"""
-    st.session_state[panel_key] = not st.session_state.get(panel_key, False)
-
-
-def _close_filter_panels() -> None:
-    """完成篩選後收合品牌與品類清單。"""
-    st.session_state["show_brand_filter"] = False
-    st.session_state["show_category_filter"] = False
-
-
-def _close_product_panel() -> None:
-    """完成選擇後收合商品清單，保留下方數量輸入區。"""
-    st.session_state["show_product_picker"] = False
-
-
-def _panel_button_label(is_open: bool, label: str) -> str:
-    """產生自訂展開區塊標題。"""
-    icon = "▾" if is_open else "▸"
-    return f"{icon} {label}"
-
-
 def _cancel_selected_product(product_name: str) -> None:
     """從已選商品中取消單一商品，並清除該商品暫存數量。"""
     product_key = _make_filter_key("select_product", product_name)
@@ -217,50 +195,19 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         _render_inline_heading("商品篩選", "搜尋優先｜未勾選不限")
 
         brand_options = _get_unique_options(df_products["品牌"])
-        selected_brand_filters = _get_selected_values(brand_options, "filter_brand")
-        selected_brand_count = len(selected_brand_filters)
+        selected_brand_count = len(_get_selected_values(brand_options, "filter_brand"))
 
-        brand_panel_open = st.session_state.get("show_brand_filter", False)
-        st.button(
-            _panel_button_label(brand_panel_open, f"1. 品牌篩選｜品牌 {selected_brand_count}"),
-            use_container_width=True,
-            key="toggle_brand_filter_panel",
-            on_click=_toggle_panel,
-            args=("show_brand_filter",),
-        )
-        if st.session_state.get("show_brand_filter", False):
+        with st.expander(f"1. 品牌篩選｜品牌 {selected_brand_count}", expanded=False):
             selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=5)
-            st.button(
-                "完成篩選",
-                use_container_width=True,
-                key="done_brand_filter",
-                on_click=_close_filter_panels,
-            )
 
         df_after_brand_filter = df_products.copy()
         if selected_brand_filters:
             df_after_brand_filter = df_after_brand_filter[df_after_brand_filter["品牌"].astype(str).isin(selected_brand_filters)]
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
-        selected_category_filters = _get_selected_values(category_options, "filter_category")
-        selected_category_count = len(selected_category_filters)
-
-        category_panel_open = st.session_state.get("show_category_filter", False)
-        st.button(
-            _panel_button_label(category_panel_open, f"2. 品類篩選｜品類 {selected_category_count}"),
-            use_container_width=True,
-            key="toggle_category_filter_panel",
-            on_click=_toggle_panel,
-            args=("show_category_filter",),
-        )
-        if st.session_state.get("show_category_filter", False):
+        selected_category_count = len(_get_selected_values(category_options, "filter_category"))
+        with st.expander(f"2. 品類篩選｜品類 {selected_category_count}", expanded=False):
             selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=5)
-            st.button(
-                "完成篩選",
-                use_container_width=True,
-                key="done_category_filter",
-                on_click=_close_filter_panels,
-            )
 
         selected_brand_count = len(selected_brand_filters)
         selected_category_count = len(selected_category_filters)
@@ -330,27 +277,12 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             if single_product_key not in st.session_state:
                 st.session_state[single_product_key] = True
 
-        selected_products_batch = _get_selected_values(product_options, "select_product")
-        selected_product_count = len(selected_products_batch)
-        product_panel_open = st.session_state.get("show_product_picker", bool(barcode_input or selected_filter_parts))
-        st.session_state["show_product_picker"] = product_panel_open
-        product_panel_label = f"3. 選擇商品｜符合 {len(product_options)} 項｜已選 {selected_product_count} 項"
-        st.button(
-            _panel_button_label(product_panel_open, product_panel_label),
-            use_container_width=True,
-            key="toggle_product_picker_panel",
-            on_click=_toggle_panel,
-            args=("show_product_picker",),
-        )
+        selected_product_count = len(_get_selected_values(product_options, "select_product"))
+        product_expander_label = f"3. 選擇商品｜符合 {len(product_options)} 項｜已選 {selected_product_count} 項"
+        product_expander_expanded = bool(barcode_input or selected_filter_parts)
 
-        if st.session_state.get("show_product_picker", False):
+        with st.expander(product_expander_label, expanded=product_expander_expanded):
             selected_products_batch = _render_checkbox_grid("商品", product_options, "select_product", columns=5)
-            st.button(
-                "完成選擇",
-                use_container_width=True,
-                key="done_product_selection",
-                on_click=_close_product_panel,
-            )
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
@@ -363,9 +295,9 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                     with cancel_col:
                         st.button(
                             "✕",
-                            help="取消選擇",
+                            help="取消選擇此商品",
                             use_container_width=False,
-                            key=f"cancel_{_make_filter_key('selected_product', p_name)}{input_suffix}",
+                            key=f"cancel_product_{_make_filter_key('select_product', p_name)}{input_suffix}",
                             on_click=_cancel_selected_product,
                             args=(p_name,),
                         )
