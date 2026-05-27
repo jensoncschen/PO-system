@@ -30,10 +30,10 @@ def _render_checkbox_grid(
     columns: int = 5,
     default_selected: set[str] | None = None,
 ) -> list[str]:
-    """以方塊勾選方式呈現複選選項。
+    """以方塊勾選方式呈現複選選單。
 
-    使用 Streamlit 原生欄位建立桌面版響應式排列；手機版若被 Streamlit 自動堆疊為單欄也可正常使用。
-    default_selected 只會在 checkbox 第一次建立時套用，避免覆蓋使用者後續操作。
+    使用 Streamlit 原生 checkbox，保留穩定互動；桌面版依欄位數排列，手機版若被
+    Streamlit 自動堆疊為單欄也可正常使用。
     """
     st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
 
@@ -41,8 +41,8 @@ def _render_checkbox_grid(
         st.markdown("<div class='filter-empty'>目前沒有可選擇的項目</div>", unsafe_allow_html=True)
         return []
 
-    default_selected = default_selected or set()
     selected_values: list[str] = []
+    default_selected = default_selected or set()
     column_count = max(1, min(columns, len(options)))
 
     for start in range(0, len(options), column_count):
@@ -53,8 +53,8 @@ def _render_checkbox_grid(
             with col:
                 checked = st.checkbox(
                     option,
-                    value=option in default_selected,
                     key=checkbox_key,
+                    value=option in default_selected,
                 )
                 if checked:
                     selected_values.append(option)
@@ -237,18 +237,16 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
 
         product_options = []
-        seen_product_names = set()
         for _, row in df_step2.iterrows():
             p_name = str(row["產品名稱"]).strip()
-            if p_name and p_name not in seen_product_names:
+            if p_name and p_name.lower() not in ["nan", "none"] and p_name not in product_options:
                 product_options.append(p_name)
-                seen_product_names.add(p_name)
 
         default_product_selections = set(product_options) if barcode_input and len(product_options) == 1 else set()
 
         st.markdown("<div class='subsection-title'>選擇商品</div>", unsafe_allow_html=True)
         st.markdown(
-            "<div class='subsection-caption'>勾選商品後，下方會出現訂購數與搭贈數輸入區；本區不限制選取品項數。</div>",
+            "<div class='subsection-caption'>點選商品方塊即可複選；商品方塊僅顯示產品名稱，沒有選擇數量上限。</div>",
             unsafe_allow_html=True,
         )
         selected_products_batch = _render_checkbox_grid(
@@ -261,7 +259,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選擇 {len(selected_products_batch)} 項商品</div>", unsafe_allow_html=True)
-            st.markdown("<div class='action-hint'>手機操作建議：一次加入多項商品時，請送出前到購物車確認。</div>", unsafe_allow_html=True)
+            st.markdown("<div class='action-hint'>手機操作建議：一次加入多項商品時，請送出前到購物車確認。大量商品輸入會在下一階段繼續優化。</div>", unsafe_allow_html=True)
 
             with st.form(key=f"batch_form{input_suffix}"):
                 for p_name in selected_products_batch:
