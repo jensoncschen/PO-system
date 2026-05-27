@@ -148,23 +148,17 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         brand_options = _get_unique_options(df_products["品牌"])
         st.markdown("<div class='filter-panel-note'>建議先展開品牌篩選，再依品牌縮小後的品類繼續篩選。若沒有勾選，代表不限制該條件；輸入條碼或商品名稱時，搜尋會優先於篩選。</div>", unsafe_allow_html=True)
 
-        # 品牌與品類篩選採左右並排：
-        # 手機版每個篩選區內維持單欄，但兩個篩選區本身並排顯示，減少單一路徑過長。
-        filter_cols = st.columns(2, gap="small")
-
-        with filter_cols[0]:
-            with st.expander("品牌篩選", expanded=False):
-                selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=1)
+        with st.expander("1. 品牌篩選", expanded=False):
+            selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=2)
 
         df_after_brand_filter = df_products.copy()
         if selected_brand_filters:
             df_after_brand_filter = df_after_brand_filter[df_after_brand_filter["品牌"].astype(str).isin(selected_brand_filters)]
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
-        with filter_cols[1]:
-            with st.expander("品類篩選", expanded=False):
-                st.markdown("<div class='filter-subnote'>依品牌更新</div>", unsafe_allow_html=True)
-                selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=1)
+        with st.expander("2. 品類篩選", expanded=False):
+            st.markdown("<div class='filter-subnote'>品類選項會依目前已選品牌自動更新。</div>", unsafe_allow_html=True)
+            selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=2)
 
         selected_brand_count = len(selected_brand_filters)
         selected_category_count = len(selected_category_filters)
