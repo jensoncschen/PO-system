@@ -1038,3 +1038,41 @@ div.stButton > button[kind="secondary"] * {
         font-size: 0.94rem;
     }
 }
+
+/* Phase 4 Step 10：精簡商品區標題與狀態列 */
+.inline-section-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin: 0.3rem 0 0.45rem;
+}
+
+.inline-section-heading strong {
+    color: var(--text-main) !important;
+    font-size: 0.98rem;
+    font-weight: 850;
+    letter-spacing: -0.01em;
+}
+
+.inline-section-heading span {
+    color: var(--text-muted) !important;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+@media (max-width: 768px) {
+    .inline-section-heading {
+        gap: 0.38rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .inline-section-heading strong {
+        font-size: 0.96rem;
+    }
+
+    .inline-section-heading span {
+        font-size: 0.8rem;
+    }
+}
