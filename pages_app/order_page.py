@@ -23,6 +23,27 @@ def _get_unique_options(series: pd.Series) -> list[str]:
     return sorted(values)
 
 
+
+
+def _safe_int(value, default: int = 0) -> int:
+    """將訂購數 / 搭贈數安全轉成整數，避免空值、NaN 或字串造成送出訂單失敗。"""
+    if value is None:
+        return default
+    try:
+        if pd.isna(value):
+            return default
+    except Exception:
+        pass
+
+    try:
+        text_value = str(value).strip()
+        if text_value == "":
+            return default
+        return int(float(text_value))
+    except (TypeError, ValueError):
+        return default
+
+
 def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, columns: int = 5) -> list[str]:
     """以方塊勾選方式呈現複選篩選。
 
@@ -168,8 +189,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 st.rerun()
 
     cart_count = len(st.session_state.cart_list)
-    total_quantity = sum(int(item.get("訂購數量", 0) or 0) for item in st.session_state.cart_list)
-    total_gift = sum(int(item.get("搭贈數量", 0) or 0) for item in st.session_state.cart_list)
+    total_quantity = sum(_safe_int(item.get("訂購數量", 0)) for item in st.session_state.cart_list)
+    total_gift = sum(_safe_int(item.get("搭贈數量", 0)) for item in st.session_state.cart_list)
     if cart_count > 0:
         render_sticky_cart_bar(cart_count, total_quantity, total_gift)
 
@@ -322,8 +343,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                         q_raw = st.session_state.get(f"q_{p_name}")
                         g_raw = st.session_state.get(f"g_{p_name}")
 
-                        q_val = int(q_raw) if q_raw is not None else 0
-                        g_val = int(g_raw) if g_raw is not None else 0
+                        q_val = _safe_int(q_raw)
+                        g_val = _safe_int(g_raw)
 
                         if q_val > 0 or g_val > 0:
                             p_info = global_prod_dict.get(p_name, {})
@@ -366,8 +387,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
     with st.container(border=True):
         if len(st.session_state.cart_list) > 0:
             cart_df = pd.DataFrame(st.session_state.cart_list)
-            total_quantity = int(cart_df["訂購數量"].fillna(0).sum()) if "訂購數量" in cart_df.columns else 0
-            total_gift = int(cart_df["搭贈數量"].fillna(0).sum()) if "搭贈數量" in cart_df.columns else 0
+            total_quantity = int(cart_df["訂購數量"].apply(_safe_int).sum()) if "訂購數量" in cart_df.columns else 0
+            total_gift = int(cart_df["搭贈數量"].apply(_safe_int).sum()) if "搭贈數量" in cart_df.columns else 0
             st.markdown(f"""
                 <div class='cart-summary'>
                     <div class='summary-card'>
@@ -405,6 +426,10 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             )
 
             if not edited_cart.equals(cart_df):
+                if "訂購數量" in edited_cart.columns:
+                    edited_cart["訂購數量"] = edited_cart["訂購數量"].apply(_safe_int)
+                if "搭贈數量" in edited_cart.columns:
+                    edited_cart["搭贈數量"] = edited_cart["搭贈數量"].apply(_safe_int)
                 st.session_state.cart_list = edited_cart.to_dict('records')
 
             final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
