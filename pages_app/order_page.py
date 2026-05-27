@@ -204,6 +204,56 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
             del st.session_state[key]
 
 
+
+
+def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
+    """以較緊湊的方式呈現已選商品與數量輸入欄位。"""
+    st.markdown(
+        "<div class='mobile-edit-note'>已選商品可直接輸入訂購數 / 搭贈數；按 ✕ 可取消單一商品。</div>",
+        unsafe_allow_html=True,
+    )
+
+    for p_name in selected_products:
+        product_hash_key = _make_filter_key(product_key_prefix, p_name)
+        with st.container(border=True):
+            name_col, qty_col, gift_col, cancel_col = st.columns([4.2, 1.25, 1.25, 0.55], gap="small")
+
+            with name_col:
+                st.markdown(f"<div class='product-title'>{safe_html(p_name)}</div>", unsafe_allow_html=True)
+
+            with qty_col:
+                st.number_input(
+                    "訂購數",
+                    min_value=0,
+                    step=1,
+                    value=None,
+                    placeholder="訂購",
+                    key=f"q_{p_name}",
+                    label_visibility="collapsed",
+                )
+
+            with gift_col:
+                st.number_input(
+                    "搭贈數",
+                    min_value=0,
+                    step=1,
+                    value=None,
+                    placeholder="搭贈",
+                    key=f"g_{p_name}",
+                    label_visibility="collapsed",
+                )
+
+            with cancel_col:
+                st.button(
+                    "✕",
+                    help="取消選擇此商品",
+                    use_container_width=True,
+                    key=f"cancel_product_{product_hash_key}",
+                    on_click=_cancel_selected_product,
+                    args=(p_name, product_key_prefix),
+                )
+
+
 def _get_product_options(df_products_filtered: pd.DataFrame) -> list[str]:
     """取得商品清單，保留目前資料順序並去除重複商品名稱。"""
     product_names: list[str] = []
@@ -405,26 +455,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
 
-            for p_name in selected_products_batch:
-                with st.container(border=True):
-                    title_col, cancel_col = st.columns([3, 1], gap="small")
-                    with title_col:
-                        st.markdown(f"<div class='product-title'>{safe_html(p_name)}</div>", unsafe_allow_html=True)
-                    with cancel_col:
-                        st.button(
-                            "✕",
-                            help="取消選擇此商品",
-                            use_container_width=False,
-                            key=f"cancel_product_{_make_filter_key(product_key_prefix, p_name)}",
-                            on_click=_cancel_selected_product,
-                            args=(p_name, product_key_prefix),
-                        )
-
-                    qty_col, gift_col = st.columns(2, gap="medium")
-                    with qty_col:
-                        st.number_input("訂購數", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}")
-                    with gift_col:
-                        st.number_input("搭贈數", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}")
+            _render_selected_product_inputs(selected_products_batch, product_key_prefix)
 
             submitted = st.button("加入購物車", type="primary", use_container_width=True, key=f"add_selected_products{input_suffix}")
 
