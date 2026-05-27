@@ -167,9 +167,13 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 f"<div class='filter-compact-summary'>已選條件｜品牌 {selected_brand_count} 個｜品類 {selected_category_count} 個</div>",
                 unsafe_allow_html=True,
             )
-            if st.button("清除篩選", use_container_width=True, key="clear_product_filters"):
-                _clear_filter_states(["filter_brand_", "filter_category_"])
-                st.rerun()
+            st.button(
+                "清除篩選",
+                use_container_width=True,
+                key="clear_product_filters",
+                on_click=_clear_filter_states,
+                args=(["filter_brand_", "filter_category_"],),
+            )
 
         df_step1 = df_after_brand_filter.copy()
         if selected_category_filters:
