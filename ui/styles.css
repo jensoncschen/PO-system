@@ -1076,3 +1076,19 @@ div.stButton > button[kind="secondary"] * {
         font-size: 0.8rem;
     }
 }
+
+
+/* Phase 4 Step 11：完成篩選 / 完成選擇與小型取消按鈕 */
+/* 自訂展開標題與完成按鈕沿用 Streamlit button，保留穩定互動。 */
+.product-title {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+}
+
+/* 取消選擇改用符號按鈕，避免手機版整列大按鈕造成視覺壓迫。 */
+@media (max-width: 768px) {
+    .product-title {
+        min-height: 30px;
+    }
+}
