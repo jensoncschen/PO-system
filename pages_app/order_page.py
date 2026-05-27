@@ -23,26 +23,18 @@ def _get_unique_options(series: pd.Series) -> list[str]:
     return sorted(values)
 
 
-def _render_checkbox_grid(
-    title: str,
-    options: list[str],
-    key_prefix: str,
-    columns: int = 5,
-    default_selected: set[str] | None = None,
-) -> list[str]:
-    """以方塊勾選方式呈現複選選單。
+def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, columns: int = 5) -> list[str]:
+    """以方塊勾選方式呈現複選篩選。
 
-    使用 Streamlit 原生 checkbox，保留穩定互動；桌面版依欄位數排列，手機版若被
-    Streamlit 自動堆疊為單欄也可正常使用。
+    使用 Streamlit 原生欄位建立桌面版響應式排列；手機版若被 Streamlit 自動堆疊為單欄也可正常使用。
     """
     st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
 
     if not options:
-        st.markdown("<div class='filter-empty'>目前沒有可選擇的項目</div>", unsafe_allow_html=True)
+        st.markdown("<div class='filter-empty'>目前沒有可篩選的選項</div>", unsafe_allow_html=True)
         return []
 
     selected_values: list[str] = []
-    default_selected = default_selected or set()
     column_count = max(1, min(columns, len(options)))
 
     for start in range(0, len(options), column_count):
@@ -51,11 +43,7 @@ def _render_checkbox_grid(
         for col, option in zip(cols, row_options):
             checkbox_key = _make_filter_key(key_prefix, option)
             with col:
-                checked = st.checkbox(
-                    option,
-                    key=checkbox_key,
-                    value=option in default_selected,
-                )
+                checked = st.checkbox(option, key=checkbox_key)
                 if checked:
                     selected_values.append(option)
 
@@ -67,6 +55,37 @@ def _clear_filter_states(key_prefixes: list[str]) -> None:
     for key in list(st.session_state.keys()):
         if any(key.startswith(prefix) for prefix in key_prefixes):
             st.session_state[key] = False
+
+
+def _cancel_selected_product(product_name: str) -> None:
+    """從已選商品中取消單一商品，並清除該商品暫存數量。"""
+    product_key = _make_filter_key("select_product", product_name)
+    if product_key in st.session_state:
+        st.session_state[product_key] = False
+
+    for key in [f"q_{product_name}", f"g_{product_name}"]:
+        if key in st.session_state:
+            del st.session_state[key]
+
+
+def _get_product_options(df_products_filtered: pd.DataFrame) -> list[str]:
+    """取得商品清單，保留目前資料順序並去除重複商品名稱。"""
+    product_names: list[str] = []
+    seen_names: set[str] = set()
+
+    if "產品名稱" not in df_products_filtered.columns:
+        return product_names
+
+    for raw_name in df_products_filtered["產品名稱"].dropna().tolist():
+        product_name = str(raw_name).strip()
+        if not product_name or product_name.lower() in ["nan", "none"]:
+            continue
+        if product_name in seen_names:
+            continue
+        seen_names.add(product_name)
+        product_names.append(product_name)
+
+    return product_names
 
 
 
@@ -236,93 +255,97 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         if df_step2.empty and not barcode_input:
             st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
 
-        product_options = []
-        for _, row in df_step2.iterrows():
-            p_name = str(row["產品名稱"]).strip()
-            if p_name and p_name.lower() not in ["nan", "none"] and p_name not in product_options:
-                product_options.append(p_name)
+        product_options = _get_product_options(df_step2)
 
-        default_product_selections = set(product_options) if barcode_input and len(product_options) == 1 else set()
+        # 條碼或關鍵字搜尋只找到單一商品時，自動勾選，延續原本 multiselect 的預設選取體驗。
+        if barcode_input and len(product_options) == 1:
+            single_product_key = _make_filter_key("select_product", product_options[0])
+            if single_product_key not in st.session_state:
+                st.session_state[single_product_key] = True
 
         st.markdown("<div class='subsection-title'>選擇商品</div>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='subsection-caption'>點選商品方塊即可複選；商品方塊僅顯示產品名稱，沒有選擇數量上限。</div>",
-            unsafe_allow_html=True,
-        )
-        selected_products_batch = _render_checkbox_grid(
-            "商品",
-            product_options,
-            f"select_product{input_suffix}",
-            columns=5,
-            default_selected=default_product_selections,
-        )
+        product_expander_label = f"3. 選擇商品｜符合 {len(product_options)} 項"
+        product_expander_expanded = bool(barcode_input or selected_filter_parts)
+
+        with st.expander(product_expander_label, expanded=product_expander_expanded):
+            st.markdown(
+                "<div class='filter-subnote'>勾選要加入本次訂單的商品。商品方塊只顯示產品名稱，可一次選擇多項，沒有 20 項限制。</div>",
+                unsafe_allow_html=True,
+            )
+            selected_products_batch = _render_checkbox_grid("商品", product_options, "select_product", columns=5)
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選擇 {len(selected_products_batch)} 項商品</div>", unsafe_allow_html=True)
-            st.markdown("<div class='action-hint'>手機操作建議：一次加入多項商品時，請送出前到購物車確認。大量商品輸入會在下一階段繼續優化。</div>", unsafe_allow_html=True)
+            st.markdown("<div class='action-hint'>已選商品可在下方輸入訂購數與搭贈數；若選錯商品，可直接按該商品的取消選擇，不必回到商品清單。</div>", unsafe_allow_html=True)
 
-            with st.form(key=f"batch_form{input_suffix}"):
-                for p_name in selected_products_batch:
-                    p_info = global_prod_dict.get(p_name, {})
-                    p_cat = p_info.get('品類', '一般')
-                    p_brand = p_info.get('品牌', '')
-                    p_barcode = p_info.get('國際條碼', '')
-                    meta_parts = [x for x in [p_brand, p_cat, f"條碼 {p_barcode}" if p_barcode else ""] if x]
-                    meta_text = "｜".join(meta_parts)
-
-                    with st.container(border=True):
+            for p_name in selected_products_batch:
+                with st.container(border=True):
+                    title_col, cancel_col = st.columns([3, 1], gap="small")
+                    with title_col:
                         st.markdown(f"<div class='product-title'>{safe_html(p_name)}</div>", unsafe_allow_html=True)
-                        if meta_text:
-                            st.markdown(f"<div class='product-meta'>{safe_html(meta_text)}</div>", unsafe_allow_html=True)
-                        qty_col, gift_col = st.columns(2, gap="medium")
-                        with qty_col:
-                            st.number_input("訂購數", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}")
-                        with gift_col:
-                            st.number_input("搭贈數", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}")
+                    with cancel_col:
+                        st.button(
+                            "取消選擇",
+                            use_container_width=True,
+                            key=f"cancel_{_make_filter_key('selected_product', p_name)}{input_suffix}",
+                            on_click=_cancel_selected_product,
+                            args=(p_name,),
+                        )
 
-                submitted = st.form_submit_button("加入購物車", use_container_width=True)
+                    qty_col, gift_col = st.columns(2, gap="medium")
+                    with qty_col:
+                        st.number_input("訂購數", min_value=0, step=1, value=None, placeholder="0", key=f"q_{p_name}")
+                    with gift_col:
+                        st.number_input("搭贈數", min_value=0, step=1, value=None, placeholder="0", key=f"g_{p_name}")
 
-                if submitted:
-                    if not selected_sales_name or not selected_cust_name:
-                        st.error("請先在訂單資訊區選擇業務與客戶。")
+            submitted = st.button("加入購物車", type="primary", use_container_width=True, key=f"add_selected_products{input_suffix}")
+
+            if submitted:
+                if not selected_sales_name or not selected_cust_name:
+                    st.error("請先在訂單資訊區選擇業務與客戶。")
+                else:
+                    items_added_count = 0
+                    keys_to_clear = []
+                    product_selection_keys_to_clear = []
+
+                    for p_name in selected_products_batch:
+                        q_raw = st.session_state.get(f"q_{p_name}")
+                        g_raw = st.session_state.get(f"g_{p_name}")
+
+                        q_val = int(q_raw) if q_raw is not None else 0
+                        g_val = int(g_raw) if g_raw is not None else 0
+
+                        if q_val > 0 or g_val > 0:
+                            p_info = global_prod_dict.get(p_name, {})
+                            st.session_state.cart_list.insert(0, {
+                                "業務名稱": selected_sales_name,
+                                "客戶名稱": selected_cust_name,
+                                "產品編號": p_info.get("產品編號", "N/A"),
+                                "產品名稱": p_name,
+                                "品牌": p_info.get("品牌", ""),
+                                "品類": p_info.get("品類", ""),
+                                "訂購數量": q_val,
+                                "搭贈數量": g_val
+                            })
+                            items_added_count += 1
+
+                        keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
+                        product_selection_keys_to_clear.append(_make_filter_key("select_product", p_name))
+
+                    if items_added_count > 0:
+                        for k in keys_to_clear:
+                            if k in st.session_state:
+                                del st.session_state[k]
+                        for k in product_selection_keys_to_clear:
+                            if k in st.session_state:
+                                st.session_state[k] = False
+
+                        st.session_state.input_reset_trigger += 1
+                        st.toast(f"成功加入 {items_added_count} 項商品")
+                        time.sleep(0.5)
+                        st.rerun()
                     else:
-                        items_added_count = 0
-                        keys_to_clear = [] 
-
-                        for p_name in selected_products_batch:
-                            q_raw = st.session_state.get(f"q_{p_name}")
-                            g_raw = st.session_state.get(f"g_{p_name}")
-
-                            q_val = int(q_raw) if q_raw is not None else 0
-                            g_val = int(g_raw) if g_raw is not None else 0
-
-                            if q_val > 0 or g_val > 0:
-                                p_info = global_prod_dict.get(p_name, {})
-                                st.session_state.cart_list.insert(0, {
-                                    "業務名稱": selected_sales_name,
-                                    "客戶名稱": selected_cust_name,
-                                    "產品編號": p_info.get("產品編號", "N/A"),
-                                    "產品名稱": p_name,
-                                    "品牌": p_info.get("品牌", ""),
-                                    "品類": p_info.get("品類", ""),
-                                    "訂購數量": q_val,
-                                    "搭贈數量": g_val
-                                })
-                                items_added_count += 1
-
-                            keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
-
-                        if items_added_count > 0:
-                            for k in keys_to_clear:
-                                if k in st.session_state:
-                                    del st.session_state[k]
-
-                            st.session_state.input_reset_trigger += 1 
-                            st.toast(f"成功加入 {items_added_count} 項商品")
-                            time.sleep(0.5)
-                            st.rerun()
-                        else:
-                            st.warning("所有商品的數量皆未輸入，未加入任何項目。")
+                        st.warning("所有商品的數量皆未輸入，未加入任何項目。")
 
     # 區塊 3：購物車
     render_section_header(
