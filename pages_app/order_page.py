@@ -197,7 +197,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         brand_options = _get_unique_options(df_products["品牌"])
         selected_brand_count = len(_get_selected_values(brand_options, "filter_brand"))
 
-        with st.expander(f"1. 品牌篩選｜品牌 {selected_brand_count}", expanded=False):
+        with st.expander(f"1. 品牌篩選｜品牌 {selected_brand_count}", expanded=selected_brand_count > 0):
             selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=5)
 
         df_after_brand_filter = df_products.copy()
@@ -206,7 +206,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
         selected_category_count = len(_get_selected_values(category_options, "filter_category"))
-        with st.expander(f"2. 品類篩選｜品類 {selected_category_count}", expanded=False):
+        with st.expander(f"2. 品類篩選｜品類 {selected_category_count}", expanded=selected_category_count > 0):
             selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=5)
 
         selected_brand_count = len(selected_brand_filters)
@@ -279,7 +279,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
         selected_product_count = len(_get_selected_values(product_options, "select_product"))
         product_expander_label = f"3. 選擇商品｜符合 {len(product_options)} 項｜已選 {selected_product_count} 項"
-        product_expander_expanded = bool(barcode_input or selected_filter_parts)
+        product_expander_expanded = bool(barcode_input or selected_filter_parts or selected_product_count > 0)
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
             selected_products_batch = _render_checkbox_grid("商品", product_options, "select_product", columns=5)
