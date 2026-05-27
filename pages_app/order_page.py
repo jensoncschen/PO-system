@@ -76,9 +76,9 @@ def _clear_filter_states(key_prefixes: list[str]) -> None:
             st.session_state[key] = False
 
 
-def _cancel_selected_product(product_name: str) -> None:
+def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None:
     """從已選商品中取消單一商品，並清除該商品暫存數量。"""
-    product_key = _make_filter_key("select_product", product_name)
+    product_key = _make_filter_key(product_key_prefix, product_name)
     if product_key in st.session_state:
         st.session_state[product_key] = False
 
@@ -270,19 +270,20 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
 
         product_options = _get_product_options(df_step2)
+        product_key_prefix = f"select_product{input_suffix}"
 
         # 條碼或關鍵字搜尋只找到單一商品時，自動勾選，延續原本 multiselect 的預設選取體驗。
         if barcode_input and len(product_options) == 1:
-            single_product_key = _make_filter_key("select_product", product_options[0])
+            single_product_key = _make_filter_key(product_key_prefix, product_options[0])
             if single_product_key not in st.session_state:
                 st.session_state[single_product_key] = True
 
-        selected_product_count = len(_get_selected_values(product_options, "select_product"))
+        selected_product_count = len(_get_selected_values(product_options, product_key_prefix))
         product_expander_label = f"3. 選擇商品｜符合 {len(product_options)} 項｜已選 {selected_product_count} 項"
         product_expander_expanded = bool(barcode_input or selected_filter_parts or selected_product_count > 0)
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
-            selected_products_batch = _render_checkbox_grid("商品", product_options, "select_product", columns=5)
+            selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=5)
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
@@ -297,9 +298,9 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                             "✕",
                             help="取消選擇此商品",
                             use_container_width=False,
-                            key=f"cancel_product_{_make_filter_key('select_product', p_name)}{input_suffix}",
+                            key=f"cancel_product_{_make_filter_key(product_key_prefix, p_name)}",
                             on_click=_cancel_selected_product,
-                            args=(p_name,),
+                            args=(p_name, product_key_prefix),
                         )
 
                     qty_col, gift_col = st.columns(2, gap="medium")
@@ -316,7 +317,6 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 else:
                     items_added_count = 0
                     keys_to_clear = []
-                    product_selection_keys_to_clear = []
 
                     for p_name in selected_products_batch:
                         q_raw = st.session_state.get(f"q_{p_name}")
@@ -340,16 +340,14 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                             items_added_count += 1
 
                         keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
-                        product_selection_keys_to_clear.append(_make_filter_key("select_product", p_name))
 
                     if items_added_count > 0:
                         for k in keys_to_clear:
                             if k in st.session_state:
                                 del st.session_state[k]
-                        for k in product_selection_keys_to_clear:
-                            if k in st.session_state:
-                                st.session_state[k] = False
 
+                        # 透過更新 input_reset_trigger 讓商品選取 checkbox 使用新的 key，
+                        # 避免在同一輪渲染中直接改已建立的 checkbox state 而觸發 StreamlitAPIException。
                         st.session_state.input_reset_trigger += 1
                         st.toast(f"成功加入 {items_added_count} 項商品")
                         time.sleep(0.5)
