@@ -1006,161 +1006,57 @@ div[data-testid="stCheckbox"] label > div:first-child {
     }
 }
 
-/* Phase 4 Step 4：HTML + CSS Grid 篩選與產品清單 */
-.option-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.55rem;
-    margin: 0.55rem 0 0.75rem;
-}
+/* Phase 4 Step 5：品牌與品類篩選區並排顯示
+   重點：外層兩個 expander 並排；各 expander 內的選項維持單欄，避免手機版過窄難點。 */
 
-.grid-choice {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: 0.62rem 0.72rem;
-    border: 1px solid var(--border);
-    border-radius: 15px;
-    background: #ffffff;
-    color: var(--text-main) !important;
-    text-decoration: none !important;
-    font-size: 0.9rem;
-    font-weight: 800;
-    line-height: 1.25;
-    text-align: center;
-    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
-    transition: border-color 0.12s ease, background 0.12s ease, transform 0.12s ease;
-}
-
-.grid-choice:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-soft);
-    transform: translateY(-1px);
-}
-
-.grid-choice.is-selected {
-    background: #111827;
-    border-color: #111827;
-    color: #ffffff !important;
-}
-
-.grid-choice span {
-    color: inherit !important;
-    -webkit-text-fill-color: currentColor !important;
-}
-
-.product-option-grid {
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-}
-
-.product-option-grid .grid-choice {
-    min-height: 58px;
-    align-items: center;
-    justify-content: flex-start;
-    text-align: left;
-    padding: 0.68rem 0.72rem;
-}
-
-.product-option-grid .grid-choice span {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-}
-
-@media (max-width: 768px) {
-    .option-grid,
-    .product-option-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.48rem;
-    }
-
-    .grid-choice {
-        min-height: 46px;
-        padding: 0.58rem 0.56rem;
-        border-radius: 14px;
-        font-size: 0.84rem;
-        line-height: 1.22;
-    }
-
-    .product-option-grid .grid-choice {
-        min-height: 62px;
-        padding: 0.62rem 0.58rem;
-    }
-}
-
-
-/* Phase 4 Step 4 修正版：Streamlit button 網格互動，移除 HTML link 跳頁問題 */
-.streamlit-button-grid-scope {
-    margin-top: 0.2rem;
-}
-
-/* 篩選與產品清單 expander 內的按鈕，做成卡片感 */
-div[data-testid="stExpander"] div.stButton > button {
-    width: 100% !important;
-    min-height: 46px !important;
-    justify-content: center !important;
-    padding: 0.55rem 0.55rem !important;
-    border-radius: 14px !important;
-    font-size: 0.86rem !important;
-    line-height: 1.22 !important;
-    white-space: normal !important;
-}
-
-div[data-testid="stExpander"] div.stButton > button p {
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: normal !important;
-    word-break: break-word;
-    line-height: 1.22 !important;
-}
-
-/* 產品清單的按鈕高度稍高，容納兩行商品名稱 */
-div[data-testid="stExpander"] div.stButton > button:has(p) {
-    min-height: 48px !important;
-}
-
-/* 在 expander 內盡量保留網格排列；桌面 4~6 欄，手機 2 欄 */
-div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    gap: 0.45rem !important;
-    align-items: stretch !important;
-}
-
+/* 先把 expander 內部的 checkbox 欄位恢復為單欄，避免舊版方塊網格規則讓選項過窄。 */
 div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-    min-width: 0 !important;
-    flex: 1 1 0 !important;
-    width: auto !important;
+    flex: 0 0 100% !important;
+    min-width: 100% !important;
+    width: 100% !important;
+}
+
+/* 含有 expander 的外層欄位維持左右並排。 */
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"] div[data-testid="stExpander"]) > div[data-testid="column"] {
+    flex: 0 0 calc(50% - 0.35rem) !important;
+    min-width: calc(50% - 0.35rem) !important;
+    width: calc(50% - 0.35rem) !important;
+}
+
+/* 讓左右兩個篩選區在小螢幕上更緊湊。 */
+div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"] div[data-testid="stExpander"]) {
+    gap: 0.55rem !important;
+    align-items: flex-start !important;
 }
 
 @media (max-width: 768px) {
-    /* 手機版：強制 Streamlit columns 不要再退回單欄 */
-    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 0.45rem !important;
-        width: 100% !important;
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"] div[data-testid="stExpander"]) > div[data-testid="column"] {
+        flex: 0 0 calc(50% - 0.28rem) !important;
+        min-width: calc(50% - 0.28rem) !important;
+        width: calc(50% - 0.28rem) !important;
     }
 
-    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-        min-width: 0 !important;
-        flex: 1 1 0 !important;
-        width: auto !important;
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"] div[data-testid="stExpander"]) {
+        gap: 0.38rem !important;
     }
 
-    div[data-testid="stExpander"] div.stButton > button {
-        min-height: 48px !important;
-        padding: 0.52rem 0.42rem !important;
+    div[data-testid="stExpander"] summary {
+        font-size: 0.86rem !important;
+        padding-left: 0.55rem !important;
+        padding-right: 0.55rem !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stCheckbox"] label {
+        padding: 0.48rem 0.5rem !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stCheckbox"] label p {
         font-size: 0.82rem !important;
-        border-radius: 13px !important;
+        line-height: 1.25 !important;
+    }
+
+    .filter-subnote {
+        font-size: 0.78rem;
+        padding: 0.48rem 0.5rem;
     }
 }
