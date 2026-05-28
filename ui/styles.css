@@ -1015,24 +1015,12 @@ div[data-testid="stCheckbox"] label > div:first-child {
     }
 }
 
-/* Phase 4 Step 9：選擇商品展開收合與取消選擇 */
+/* Phase 4 Step 9：選擇商品展開收合 */
 .product-title {
     line-height: 1.35;
     word-break: break-word;
 }
 
-/* 讓已選商品卡片中的取消按鈕低調一點，避免被誤認為主要送出動作。 */
-div.stButton > button[kind="secondary"] {
-    background: #ffffff !important;
-    border-color: var(--border) !important;
-    color: var(--text-muted) !important;
-    -webkit-text-fill-color: var(--text-muted) !important;
-}
-
-div.stButton > button[kind="secondary"] * {
-    color: var(--text-muted) !important;
-    -webkit-text-fill-color: var(--text-muted) !important;
-}
 
 @media (max-width: 768px) {
     .product-title {
@@ -1079,7 +1067,7 @@ div.stButton > button[kind="secondary"] * {
 }
 
 
-/* Phase 4 Step 12：回到原生 expander，保留小型取消選擇按鈕 */
+/* Phase 4 Step 12：回到原生 expander */
 .product-title {
     min-height: 34px;
     display: flex;
