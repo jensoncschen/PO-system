@@ -211,35 +211,40 @@ def _render_compact_quantity_input_css() -> None:
         """
         <style>
         .selected-products-card-note {
-            font-size: 0.74rem;
+            font-size: 0.7rem;
             color: #6b7280;
-            margin: 0.05rem 0 0.28rem 0;
+            margin: 0.02rem 0 0.22rem 0;
         }
 
         .selected-product-card-name {
             font-size: 0.84rem;
             font-weight: 600;
             color: #111827;
-            line-height: 1.25;
-            padding-top: 0.1rem;
+            line-height: 1.15;
+            padding-top: 0.22rem;
             word-break: break-word;
         }
 
-        /* 只縮小卡片容器內的文字輸入框，避免影響上方商品搜尋欄。 */
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stTextInput"] {
-            margin-bottom: 0;
-            max-width: 4.6rem;
+        /* 僅壓縮已選商品卡片，避免影響其他區塊。 */
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) {
+            background: #ffffff;
+            border-color: #d1d5db;
         }
 
-        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stTextInput"] input {
-            width: 4.6rem;
-            max-width: 4.6rem;
-            min-height: 26px;
-            height: 26px;
-            font-size: 0.74rem;
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] {
+            margin-bottom: 0;
+            max-width: 3.7rem;
+        }
+
+        div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
+            width: 3.7rem;
+            max-width: 3.7rem;
+            min-height: 23px;
+            height: 23px;
+            font-size: 0.68rem;
             line-height: 1;
-            border-radius: 7px;
-            padding: 0.08rem 0.32rem;
+            border-radius: 6px;
+            padding: 0.02rem 0.18rem;
             text-align: center;
         }
         </style>
@@ -275,12 +280,14 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
         _prepare_quantity_text_state(product_name)
 
         with st.container(border=True):
-            st.markdown(
-                f"<div class='selected-product-card-name'>{safe_html(product_name)}</div>",
-                unsafe_allow_html=True,
-            )
+            name_col, qty_col, gift_col = st.columns([4.2, 1, 1], gap="small")
 
-            qty_col, gift_col, spacer_col = st.columns([1, 1, 4], gap="small")
+            with name_col:
+                st.markdown(
+                    f"<div class='selected-product-card-row selected-product-card-name'>{safe_html(product_name)}</div>",
+                    unsafe_allow_html=True,
+                )
+
             with qty_col:
                 st.text_input(
                     "訂購",
