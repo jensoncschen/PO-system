@@ -237,7 +237,7 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
         _prepare_quantity_text_state(product_name)
 
         with st.container(border=True):
-            name_col, qty_col, gift_col = st.columns([4.8, 0.8, 0.8], gap="small")
+            name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
 
             with name_col:
                 st.markdown(
