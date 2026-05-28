@@ -206,51 +206,8 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
 
 
 def _render_compact_quantity_input_css() -> None:
-    """調整已選商品卡片外觀，僅處理視覺，不改動資料流程。"""
-    st.markdown(
-        """
-        <style>
-        .selected-products-card-note {
-            font-size: 0.7rem;
-            color: #6b7280;
-            margin: 0.02rem 0 0.22rem 0;
-        }
-
-        .selected-product-card-name {
-            font-size: 0.84rem;
-            font-weight: 600;
-            color: #111827;
-            line-height: 1.15;
-            padding-top: 0.22rem;
-            word-break: break-word;
-        }
-
-        /* 僅壓縮已選商品卡片，避免影響其他區塊。 */
-        div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) {
-            background: #ffffff;
-            border-color: #d1d5db;
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] {
-            margin-bottom: 0;
-            max-width: 3.7rem;
-        }
-
-        div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-            width: 3.7rem;
-            max-width: 3.7rem;
-            min-height: 23px;
-            height: 23px;
-            font-size: 0.68rem;
-            line-height: 1;
-            border-radius: 6px;
-            padding: 0.02rem 0.18rem;
-            text-align: center;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    """已選商品卡片樣式已移至 ui/styles.css，保留函式避免影響呼叫流程。"""
+    return
 
 
 def _prepare_quantity_text_state(product_name: str) -> None:
@@ -280,7 +237,7 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
         _prepare_quantity_text_state(product_name)
 
         with st.container(border=True):
-            name_col, qty_col, gift_col = st.columns([4.2, 1, 1], gap="small")
+            name_col, qty_col, gift_col = st.columns([4.8, 0.8, 0.8], gap="small")
 
             with name_col:
                 st.markdown(
