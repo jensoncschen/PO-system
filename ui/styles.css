@@ -1738,3 +1738,140 @@ input[placeholder="搭贈"] {
         line-height: 1.18 !important;
     }
 }
+
+/* =========================================================
+   Phase 5 Step 2.17：已選商品卡片加入 X 取消按鈕
+   目的：只調整已選商品輸入卡片排列與 X 外觀，不影響其他按鈕 / 表單。
+   結構：X｜商品名稱｜數量｜搭贈
+   ========================================================= */
+
+/* 四欄 grid：X 固定小寬度，商品名稱吃剩餘空間，數量 / 搭贈固定四位數寬度。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
+    grid-template-columns: 2rem minmax(0, 1fr) 3.55rem 3.55rem !important;
+    column-gap: 0.36rem !important;
+    align-items: center !important;
+}
+
+/* 所有欄位都交給 grid 管理，不讓 Streamlit 原本 columns 寬度干擾。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"] {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: none !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: hidden !important;
+}
+
+/* 第 1 欄：X 取消按鈕。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) {
+    grid-column: 1 !important;
+    width: 2rem !important;
+    min-width: 2rem !important;
+    max-width: 2rem !important;
+    justify-content: center !important;
+    overflow: visible !important;
+}
+
+/* 第 2 欄：商品名稱。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2) {
+    grid-column: 2 !important;
+    justify-content: flex-start !important;
+}
+
+/* 第 3 / 4 欄：數量與搭贈。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3),
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(4) {
+    width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    justify-content: center !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
+    grid-column: 3 !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(4) {
+    grid-column: 4 !important;
+}
+
+/* X 按鈕：覆蓋全站按鈕高度，固定小方形。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) div.stButton,
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) div.stButton > button {
+    width: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) div.stButton > button {
+    padding: 0 !important;
+    border-radius: 8px !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    font-weight: 650 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--text-muted) !important;
+    -webkit-text-fill-color: var(--text-muted) !important;
+    background: #ffffff !important;
+    border-color: var(--border-strong) !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) div.stButton > button:hover {
+    color: var(--danger) !important;
+    -webkit-text-fill-color: var(--danger) !important;
+    border-color: #fecaca !important;
+    background: #fff1f2 !important;
+}
+
+@media (max-width: 768px) {
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
+        grid-template-columns: 1.8rem minmax(0, 1fr) 3.15rem 3.15rem !important;
+        column-gap: 0.24rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) {
+        width: 1.8rem !important;
+        min-width: 1.8rem !important;
+        max-width: 1.8rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3),
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(4),
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
+    div[data-baseweb="input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
+    input[placeholder="數量"],
+    input[placeholder="搭贈"] {
+        width: 3.15rem !important;
+        min-width: 3.15rem !important;
+        max-width: 3.15rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) div.stButton,
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) div.stButton > button {
+        width: 26px !important;
+        min-width: 26px !important;
+        max-width: 26px !important;
+        height: 26px !important;
+        min-height: 26px !important;
+        max-height: 26px !important;
+        border-radius: 7px !important;
+        font-size: 17px !important;
+    }
+
+    .selected-product-card-name {
+        font-size: 15px !important;
+        line-height: 1.16 !important;
+    }
+}
