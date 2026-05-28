@@ -193,8 +193,28 @@ def _clear_filter_states(key_prefixes: list[str]) -> None:
             st.session_state[key] = False
 
 
-def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None:
-    """從已選商品中取消單一商品，並清除該商品暫存數量。"""
+def _request_cancel_selected_product(product_name: str, product_key_prefix: str) -> None:
+    """記錄待取消商品，避免在 widget 建立後直接修改 checkbox state。"""
+    st.session_state["pending_cancel_selected_product"] = {
+        "product_name": product_name,
+        "product_key_prefix": product_key_prefix,
+    }
+
+
+def _apply_pending_selected_product_cancel(product_key_prefix: str) -> None:
+    """在商品 checkbox 渲染前套用待取消商品，避免 StreamlitAPIException。"""
+    pending_cancel = st.session_state.get("pending_cancel_selected_product")
+    if not pending_cancel:
+        return
+
+    if pending_cancel.get("product_key_prefix") != product_key_prefix:
+        return
+
+    product_name = pending_cancel.get("product_name")
+    if not product_name:
+        st.session_state.pop("pending_cancel_selected_product", None)
+        return
+
     product_key = _make_filter_key(product_key_prefix, product_name)
     if product_key in st.session_state:
         st.session_state[product_key] = False
@@ -203,6 +223,7 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
         if key in st.session_state:
             del st.session_state[key]
 
+    st.session_state.pop("pending_cancel_selected_product", None)
 
 
 def _render_compact_quantity_input_css() -> None:
@@ -237,7 +258,17 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
         _prepare_quantity_text_state(product_name)
 
         with st.container(border=True):
-            name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
+            cancel_col, name_col, qty_col, gift_col = st.columns([0.18, 1, 0.18, 0.18], gap="small")
+
+            with cancel_col:
+                st.button(
+                    "×",
+                    key=f"cancel_selected_{_make_filter_key(product_key_prefix, product_name)}",
+                    help=f"取消 {product_name}",
+                    use_container_width=False,
+                    on_click=_request_cancel_selected_product,
+                    args=(product_name, product_key_prefix),
+                )
 
             with name_col:
                 st.markdown(
@@ -442,6 +473,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         all_product_options = _get_product_options(df_step2)
         product_options, total_product_count, is_product_limited = _limit_product_options(all_product_options)
         product_key_prefix = f"select_product{input_suffix}"
+        _apply_pending_selected_product_cancel(product_key_prefix)
 
         if is_product_limited:
             st.info(
