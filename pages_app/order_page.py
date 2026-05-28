@@ -206,7 +206,7 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
 
 
 def _render_compact_quantity_input_css() -> None:
-    """保留少量表格外觀 CSS，避免影響其他頁面元件。"""
+    """保守調整已選商品表格外觀，僅處理視覺，不改動資料流程。"""
     st.markdown(
         """
         <style>
@@ -214,6 +214,23 @@ def _render_compact_quantity_input_css() -> None:
             font-size: 0.78rem;
             color: #6b7280;
             margin: 0.1rem 0 0.35rem 0;
+        }
+
+        /* 讓 data_editor 與背景更容易區分：白底、較明顯邊框、圓角。 */
+        div[data-testid="stDataFrame"] {
+            background: #ffffff;
+            border: 1px solid #111827;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        div[data-testid="stDataFrame"] div[role="grid"] {
+            background: #ffffff;
+        }
+
+        div[data-testid="stDataFrame"] [role="columnheader"],
+        div[data-testid="stDataFrame"] [role="gridcell"] {
+            background: #ffffff;
         }
         </style>
         """,
@@ -308,8 +325,8 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
     edited_df = st.data_editor(
         editor_df,
         column_config={
-            "選取": st.column_config.CheckboxColumn("選取", help="勾選後可按右上方按鈕移除", width="small"),
-            "產品名稱": st.column_config.TextColumn("商品名稱", disabled=True, width="large"),
+            "選取": st.column_config.CheckboxColumn("選", help="勾選後可按右上方按鈕移除", width="small"),
+            "產品名稱": st.column_config.TextColumn("商品", disabled=True, width="medium"),
             "訂購數": st.column_config.NumberColumn("訂購", min_value=0, step=1, width="small"),
             "搭贈數": st.column_config.NumberColumn("搭贈", min_value=0, step=1, width="small"),
         },
