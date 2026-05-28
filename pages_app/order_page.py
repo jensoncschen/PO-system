@@ -213,22 +213,40 @@ def _render_compact_quantity_input_css() -> None:
         /* 只針對訂購數 / 搭贈數文字輸入框做保守縮小，避免影響商品搜尋框。 */
         div[data-testid="stTextInput"] input[aria-label="訂購數"],
         div[data-testid="stTextInput"] input[aria-label="搭贈數"] {
-            min-height: 1.65rem;
-            height: 1.65rem;
-            font-size: 0.78rem;
-            padding: 0.05rem 0.45rem;
+            min-height: 1.35rem;
+            height: 1.35rem;
+            font-size: 0.72rem;
+            padding: 0 0.35rem;
             border-radius: 999px;
             text-align: center;
         }
 
         div[data-testid="stTextInput"]:has(input[aria-label="訂購數"]),
         div[data-testid="stTextInput"]:has(input[aria-label="搭贈數"]) {
-            margin-top: -0.2rem;
+            margin-top: -0.28rem;
+        }
+
+        div[data-testid="stTextInput"]:has(input[aria-label="訂購數"]) > div,
+        div[data-testid="stTextInput"]:has(input[aria-label="搭贈數"]) > div {
+            min-height: 1.35rem;
+        }
+
+        /* 已選商品列第一欄為取消按鈕，縮小成接近輸入框高度的小方形。 */
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child div[data-testid="stButton"] button {
+            min-width: 1.55rem;
+            width: 1.55rem;
+            min-height: 1.55rem;
+            height: 1.55rem;
+            padding: 0;
+            border-radius: 0.55rem;
+            font-size: 0.72rem;
+            line-height: 1;
         }
 
         .product-title {
-            font-size: 0.88rem;
-            line-height: 1.35;
+            font-size: 0.82rem;
+            line-height: 1.25;
+            padding-top: 0.05rem;
         }
         </style>
         """,
@@ -248,7 +266,7 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
     for p_name in selected_products:
         product_hash_key = _make_filter_key(product_key_prefix, p_name)
         with st.container(border=True):
-            cancel_col, name_col, qty_col, gift_col = st.columns([0.35, 4.45, 1.1, 1.1], gap="small")
+            cancel_col, name_col, qty_col, gift_col = st.columns([0.22, 8.4, 0.72, 0.72], gap="small")
 
             with cancel_col:
                 st.button(
