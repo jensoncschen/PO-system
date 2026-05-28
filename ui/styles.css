@@ -1186,3 +1186,105 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) 
         border-radius: 7px;
     }
 }
+
+
+/* =========================================================
+   Phase 5 Step 2.14：修正已選商品卡片輸入框尺寸未生效
+   原因：全站 input / 手機版 input 使用 !important，會蓋過 Step 2.13 的區塊設定。
+   做法：只在包含 .selected-product-card-row 的卡片內，用更高優先權覆蓋尺寸。
+   ========================================================= */
+
+.selected-product-card-name {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding-top: 0 !important;
+}
+
+/* 卡片本體：降低上下留白，避免輸入框縮小後外層仍看起來很高。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
+    padding: 0.24rem 0.5rem !important;
+}
+
+/* 手機版全站設定會讓 column 變 100%，此處只針對已選商品卡片恢復橫向並排。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"] {
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* 壓縮 Streamlit text_input 外層。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] {
+    margin: 0 !important;
+    width: 4.05rem !important;
+    max-width: 4.05rem !important;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] > div {
+    margin: 0 !important;
+    width: 4.05rem !important;
+    max-width: 4.05rem !important;
+}
+
+/* 關鍵：同時覆蓋 BaseWeb 外層，否則 input 變 32px 但外框仍會維持 46/50px。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="input"],
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="base-input"] {
+    min-height: 32px !important;
+    height: 32px !important;
+    width: 4.05rem !important;
+    max-width: 4.05rem !important;
+    border-radius: 8px !important;
+}
+
+/* 關鍵：覆蓋全站 input { font-size:16px !important; } 和手機版 min-height:50px !important。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
+    min-height: 32px !important;
+    height: 32px !important;
+    width: 4.05rem !important;
+    max-width: 4.05rem !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 32px !important;
+    padding: 0 0.35rem !important;
+    text-align: center !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input::placeholder {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: var(--text-soft) !important;
+    opacity: 1 !important;
+}
+
+@media (max-width: 768px) {
+    .selected-product-card-name {
+        font-size: 15px !important;
+        min-height: 32px !important;
+        line-height: 1.22 !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
+        padding: 0.22rem 0.42rem !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"],
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] > div,
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="input"],
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="base-input"],
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
+        width: 3.8rem !important;
+        max-width: 3.8rem !important;
+        min-height: 32px !important;
+        height: 32px !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
+        font-size: 13px !important;
+        line-height: 32px !important;
+        border-radius: 7px !important;
+    }
+}
