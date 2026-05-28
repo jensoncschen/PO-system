@@ -1090,3 +1090,99 @@ div.stButton > button[kind="secondary"] * {
         min-height: 30px;
     }
 }
+
+/* =========================================================
+   Phase 5 Step 2.12：已選商品卡片式數量輸入區
+   目的：只調整「已選商品 → 數量 / 搭贈輸入」外觀，不影響其他表單。
+   對應 order_page.py 中的 .selected-product-card-row / .selected-product-card-name
+   ========================================================= */
+.selected-products-card-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin: 0.05rem 0 0.28rem 0;
+    line-height: 1.35;
+}
+
+.selected-product-card-name {
+    font-size: 0.96rem;
+    font-weight: 750;
+    color: var(--text-main);
+    line-height: 1.25;
+    padding-top: 0.1rem;
+    word-break: break-word;
+}
+
+/* 只鎖定包含已選商品卡片 marker 的 Streamlit container。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) {
+    background: #ffffff;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+/* 壓縮卡片內距，讓商品名稱與兩個輸入框高度更接近。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
+    padding: 0.34rem 0.55rem;
+}
+
+/* 壓縮欄位與文字輸入元件的垂直空間。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) [data-testid="column"] {
+    display: flex;
+    align-items: center;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] {
+    margin: 0;
+    max-width: 4.05rem;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] > div {
+    margin: 0;
+}
+
+/* 數量 / 搭贈：維持可輸入 4 碼，但降低高度與視覺重量。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
+    width: 4.05rem;
+    max-width: 4.05rem;
+    min-height: 25px;
+    height: 25px;
+    font-size: 0.78rem;
+    font-weight: 550;
+    line-height: 1;
+    border-radius: 8px;
+    padding: 0.02rem 0.28rem;
+    text-align: center;
+    background: #ffffff;
+    border-color: var(--border-strong);
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input::placeholder {
+    color: var(--text-soft);
+    opacity: 1;
+    font-size: 0.72rem;
+    font-weight: 500;
+}
+
+@media (max-width: 640px) {
+    .selected-product-card-name {
+        font-size: 0.92rem;
+        line-height: 1.22;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
+        padding: 0.28rem 0.45rem;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"],
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
+        width: 3.75rem;
+        max-width: 3.75rem;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
+        min-height: 24px;
+        height: 24px;
+        font-size: 0.74rem;
+        border-radius: 7px;
+    }
+}
