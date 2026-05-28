@@ -226,7 +226,7 @@ def _build_selected_products_editor_df(selected_products: list[str]) -> pd.DataF
     rows: list[dict[str, object]] = []
     for product_name in selected_products:
         rows.append({
-            "取消": False,
+            "選取": False,
             "產品名稱": product_name,
             "訂購數": _safe_int(st.session_state.get(f"q_{product_name}")),
             "搭贈數": _safe_int(st.session_state.get(f"g_{product_name}")),
@@ -234,31 +234,33 @@ def _build_selected_products_editor_df(selected_products: list[str]) -> pd.DataF
     return pd.DataFrame(rows)
 
 
-def _apply_selected_product_cancellations(edited_df: pd.DataFrame, product_key_prefix: str) -> bool:
-    """處理 data_editor 中勾選取消的商品；用換新 checkbox key 的方式避免直接修改已渲染 widget。"""
-    if "取消" not in edited_df.columns or "產品名稱" not in edited_df.columns:
+def _remove_checked_selected_products(edited_df: pd.DataFrame, product_key_prefix: str) -> bool:
+    """依表格「選取」欄位移除商品；按功能按鈕時才執行刪除。"""
+    if "選取" not in edited_df.columns or "產品名稱" not in edited_df.columns:
+        st.warning("目前沒有可移除的商品。")
         return False
 
-    canceled_names = [
+    removed_names = [
         str(row["產品名稱"]).strip()
         for _, row in edited_df.iterrows()
-        if bool(row.get("取消", False)) and str(row.get("產品名稱", "")).strip()
+        if bool(row.get("選取", False)) and str(row.get("產品名稱", "")).strip()
     ]
-    if not canceled_names:
+    if not removed_names:
+        st.info("請先在表格左側勾選要移除的商品。")
         return False
 
     remaining_names = [
         str(row["產品名稱"]).strip()
         for _, row in edited_df.iterrows()
-        if not bool(row.get("取消", False)) and str(row.get("產品名稱", "")).strip()
+        if not bool(row.get("選取", False)) and str(row.get("產品名稱", "")).strip()
     ]
 
-    for product_name in canceled_names:
+    for product_name in removed_names:
         for key in [f"q_{product_name}", f"g_{product_name}"]:
             if key in st.session_state:
                 del st.session_state[key]
 
-    # 不直接改目前已建立的 checkbox key，改用下一輪新的 key 並保留未取消商品。
+    # 不直接改目前已建立的 checkbox key，改用下一輪新的 key 並保留未移除商品。
     st.session_state.input_reset_trigger += 1
     next_product_key_prefix = f"select_product_{st.session_state.input_reset_trigger}"
     for product_name in remaining_names:
@@ -284,25 +286,34 @@ def _sync_selected_product_quantities(edited_df: pd.DataFrame) -> None:
 
 
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
-    """用 Streamlit 原生 data_editor 呈現已選商品與數量欄位，作為更整齊的參考版。"""
+    """用 Streamlit 原生 data_editor 呈現已選商品與數量欄位。"""
     _render_compact_quantity_input_css()
-    st.markdown(
-        "<div class='selected-products-editor-note'>已選商品可在表格中輸入訂購數 / 搭贈數；勾選取消會移除該商品。</div>",
-        unsafe_allow_html=True,
-    )
 
     editor_df = _build_selected_products_editor_df(selected_products)
-    editor_height = min(360, max(120, 38 + len(editor_df) * 36))
+    editor_height = min(360, max(128, 38 + len(editor_df) * 35))
+
+    toolbar_left, toolbar_right = st.columns([3.4, 1], gap="small")
+    with toolbar_left:
+        st.markdown(
+            "<div class='selected-products-editor-note'>在表格中輸入訂購 / 搭贈；勾選左側選取後，可用右上方按鈕移除。</div>",
+            unsafe_allow_html=True,
+        )
+    with toolbar_right:
+        remove_clicked = st.button(
+            "移除選取",
+            key=f"remove_selected_products_{product_key_prefix}",
+            use_container_width=True,
+        )
 
     edited_df = st.data_editor(
         editor_df,
         column_config={
-            "取消": st.column_config.CheckboxColumn("取消", help="勾選後移除此商品", width="small"),
+            "選取": st.column_config.CheckboxColumn("選取", help="勾選後可按右上方按鈕移除", width="small"),
             "產品名稱": st.column_config.TextColumn("商品名稱", disabled=True, width="large"),
             "訂購數": st.column_config.NumberColumn("訂購", min_value=0, step=1, width="small"),
             "搭贈數": st.column_config.NumberColumn("搭贈", min_value=0, step=1, width="small"),
         },
-        column_order=["取消", "產品名稱", "訂購數", "搭贈數"],
+        column_order=["選取", "產品名稱", "訂購數", "搭贈數"],
         hide_index=True,
         use_container_width=True,
         num_rows="fixed",
@@ -311,7 +322,8 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
     )
 
     _sync_selected_product_quantities(edited_df)
-    _apply_selected_product_cancellations(edited_df, product_key_prefix)
+    if remove_clicked:
+        _remove_checked_selected_products(edited_df, product_key_prefix)
 
 
 def _get_product_options(df_products_filtered: pd.DataFrame) -> list[str]:
