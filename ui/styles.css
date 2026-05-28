@@ -1288,3 +1288,131 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) 
         border-radius: 7px !important;
     }
 }
+
+
+/* =========================================================
+   Phase 5 Step 2.15：強制壓縮已選商品數量 / 搭贈輸入框
+   目的：避開全站 stTextInput / BaseWeb min-height 規則，只鎖定 placeholder 為「數量」「搭贈」的輸入框。
+   注意：這兩個 placeholder 只用在已選商品卡片，不影響商品搜尋等一般輸入框。
+   ========================================================= */
+
+/* 商品名稱維持 15px，並與 32px 輸入框垂直置中。 */
+.selected-product-card-name {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    min-height: 32px !important;
+    line-height: 1.22 !important;
+    display: flex !important;
+    align-items: center !important;
+    padding-top: 0 !important;
+}
+
+/* 直接用 placeholder 鎖定「數量 / 搭贈」兩個欄位，比依賴外層 :has(.selected-product-card-row) 更穩。 */
+div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
+div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) {
+    width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
+div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div {
+    width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* BaseWeb 外框：這一層常被全站 min-height: 46px / 50px 撐高，必須一起覆蓋。 */
+div[data-baseweb="input"]:has(input[placeholder="數量"]),
+div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
+div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
+div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]) {
+    width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* 真正 input 本體：覆蓋全站 input font-size:16px 與手機版 min-height:50px。 */
+input[placeholder="數量"],
+input[placeholder="搭贈"] {
+    width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    line-height: 32px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    padding: 0 0.28rem !important;
+    border-radius: 8px !important;
+    box-sizing: border-box !important;
+}
+
+input[placeholder="數量"]::placeholder,
+input[placeholder="搭贈"]::placeholder {
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: var(--text-soft) !important;
+    opacity: 1 !important;
+    text-align: center !important;
+}
+
+/* 壓縮已選商品卡片本身，避免 input 已縮小但卡片仍留太多上下空白。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
+    padding: 0.18rem 0.42rem !important;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) [data-testid="column"] {
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0 !important;
+}
+
+@media (max-width: 768px) {
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
+    div[data-baseweb="input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
+    input[placeholder="數量"],
+    input[placeholder="搭贈"] {
+        width: 3.45rem !important;
+        max-width: 3.45rem !important;
+        min-width: 3.45rem !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        max-height: 32px !important;
+    }
+
+    input[placeholder="數量"],
+    input[placeholder="搭贈"] {
+        font-size: 13px !important;
+        line-height: 32px !important;
+        padding: 0 0.24rem !important;
+    }
+
+    input[placeholder="數量"]::placeholder,
+    input[placeholder="搭贈"]::placeholder {
+        font-size: 11px !important;
+    }
+}
