@@ -206,47 +206,41 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
 
 
 def _render_compact_quantity_input_css() -> None:
-    """保守調整已選商品卡片外觀，僅處理視覺，不改動資料流程。"""
+    """調整已選商品卡片外觀，僅處理視覺，不改動資料流程。"""
     st.markdown(
         """
         <style>
         .selected-products-card-note {
-            font-size: 0.76rem;
+            font-size: 0.74rem;
             color: #6b7280;
-            margin: 0.05rem 0 0.3rem 0;
-        }
-
-        .selected-product-toolbar {
-            display: flex;
-            justify-content: flex-end;
-            margin: -0.1rem 0 0.35rem 0;
+            margin: 0.05rem 0 0.28rem 0;
         }
 
         .selected-product-card-name {
-            font-size: 0.88rem;
+            font-size: 0.84rem;
             font-weight: 600;
             color: #111827;
-            line-height: 1.3;
-            padding-top: 0.2rem;
+            line-height: 1.25;
+            padding-top: 0.1rem;
             word-break: break-word;
         }
 
-        /* 只溫和縮小此區塊的文字輸入框，不深度改 Streamlit 結構。 */
-        div[data-testid="stTextInput"] input {
-            min-height: 30px;
-            height: 30px;
-            font-size: 0.82rem;
-            border-radius: 8px;
-            padding: 0.16rem 0.42rem;
-        }
-
-        div[data-testid="stTextInput"] {
+        /* 只縮小卡片容器內的文字輸入框，避免影響上方商品搜尋欄。 */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stTextInput"] {
             margin-bottom: 0;
+            max-width: 4.6rem;
         }
 
-        div[data-testid="stCheckbox"] label {
-            min-height: 30px;
-            font-size: 0.78rem;
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stTextInput"] input {
+            width: 4.6rem;
+            max-width: 4.6rem;
+            min-height: 26px;
+            height: 26px;
+            font-size: 0.74rem;
+            line-height: 1;
+            border-radius: 7px;
+            padding: 0.08rem 0.32rem;
+            text-align: center;
         }
         </style>
         """,
@@ -267,67 +261,33 @@ def _prepare_quantity_text_state(product_name: str) -> None:
             st.session_state[key] = ""
 
 
-def _get_remove_selection_key(product_name: str, product_key_prefix: str) -> str:
-    """產生已選商品卡片中的移除勾選 key。"""
-    return _make_filter_key(f"remove_mark_{product_key_prefix}", product_name)
-
-
-def _remove_marked_selected_products(selected_products: list[str], product_key_prefix: str) -> int:
-    """移除已在卡片中勾選的商品，並清除該商品暫存數量。"""
-    removed_count = 0
-    for product_name in selected_products:
-        remove_key = _get_remove_selection_key(product_name, product_key_prefix)
-        if st.session_state.get(remove_key):
-            _cancel_selected_product(product_name, product_key_prefix)
-            if remove_key in st.session_state:
-                del st.session_state[remove_key]
-            removed_count += 1
-    return removed_count
-
 
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
     """用商品卡片呈現已選商品與數量欄位，讓手機版可單擊直接輸入。"""
     _render_compact_quantity_input_css()
 
     st.markdown(
-        "<div class='selected-products-card-note'>勾選商品後可按「移除選取」；數量空白會視為 0。</div>",
+        "<div class='selected-products-card-note'>數量空白會視為 0。</div>",
         unsafe_allow_html=True,
     )
-
-    toolbar_left, toolbar_right = st.columns([4, 1.3], gap="small")
-    with toolbar_right:
-        if st.button("移除選取", key=f"remove_marked_products_{product_key_prefix}", use_container_width=True):
-            removed_count = _remove_marked_selected_products(selected_products, product_key_prefix)
-            if removed_count > 0:
-                st.toast(f"已移除 {removed_count} 項商品")
-                st.rerun()
-            else:
-                st.warning("請先勾選要移除的商品。")
 
     for product_name in selected_products:
         _prepare_quantity_text_state(product_name)
 
         with st.container(border=True):
-            select_col, name_col = st.columns([0.75, 5], gap="small")
-            with select_col:
-                st.checkbox(
-                    "選",
-                    key=_get_remove_selection_key(product_name, product_key_prefix),
-                    label_visibility="visible",
-                )
-            with name_col:
-                st.markdown(
-                    f"<div class='selected-product-card-name'>{safe_html(product_name)}</div>",
-                    unsafe_allow_html=True,
-                )
+            st.markdown(
+                f"<div class='selected-product-card-name'>{safe_html(product_name)}</div>",
+                unsafe_allow_html=True,
+            )
 
-            qty_col, gift_col = st.columns(2, gap="small")
+            qty_col, gift_col, spacer_col = st.columns([1, 1, 4], gap="small")
             with qty_col:
                 st.text_input(
                     "訂購",
                     key=f"q_{product_name}",
                     label_visibility="collapsed",
                     placeholder="數量",
+                    max_chars=4,
                 )
             with gift_col:
                 st.text_input(
@@ -335,6 +295,7 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
                     key=f"g_{product_name}",
                     label_visibility="collapsed",
                     placeholder="搭贈",
+                    max_chars=4,
                 )
 
 
