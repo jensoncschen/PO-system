@@ -1416,3 +1416,84 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) 
         font-size: 11px !important;
     }
 }
+
+
+/* =========================================================
+   Phase 5 Step 2.16-1：已選商品單張卡片內部排列修正
+   目的：不改功能，只讓「商品名稱｜數量｜搭贈」在手機版盡量維持同列，
+        並縮短桌面版輸入框與商品名稱的距離。
+   ========================================================= */
+
+/* 桌面版先避免單張商品卡片吃滿整個頁寬，降低左右距離過大的問題。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) {
+    width: 100% !important;
+    max-width: 42rem !important;
+}
+
+/* 只針對已選商品卡片內的 horizontal block，覆蓋手機版全站 column 單欄規則。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stHorizontalBlock"]:has(.selected-product-card-row) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    column-gap: 0.45rem !important;
+    row-gap: 0 !important;
+}
+
+/* 商品名稱欄：吃剩餘寬度，但允許縮小，避免把數量 / 搭贈擠到下一行。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(.selected-product-card-name) {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* 數量 / 搭贈欄：固定成小欄位，避免桌面版被拉到很遠，手機版也維持同列。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="數量"]),
+div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="搭贈"]) {
+    flex: 0 0 3.75rem !important;
+    width: 3.75rem !important;
+    min-width: 3.75rem !important;
+    max-width: 3.75rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* 商品名稱在欄位內垂直置中；長品名允許換行，但不擠壓數字欄。 */
+.selected-product-card-name {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+    word-break: break-word !important;
+}
+
+@media (max-width: 768px) {
+    /* 手機版不要套用全站 column 100% 的堆疊規則到已選商品卡片。 */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stHorizontalBlock"]:has(.selected-product-card-row) {
+        flex-wrap: nowrap !important;
+        column-gap: 0.34rem !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(.selected-product-card-name) {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="數量"]),
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="搭贈"]) {
+        flex: 0 0 3.45rem !important;
+        width: 3.45rem !important;
+        min-width: 3.45rem !important;
+        max-width: 3.45rem !important;
+    }
+
+    .selected-product-card-name {
+        font-size: 15px !important;
+        line-height: 1.22 !important;
+    }
+}
