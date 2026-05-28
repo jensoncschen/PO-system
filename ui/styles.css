@@ -220,14 +220,14 @@ h1, h2, h3, .stMarkdown p, label, span {
     border-radius: 999px;
     background: #eef2ff;
     color: #3730a3 !important;
-    font-size: 0.78rem;
+    font-size: 13px;
     font-weight: 750;
     white-space: nowrap;
 }
 
 .mini-label {
     color: var(--text-muted);
-    font-size: 0.78rem;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -283,7 +283,7 @@ h1, h2, h3, .stMarkdown p, label, span {
 
 .summary-label {
     color: var(--text-muted);
-    font-size: 0.78rem;
+    font-size: 13px;
     font-weight: 650;
     margin-bottom: 0.25rem;
 }
@@ -448,7 +448,7 @@ hr {
 
 .mobile-status-title {
     color: var(--text-muted) !important;
-    font-size: 0.78rem;
+    font-size: 13px;
     font-weight: 750;
     margin-bottom: 0.15rem;
 }
@@ -1104,7 +1104,7 @@ div.stButton > button[kind="secondary"] * {
 }
 
 .selected-product-card-name {
-    font-size: 0.96rem;
+    font-size: 15px;
     font-weight: 750;
     color: var(--text-main);
     line-height: 1.25;
@@ -1144,13 +1144,13 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) 
 div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
     width: 4.05rem;
     max-width: 4.05rem;
-    min-height: 25px;
-    height: 25px;
-    font-size: 0.78rem;
+    min-height: 32px;
+    height: 32px;
+    font-size: 13px;
     font-weight: 550;
     line-height: 1;
     border-radius: 8px;
-    padding: 0.02rem 0.28rem;
+    padding: 0 0.35rem;
     text-align: center;
     background: #ffffff;
     border-color: var(--border-strong);
@@ -1159,13 +1159,13 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) 
 div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input::placeholder {
     color: var(--text-soft);
     opacity: 1;
-    font-size: 0.72rem;
+    font-size: 12px;
     font-weight: 500;
 }
 
 @media (max-width: 640px) {
     .selected-product-card-name {
-        font-size: 0.92rem;
+        font-size: 15px;
         line-height: 1.22;
     }
 
@@ -1180,9 +1180,9 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) 
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-        min-height: 24px;
-        height: 24px;
-        font-size: 0.74rem;
+        min-height: 32px;
+        height: 32px;
+        font-size: 13px;
         border-radius: 7px;
     }
 }
