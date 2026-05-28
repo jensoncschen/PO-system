@@ -694,8 +694,9 @@ hr {
         border-top: 1px solid var(--border);
     }
 
+    /* 手機版大多數欄位維持單欄；移除 !important，讓特定小型元件可用專屬規則覆蓋。 */
     div[data-testid="column"] {
-        min-width: 100% !important;
+        min-width: 100%;
     }
 
     /* 手機版：一般欄位維持單欄，但表單內的「訂購數／搭贈數」維持左右並排，減少長單滑動距離。 */
@@ -1490,6 +1491,115 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) 
         width: 3.45rem !important;
         min-width: 3.45rem !important;
         max-width: 3.45rem !important;
+    }
+
+    .selected-product-card-name {
+        font-size: 15px !important;
+        line-height: 1.22 !important;
+    }
+}
+
+
+/* =========================================================
+   Phase 5 Step 2.16-A：CSS 全站規則降權整理 + 已選商品卡片橫向保護
+   目的：不改功能；降低手機版全站 columns 規則對小型 UI 的限制，
+        並只針對「數量 / 搭贈」輸入列維持 商品名稱｜數量｜搭贈 同列。
+   ========================================================= */
+
+/* 桌面與手機共用：只要同一個 horizontal block 內含「數量」輸入框，就視為已選商品卡片輸入列。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 0.42rem !important;
+}
+
+/* 不讓已選商品卡片內的 columns 被全站或 Streamlit 預設規則撐成整行。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"] {
+    min-width: 0 !important;
+    width: auto !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* 第一欄：商品名稱吃剩餘空間，但可以縮小。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+
+/* 第二、三欄：數量與搭贈固定小寬度。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
+    flex: 0 0 3.55rem !important;
+    width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    justify-content: center !important;
+}
+
+/* 卡片外層維持緊湊；桌面版避免滿版造成距離過遠。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
+    max-width: 42rem !important;
+}
+
+/* 數量 / 搭贈輸入框：覆蓋全站 44px / 手機 50px 高度規則。 */
+div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
+div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
+div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
+div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
+div[data-baseweb="input"]:has(input[placeholder="數量"]),
+div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
+div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
+div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
+input[placeholder="數量"],
+input[placeholder="搭贈"] {
+    width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    box-sizing: border-box !important;
+}
+
+input[placeholder="數量"],
+input[placeholder="搭贈"] {
+    font-size: 13px !important;
+    line-height: 32px !important;
+    text-align: center !important;
+    padding: 0 0.24rem !important;
+}
+
+input[placeholder="數量"]::placeholder,
+input[placeholder="搭贈"]::placeholder {
+    font-size: 11px !important;
+    text-align: center !important;
+}
+
+@media (max-width: 768px) {
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
+        flex-wrap: nowrap !important;
+        gap: 0.32rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3),
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
+    div[data-baseweb="input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
+    input[placeholder="數量"],
+    input[placeholder="搭贈"] {
+        width: 3.35rem !important;
+        max-width: 3.35rem !important;
+        min-width: 3.35rem !important;
     }
 
     .selected-product-card-name {
