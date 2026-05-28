@@ -205,9 +205,44 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
 
 
 
+def _render_compact_quantity_input_css() -> None:
+    """溫和縮小已選商品區的數量輸入框，避免過度客製 Streamlit 原生元件。"""
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stNumberInput"] input {
+            min-height: 2rem;
+            height: 2rem;
+            font-size: 0.85rem;
+            padding-top: 0.15rem;
+            padding-bottom: 0.15rem;
+        }
+
+        div[data-testid="stNumberInput"] button {
+            min-height: 2rem;
+            height: 2rem;
+            width: 1.65rem;
+            padding: 0;
+        }
+
+        div[data-testid="stNumberInput"] svg {
+            width: 0.8rem;
+            height: 0.8rem;
+        }
+
+        div[data-testid="stNumberInput"] {
+            margin-top: -0.15rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
     """以較緊湊的方式呈現已選商品與數量輸入欄位。"""
+    _render_compact_quantity_input_css()
     st.markdown(
         "<div class='mobile-edit-note'>已選商品可直接輸入訂購數 / 搭贈數；按 ✕ 可取消單一商品。</div>",
         unsafe_allow_html=True,
@@ -216,7 +251,7 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
     for p_name in selected_products:
         product_hash_key = _make_filter_key(product_key_prefix, p_name)
         with st.container(border=True):
-            cancel_col, name_col, qty_col, gift_col = st.columns([0.45, 4.2, 1.25, 1.25], gap="small")
+            cancel_col, name_col, qty_col, gift_col = st.columns([0.35, 4.45, 1.1, 1.1], gap="small")
 
             with cancel_col:
                 st.button(
