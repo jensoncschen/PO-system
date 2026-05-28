@@ -206,32 +206,29 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
 
 
 def _render_compact_quantity_input_css() -> None:
-    """溫和縮小已選商品區的數量輸入框，避免過度客製 Streamlit 原生元件。"""
+    """縮小已選商品區的文字型數量輸入框，讓手機版畫面更接近小型膠囊外框。"""
     st.markdown(
         """
         <style>
-        div[data-testid="stNumberInput"] input {
-            min-height: 2rem;
-            height: 2rem;
-            font-size: 0.85rem;
-            padding-top: 0.15rem;
-            padding-bottom: 0.15rem;
+        /* 只針對訂購數 / 搭贈數文字輸入框做保守縮小，避免影響商品搜尋框。 */
+        div[data-testid="stTextInput"] input[aria-label="訂購數"],
+        div[data-testid="stTextInput"] input[aria-label="搭贈數"] {
+            min-height: 1.65rem;
+            height: 1.65rem;
+            font-size: 0.78rem;
+            padding: 0.05rem 0.45rem;
+            border-radius: 999px;
+            text-align: center;
         }
 
-        div[data-testid="stNumberInput"] button {
-            min-height: 2rem;
-            height: 2rem;
-            width: 1.65rem;
-            padding: 0;
+        div[data-testid="stTextInput"]:has(input[aria-label="訂購數"]),
+        div[data-testid="stTextInput"]:has(input[aria-label="搭贈數"]) {
+            margin-top: -0.2rem;
         }
 
-        div[data-testid="stNumberInput"] svg {
-            width: 0.8rem;
-            height: 0.8rem;
-        }
-
-        div[data-testid="stNumberInput"] {
-            margin-top: -0.15rem;
+        .product-title {
+            font-size: 0.88rem;
+            line-height: 1.35;
         }
         </style>
         """,
@@ -267,22 +264,18 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
                 st.markdown(f"<div class='product-title'>{safe_html(p_name)}</div>", unsafe_allow_html=True)
 
             with qty_col:
-                st.number_input(
+                st.text_input(
                     "訂購數",
-                    min_value=0,
-                    step=1,
-                    value=None,
+                    value="",
                     placeholder="訂購",
                     key=f"q_{p_name}",
                     label_visibility="collapsed",
                 )
 
             with gift_col:
-                st.number_input(
+                st.text_input(
                     "搭贈數",
-                    min_value=0,
-                    step=1,
-                    value=None,
+                    value="",
                     placeholder="搭贈",
                     key=f"g_{p_name}",
                     label_visibility="collapsed",
