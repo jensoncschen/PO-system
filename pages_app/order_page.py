@@ -193,16 +193,6 @@ def _clear_filter_states(key_prefixes: list[str]) -> None:
             st.session_state[key] = False
 
 
-def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None:
-    """從已選商品中取消單一商品，並清除該商品暫存數量。"""
-    product_key = _make_filter_key(product_key_prefix, product_name)
-    if product_key in st.session_state:
-        st.session_state[product_key] = False
-
-    for key in [f"q_{product_name}", f"g_{product_name}"]:
-        if key in st.session_state:
-            del st.session_state[key]
-
 
 
 def _render_compact_quantity_input_css() -> None:
