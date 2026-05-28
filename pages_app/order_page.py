@@ -258,17 +258,7 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
         _prepare_quantity_text_state(product_name)
 
         with st.container(border=True):
-            cancel_col, name_col, qty_col, gift_col = st.columns([0.18, 1, 0.18, 0.18], gap="small")
-
-            with cancel_col:
-                st.button(
-                    "×",
-                    key=f"cancel_selected_{_make_filter_key(product_key_prefix, product_name)}",
-                    help=f"取消 {product_name}",
-                    use_container_width=False,
-                    on_click=_request_cancel_selected_product,
-                    args=(product_name, product_key_prefix),
-                )
+            name_col, qty_col, gift_col, cancel_col = st.columns([1, 0.18, 0.18, 0.12], gap="small")
 
             with name_col:
                 st.markdown(
@@ -291,6 +281,16 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
                     label_visibility="collapsed",
                     placeholder="搭贈",
                     max_chars=4,
+                )
+
+            with cancel_col:
+                st.button(
+                    "×",
+                    key=f"cancel_selected_{_make_filter_key(product_key_prefix, product_name)}",
+                    help=f"取消 {product_name}",
+                    use_container_width=False,
+                    on_click=_request_cancel_selected_product,
+                    args=(product_name, product_key_prefix),
                 )
 
 
