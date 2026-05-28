@@ -206,47 +206,14 @@ def _cancel_selected_product(product_name: str, product_key_prefix: str) -> None
 
 
 def _render_compact_quantity_input_css() -> None:
-    """縮小已選商品區的文字型數量輸入框，讓手機版畫面更接近小型膠囊外框。"""
+    """保留少量表格外觀 CSS，避免影響其他頁面元件。"""
     st.markdown(
         """
         <style>
-        /* 只針對訂購數 / 搭贈數文字輸入框做保守縮小，避免影響商品搜尋框。 */
-        div[data-testid="stTextInput"] input[aria-label="訂購數"],
-        div[data-testid="stTextInput"] input[aria-label="搭贈數"] {
-            min-height: 1.35rem;
-            height: 1.35rem;
-            font-size: 0.72rem;
-            padding: 0 0.35rem;
-            border-radius: 999px;
-            text-align: center;
-        }
-
-        div[data-testid="stTextInput"]:has(input[aria-label="訂購數"]),
-        div[data-testid="stTextInput"]:has(input[aria-label="搭贈數"]) {
-            margin-top: -0.28rem;
-        }
-
-        div[data-testid="stTextInput"]:has(input[aria-label="訂購數"]) > div,
-        div[data-testid="stTextInput"]:has(input[aria-label="搭贈數"]) > div {
-            min-height: 1.35rem;
-        }
-
-        /* 已選商品列第一欄為取消按鈕，縮小成接近輸入框高度的小方形。 */
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child div[data-testid="stButton"] button {
-            min-width: 1.55rem;
-            width: 1.55rem;
-            min-height: 1.55rem;
-            height: 1.55rem;
-            padding: 0;
-            border-radius: 0.55rem;
-            font-size: 0.72rem;
-            line-height: 1;
-        }
-
-        .product-title {
-            font-size: 0.82rem;
-            line-height: 1.25;
-            padding-top: 0.05rem;
+        .selected-products-editor-note {
+            font-size: 0.78rem;
+            color: #6b7280;
+            margin: 0.1rem 0 0.35rem 0;
         }
         </style>
         """,
@@ -254,50 +221,97 @@ def _render_compact_quantity_input_css() -> None:
     )
 
 
+def _build_selected_products_editor_df(selected_products: list[str]) -> pd.DataFrame:
+    """建立已選商品表格資料，數量沿用目前暫存值。"""
+    rows: list[dict[str, object]] = []
+    for product_name in selected_products:
+        rows.append({
+            "取消": False,
+            "產品名稱": product_name,
+            "訂購數": _safe_int(st.session_state.get(f"q_{product_name}")),
+            "搭贈數": _safe_int(st.session_state.get(f"g_{product_name}")),
+        })
+    return pd.DataFrame(rows)
+
+
+def _apply_selected_product_cancellations(edited_df: pd.DataFrame, product_key_prefix: str) -> bool:
+    """處理 data_editor 中勾選取消的商品；用換新 checkbox key 的方式避免直接修改已渲染 widget。"""
+    if "取消" not in edited_df.columns or "產品名稱" not in edited_df.columns:
+        return False
+
+    canceled_names = [
+        str(row["產品名稱"]).strip()
+        for _, row in edited_df.iterrows()
+        if bool(row.get("取消", False)) and str(row.get("產品名稱", "")).strip()
+    ]
+    if not canceled_names:
+        return False
+
+    remaining_names = [
+        str(row["產品名稱"]).strip()
+        for _, row in edited_df.iterrows()
+        if not bool(row.get("取消", False)) and str(row.get("產品名稱", "")).strip()
+    ]
+
+    for product_name in canceled_names:
+        for key in [f"q_{product_name}", f"g_{product_name}"]:
+            if key in st.session_state:
+                del st.session_state[key]
+
+    # 不直接改目前已建立的 checkbox key，改用下一輪新的 key 並保留未取消商品。
+    st.session_state.input_reset_trigger += 1
+    next_product_key_prefix = f"select_product_{st.session_state.input_reset_trigger}"
+    for product_name in remaining_names:
+        next_key = _make_filter_key(next_product_key_prefix, product_name)
+        st.session_state[next_key] = True
+
+    st.rerun()
+    return True
+
+
+def _sync_selected_product_quantities(edited_df: pd.DataFrame) -> None:
+    """將表格中的訂購數 / 搭贈數同步回 session_state，供加入購物車沿用。"""
+    required_columns = {"產品名稱", "訂購數", "搭贈數"}
+    if not required_columns.issubset(set(edited_df.columns)):
+        return
+
+    for _, row in edited_df.iterrows():
+        product_name = str(row.get("產品名稱", "")).strip()
+        if not product_name:
+            continue
+        st.session_state[f"q_{product_name}"] = _safe_int(row.get("訂購數", 0))
+        st.session_state[f"g_{product_name}"] = _safe_int(row.get("搭贈數", 0))
+
 
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
-    """以較緊湊的方式呈現已選商品與數量輸入欄位。"""
+    """用 Streamlit 原生 data_editor 呈現已選商品與數量欄位，作為更整齊的參考版。"""
     _render_compact_quantity_input_css()
     st.markdown(
-        "<div class='mobile-edit-note'>已選商品可直接輸入訂購數 / 搭贈數；按 ✕ 可取消單一商品。</div>",
+        "<div class='selected-products-editor-note'>已選商品可在表格中輸入訂購數 / 搭贈數；勾選取消會移除該商品。</div>",
         unsafe_allow_html=True,
     )
 
-    for p_name in selected_products:
-        product_hash_key = _make_filter_key(product_key_prefix, p_name)
-        with st.container(border=True):
-            cancel_col, name_col, qty_col, gift_col = st.columns([0.22, 8.4, 0.72, 0.72], gap="small")
+    editor_df = _build_selected_products_editor_df(selected_products)
+    editor_height = min(360, max(120, 38 + len(editor_df) * 36))
 
-            with cancel_col:
-                st.button(
-                    "✕",
-                    help="取消選擇此商品",
-                    use_container_width=False,
-                    key=f"cancel_product_{product_hash_key}",
-                    on_click=_cancel_selected_product,
-                    args=(p_name, product_key_prefix),
-                )
+    edited_df = st.data_editor(
+        editor_df,
+        column_config={
+            "取消": st.column_config.CheckboxColumn("取消", help="勾選後移除此商品", width="small"),
+            "產品名稱": st.column_config.TextColumn("商品名稱", disabled=True, width="large"),
+            "訂購數": st.column_config.NumberColumn("訂購", min_value=0, step=1, width="small"),
+            "搭贈數": st.column_config.NumberColumn("搭贈", min_value=0, step=1, width="small"),
+        },
+        column_order=["取消", "產品名稱", "訂購數", "搭贈數"],
+        hide_index=True,
+        use_container_width=True,
+        num_rows="fixed",
+        height=editor_height,
+        key=f"selected_products_editor_{product_key_prefix}",
+    )
 
-            with name_col:
-                st.markdown(f"<div class='product-title'>{safe_html(p_name)}</div>", unsafe_allow_html=True)
-
-            with qty_col:
-                st.text_input(
-                    "訂購數",
-                    value="",
-                    placeholder="訂購",
-                    key=f"q_{p_name}",
-                    label_visibility="collapsed",
-                )
-
-            with gift_col:
-                st.text_input(
-                    "搭贈數",
-                    value="",
-                    placeholder="搭贈",
-                    key=f"g_{p_name}",
-                    label_visibility="collapsed",
-                )
+    _sync_selected_product_quantities(edited_df)
+    _apply_selected_product_cancellations(edited_df, product_key_prefix)
 
 
 def _get_product_options(df_products_filtered: pd.DataFrame) -> list[str]:
