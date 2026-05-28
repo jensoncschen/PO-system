@@ -216,7 +216,17 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
     for p_name in selected_products:
         product_hash_key = _make_filter_key(product_key_prefix, p_name)
         with st.container(border=True):
-            name_col, qty_col, gift_col, cancel_col = st.columns([4.2, 1.25, 1.25, 0.55], gap="small")
+            cancel_col, name_col, qty_col, gift_col = st.columns([0.45, 4.2, 1.25, 1.25], gap="small")
+
+            with cancel_col:
+                st.button(
+                    "✕",
+                    help="取消選擇此商品",
+                    use_container_width=False,
+                    key=f"cancel_product_{product_hash_key}",
+                    on_click=_cancel_selected_product,
+                    args=(p_name, product_key_prefix),
+                )
 
             with name_col:
                 st.markdown(f"<div class='product-title'>{safe_html(p_name)}</div>", unsafe_allow_html=True)
@@ -241,16 +251,6 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
                     placeholder="搭贈",
                     key=f"g_{p_name}",
                     label_visibility="collapsed",
-                )
-
-            with cancel_col:
-                st.button(
-                    "✕",
-                    help="取消選擇此商品",
-                    use_container_width=True,
-                    key=f"cancel_product_{product_hash_key}",
-                    on_click=_cancel_selected_product,
-                    args=(p_name, product_key_prefix),
                 )
 
 
