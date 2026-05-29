@@ -1726,3 +1726,19 @@ input[placeholder="搭贈"] {
         line-height: 1.18 !important;
     }
 }
+
+
+/* Phase 6：確認篩選按鈕樣式 */
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button {
+    background-color: #0000FF !important;
+    border-color: #0000FF !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:hover,
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:focus {
+    background-color: #0000CC !important;
+    border-color: #0000CC !important;
+    color: #FFFFFF !important;
+}
