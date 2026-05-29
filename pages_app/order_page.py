@@ -140,7 +140,14 @@ def _safe_int(value, default: int = 0) -> int:
         return default
 
 
-def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, columns: int = 5) -> list[str]:
+def _render_checkbox_grid(
+    title: str,
+    options: list[str],
+    key_prefix: str,
+    columns: int = 5,
+    on_change=None,
+    on_change_args: tuple = (),
+) -> list[str]:
     """以方塊勾選方式呈現複選篩選。
 
     使用 Streamlit 原生欄位建立桌面版響應式排列；手機版若被 Streamlit 自動堆疊為單欄也可正常使用。
@@ -160,7 +167,12 @@ def _render_checkbox_grid(title: str, options: list[str], key_prefix: str, colum
         for col, option in zip(cols, row_options):
             checkbox_key = _make_filter_key(key_prefix, option)
             with col:
-                checked = st.checkbox(option, key=checkbox_key)
+                checked = st.checkbox(
+                    option,
+                    key=checkbox_key,
+                    on_change=on_change,
+                    args=on_change_args,
+                )
                 if checked:
                     selected_values.append(option)
 
@@ -203,6 +215,15 @@ def _reset_product_filter_flow() -> None:
     st.session_state.brand_filter_expanded = False
     st.session_state.category_filter_expanded = False
     st.session_state.product_select_expanded = False
+
+
+def _keep_filter_expander_open(expander_name: str) -> None:
+    """checkbox 變更時維持所在篩選區展開，避免 Streamlit rerun 後自動收合。"""
+    _ensure_product_filter_flow_state()
+    if expander_name == "brand":
+        st.session_state.brand_filter_expanded = True
+    elif expander_name == "category":
+        st.session_state.category_filter_expanded = True
 
 
 def _render_inline_heading(title: str, helper_text: str = "") -> None:
@@ -395,7 +416,14 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
         brand_expander_label = f"1. 品牌篩選（已選 {selected_brand_count}）"
         with st.expander(brand_expander_label, expanded=st.session_state.brand_filter_expanded):
-            selected_brand_filters = _render_checkbox_grid("品牌", brand_options, "filter_brand", columns=5)
+            selected_brand_filters = _render_checkbox_grid(
+                "品牌",
+                brand_options,
+                "filter_brand",
+                columns=5,
+                on_change=_keep_filter_expander_open,
+                on_change_args=("brand",),
+            )
 
         df_after_brand_filter = df_products.copy()
         if selected_brand_filters:
@@ -405,7 +433,14 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         selected_category_count = len(_get_selected_values(category_options, "filter_category"))
         category_expander_label = f"2. 品類篩選（依品牌顯示｜已選 {selected_category_count}）"
         with st.expander(category_expander_label, expanded=st.session_state.category_filter_expanded):
-            selected_category_filters = _render_checkbox_grid("品類", category_options, "filter_category", columns=5)
+            selected_category_filters = _render_checkbox_grid(
+                "品類",
+                category_options,
+                "filter_category",
+                columns=5,
+                on_change=_keep_filter_expander_open,
+                on_change_args=("category",),
+            )
 
         selected_brand_count = len(selected_brand_filters)
         selected_category_count = len(selected_category_filters)
