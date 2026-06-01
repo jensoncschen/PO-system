@@ -60,13 +60,13 @@ h1, h2, h3, .stMarkdown p, label, span {
     font-size: 1.05rem;
     font-weight: 850;
     letter-spacing: -0.02em;
-    color: var(--text-main) !important;
+    color: var(--text-main);
     margin-bottom: 0.18rem;
 }
 
 .sidebar-subtitle {
     font-size: 0.82rem;
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     line-height: 1.45;
 }
 
@@ -75,7 +75,7 @@ h1, h2, h3, .stMarkdown p, label, span {
     font-size: 0.76rem;
     font-weight: 850;
     letter-spacing: 0.08em;
-    color: var(--text-soft) !important;
+    color: var(--text-soft);
 }
 
 [data-testid="stSidebar"] [role="radiogroup"] {
@@ -118,7 +118,7 @@ h1, h2, h3, .stMarkdown p, label, span {
     border: 1px solid var(--border);
     border-radius: 14px;
     background: var(--surface-soft);
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     font-size: 0.8rem;
     line-height: 1.45;
 }
@@ -190,7 +190,7 @@ h1, h2, h3, .stMarkdown p, label, span {
     height: 34px;
     border-radius: 12px;
     background: #111827;
-    color: #ffffff !important;
+    color: #ffffff;
     font-size: 0.92rem;
     font-weight: 800;
     box-shadow: 0 6px 14px rgba(17, 24, 39, 0.12);
@@ -214,7 +214,7 @@ h1, h2, h3, .stMarkdown p, label, span {
     padding: 0.3rem 0.62rem;
     border-radius: 999px;
     background: #eef2ff;
-    color: #3730a3 !important;
+    color: #3730a3;
     font-size: 13px;
     font-weight: 750;
     white-space: nowrap;
@@ -389,7 +389,7 @@ div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
     justify-content: center;
     align-items: center;
     gap: 0.5rem;
-    color: var(--text-main) !important;
+    color: var(--text-main);
     font-weight: 850;
     font-size: 0.95rem;
     white-space: nowrap;
@@ -407,14 +407,14 @@ hr {
 
 .cart-final-panel {
     background: #111827;
-    color: #ffffff !important;
+    color: #ffffff;
     border-radius: 18px;
     padding: 0.9rem 1rem;
     margin: 0.85rem 0;
 }
 
 .cart-final-panel * {
-    color: #ffffff !important;
+    color: #ffffff;
 }
 
 .cart-final-title {
@@ -431,7 +431,7 @@ hr {
 }
 
 .mobile-edit-note {
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     font-size: 0.82rem;
     font-weight: 650;
     margin: 0.35rem 0 0.55rem;
@@ -446,14 +446,14 @@ hr {
 }
 
 .operation-title {
-    color: var(--text-main) !important;
+    color: var(--text-main);
     font-size: 1.02rem;
     font-weight: 850;
     margin-bottom: 0.25rem;
 }
 
 .operation-desc {
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     font-size: 0.88rem;
     font-weight: 650;
     line-height: 1.55;
@@ -469,14 +469,14 @@ hr {
 }
 
 .warning-title {
-    color: #9a3412 !important;
+    color: #9a3412;
     font-size: 0.9rem;
     font-weight: 850;
     margin-bottom: 0.25rem;
 }
 
 .warning-text {
-    color: #9a3412 !important;
+    color: #9a3412;
     font-size: 0.84rem;
     line-height: 1.5;
     font-weight: 650;
@@ -488,26 +488,26 @@ hr {
     border: 1px solid var(--border);
     border-radius: 20px;
     padding: 1rem;
-    text-decoration: none !important;
+    text-decoration: none;
     margin: 0.5rem 0 0.8rem;
 }
 
 .admin-link-title {
-    color: var(--text-main) !important;
+    color: var(--text-main);
     font-size: 1.04rem;
     font-weight: 850;
     margin-bottom: 0.25rem;
 }
 
 .admin-link-desc {
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     font-size: 0.88rem;
     font-weight: 650;
     line-height: 1.5;
 }
 
 .admin-link-url {
-    color: var(--primary) !important;
+    color: var(--primary);
     font-size: 0.86rem;
     font-weight: 800;
     margin-top: 0.7rem;
@@ -518,7 +518,7 @@ hr {
     border: 1px dashed var(--border-strong);
     border-radius: 18px;
     padding: 1rem;
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     font-weight: 700;
     line-height: 1.5;
 }
