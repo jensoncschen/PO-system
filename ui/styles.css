@@ -361,7 +361,7 @@ div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
 }
 
 .stAlert {
-    border-radius: 16px !important;
+    border-radius: 16px;
 }
 
 .sticky-cart-bar {
@@ -840,14 +840,14 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
 }
 
 .inline-section-heading strong {
-    color: var(--text-main) !important;
+    color: var(--text-main);
     font-size: 0.98rem;
     font-weight: 850;
     letter-spacing: -0.01em;
 }
 
 .inline-section-heading span {
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     font-size: 0.82rem;
     font-weight: 700;
     line-height: 1.35;
