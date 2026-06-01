@@ -234,38 +234,6 @@ h1, h2, h3, .stMarkdown p, label, span {
     margin-bottom: 0.25rem;
 }
 
-.subsection-title {
-    font-size: 0.98rem;
-    font-weight: 800;
-    margin: 0.25rem 0 0.2rem;
-    color: var(--text-main);
-}
-
-.subsection-caption {
-    color: var(--text-muted);
-    font-size: 0.88rem;
-    margin: 0 0 0.7rem 0;
-}
-
-.product-title {
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--text-main);
-    margin-bottom: 0.2rem;
-}
-
-.product-meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    color: var(--text-muted);
-    background: var(--surface-soft);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.2rem 0.55rem;
-    font-size: 0.8rem;
-    margin-bottom: 0.55rem;
-}
 
 .cart-summary {
     display: grid;
@@ -433,48 +401,6 @@ hr {
 }
 
 
-
-.mobile-status-card {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.75rem;
-    align-items: center;
-    background: #f8fafc;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 0.8rem 0.9rem;
-    margin-top: 0.55rem;
-}
-
-.mobile-status-title {
-    color: var(--text-muted) !important;
-    font-size: 13px;
-    font-weight: 750;
-    margin-bottom: 0.15rem;
-}
-
-.mobile-status-value {
-    color: var(--text-main) !important;
-    font-size: 0.95rem;
-    font-weight: 800;
-    line-height: 1.35;
-}
-
-.action-hint {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.55rem;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    color: #1e3a8a !important;
-    border-radius: 16px;
-    padding: 0.75rem 0.85rem;
-    font-size: 0.88rem;
-    line-height: 1.45;
-    font-weight: 650;
-    margin: 0.55rem 0 0.75rem;
-}
-
 .product-count-chip {
     display: inline-flex;
     align-items: center;
@@ -488,48 +414,6 @@ hr {
     margin: 0.2rem 0 0.6rem;
 }
 
-.cart-review-list {
-    display: grid;
-    gap: 0.55rem;
-    margin: 0.75rem 0 0.75rem;
-}
-
-.cart-review-item {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.75rem;
-    align-items: flex-start;
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 0.75rem 0.85rem;
-}
-
-.cart-review-name {
-    color: var(--text-main) !important;
-    font-size: 0.94rem;
-    font-weight: 800;
-    line-height: 1.35;
-}
-
-.cart-review-meta {
-    color: var(--text-muted) !important;
-    font-size: 0.82rem;
-    font-weight: 650;
-    margin-top: 0.18rem;
-}
-
-.cart-review-qty {
-    flex: 0 0 auto;
-    color: var(--text-main) !important;
-    background: var(--surface-soft);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.28rem 0.55rem;
-    font-size: 0.82rem;
-    font-weight: 800;
-    white-space: nowrap;
-}
 
 .cart-final-panel {
     background: #111827;
@@ -562,7 +446,6 @@ hr {
     font-weight: 650;
     margin: 0.35rem 0 0.55rem;
 }
-
 
 
 .operation-card {
@@ -657,7 +540,6 @@ hr {
     }
 
 
-
     [data-testid="stSidebar"] {
         border-right: none;
     }
@@ -683,16 +565,6 @@ hr {
         border-radius: 11px;
     }
 
-    .mobile-status-card {
-        display: block;
-        padding: 0.85rem;
-    }
-
-    .mobile-status-card > div + div {
-        margin-top: 0.7rem;
-        padding-top: 0.7rem;
-        border-top: 1px solid var(--border);
-    }
 
     /* 手機版大多數欄位維持單欄；移除 !important，讓特定小型元件可用專屬規則覆蓋。 */
     div[data-testid="column"] {
@@ -725,22 +597,6 @@ hr {
         font-size: 0.98rem !important;
     }
 
-    .product-meta {
-        display: flex;
-        width: fit-content;
-        max-width: 100%;
-        white-space: normal;
-        line-height: 1.35;
-    }
-
-    .cart-review-item {
-        display: block;
-    }
-
-    .cart-review-qty {
-        display: inline-flex;
-        margin-top: 0.55rem;
-    }
 
     .cart-final-panel {
         padding: 0.85rem;
@@ -798,17 +654,6 @@ hr {
 }
 
 /* Phase 4：商品篩選面板 */
-.filter-panel-note {
-    color: var(--text-muted) !important;
-    background: var(--surface-soft);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 0.65rem 0.75rem;
-    font-size: 0.86rem;
-    line-height: 1.45;
-    font-weight: 650;
-    margin-bottom: 0.65rem;
-}
 
 .filter-group-title {
     color: var(--text-main) !important;
@@ -901,45 +746,12 @@ div[data-testid="stExpander"] summary {
     font-weight: 850 !important;
 }
 
-/* 讓手機上篩選說明不要過於厚重 */
 @media (max-width: 768px) {
-    .filter-panel-note {
-        font-size: 0.82rem;
-        padding: 0.58rem 0.65rem;
-    }
-
     .filter-group-title {
         margin-top: 0.75rem;
     }
 }
 
-/* Phase 4 Step 3：方塊篩選 UI 精修 */
-.filter-subnote {
-    color: var(--text-muted) !important;
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 0.58rem 0.7rem;
-    font-size: 0.82rem;
-    line-height: 1.45;
-    font-weight: 650;
-    margin-bottom: 0.65rem;
-}
-
-.filter-compact-summary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-main) !important;
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 0.55rem 0.75rem;
-    font-size: 0.86rem;
-    line-height: 1.35;
-    font-weight: 800;
-    margin: 0.55rem 0 0.55rem;
-}
 
 /* 篩選面板內的 checkbox：桌面版依螢幕寬度排列，手機版交給 Streamlit 自動堆疊 */
 div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
@@ -1008,25 +820,8 @@ div[data-testid="stCheckbox"] label > div:first-child {
         line-height: 1.25;
     }
 
-    .filter-compact-summary {
-        justify-content: flex-start;
-        font-size: 0.82rem;
-        padding: 0.55rem 0.65rem;
-    }
 }
 
-/* Phase 4 Step 9：選擇商品展開收合 */
-.product-title {
-    line-height: 1.35;
-    word-break: break-word;
-}
-
-
-@media (max-width: 768px) {
-    .product-title {
-        font-size: 0.94rem;
-    }
-}
 
 /* Phase 4 Step 10：精簡商品區標題與狀態列 */
 .inline-section-heading {
@@ -1066,19 +861,6 @@ div[data-testid="stCheckbox"] label > div:first-child {
     }
 }
 
-
-/* Phase 4 Step 12：回到原生 expander */
-.product-title {
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-}
-
-@media (max-width: 768px) {
-    .product-title {
-        min-height: 30px;
-    }
-}
 
 /* =========================================================
    Phase 6：已選商品卡片數量輸入區
