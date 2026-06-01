@@ -1081,9 +1081,10 @@ div[data-testid="stCheckbox"] label > div:first-child {
 }
 
 /* =========================================================
-   Phase 5 Step 2.12：已選商品卡片式數量輸入區
-   目的：只調整「已選商品 → 數量 / 搭贈輸入」外觀，不影響其他表單。
-   對應 order_page.py 中的 .selected-product-card-row / .selected-product-card-name
+   Phase 6：已選商品卡片數量輸入區
+   來源：整理 Phase 5 Step 2.16-B grid fix
+   目的：維持「商品名稱｜數量｜搭贈」同列排列，並移除 Phase 5 多段重複修補。
+   對應 order_page.py：.selected-products-card-note / .selected-product-card-row / .selected-product-card-name
    ========================================================= */
 .selected-products-card-note {
     font-size: 0.72rem;
@@ -1092,530 +1093,41 @@ div[data-testid="stCheckbox"] label > div:first-child {
     line-height: 1.35;
 }
 
+/* 商品名稱：固定 15px，允許長品名換行，但不把數量 / 搭贈欄推出卡片。 */
 .selected-product-card-name {
-    font-size: 15px;
-    font-weight: 750;
-    color: var(--text-main);
-    line-height: 1.25;
-    padding-top: 0.1rem;
-    word-break: break-word;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    color: var(--text-main) !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    line-height: 1.22 !important;
+    padding-top: 0 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
 }
 
-/* 只鎖定包含已選商品卡片 marker 的 Streamlit container。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) {
+/* 卡片本體：限制最大寬度，避免桌面版拉太開，也避免手機版內容溢出。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
+    width: 100% !important;
+    max-width: 42rem !important;
+    overflow: hidden !important;
     background: #ffffff;
     border: 1px solid var(--border-strong);
     border-radius: 10px;
     box-shadow: none;
 }
 
-/* 壓縮卡片內距，讓商品名稱與兩個輸入框高度更接近。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
-    padding: 0.34rem 0.55rem;
-}
-
-/* 壓縮欄位與文字輸入元件的垂直空間。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) [data-testid="column"] {
-    display: flex;
-    align-items: center;
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] {
-    margin: 0;
-    max-width: 4.05rem;
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] > div {
-    margin: 0;
-}
-
-/* 數量 / 搭贈：維持可輸入 4 碼，但降低高度與視覺重量。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-    width: 4.05rem;
-    max-width: 4.05rem;
-    min-height: 32px;
-    height: 32px;
-    font-size: 13px;
-    font-weight: 550;
-    line-height: 1;
-    border-radius: 8px;
-    padding: 0 0.35rem;
-    text-align: center;
-    background: #ffffff;
-    border-color: var(--border-strong);
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input::placeholder {
-    color: var(--text-soft);
-    opacity: 1;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-@media (max-width: 640px) {
-    .selected-product-card-name {
-        font-size: 15px;
-        line-height: 1.22;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
-        padding: 0.28rem 0.45rem;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"],
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-        width: 3.75rem;
-        max-width: 3.75rem;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-        min-height: 32px;
-        height: 32px;
-        font-size: 13px;
-        border-radius: 7px;
-    }
-}
-
-
-/* =========================================================
-   Phase 5 Step 2.14：修正已選商品卡片輸入框尺寸未生效
-   原因：全站 input / 手機版 input 使用 !important，會蓋過 Step 2.13 的區塊設定。
-   做法：只在包含 .selected-product-card-row 的卡片內，用更高優先權覆蓋尺寸。
-   ========================================================= */
-
-.selected-product-card-name {
-    font-size: 15px !important;
-    font-weight: 800 !important;
-    line-height: 1.25 !important;
-    min-height: 32px !important;
-    display: flex !important;
-    align-items: center !important;
-    padding-top: 0 !important;
-}
-
-/* 卡片本體：降低上下留白，避免輸入框縮小後外層仍看起來很高。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
-    padding: 0.24rem 0.5rem !important;
-}
-
-/* 手機版全站設定會讓 column 變 100%，此處只針對已選商品卡片恢復橫向並排。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"] {
-    min-width: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-}
-
-/* 壓縮 Streamlit text_input 外層。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] {
-    margin: 0 !important;
-    width: 4.05rem !important;
-    max-width: 4.05rem !important;
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] > div {
-    margin: 0 !important;
-    width: 4.05rem !important;
-    max-width: 4.05rem !important;
-}
-
-/* 關鍵：同時覆蓋 BaseWeb 外層，否則 input 變 32px 但外框仍會維持 46/50px。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="input"],
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="base-input"] {
-    min-height: 32px !important;
-    height: 32px !important;
-    width: 4.05rem !important;
-    max-width: 4.05rem !important;
-    border-radius: 8px !important;
-}
-
-/* 關鍵：覆蓋全站 input { font-size:16px !important; } 和手機版 min-height:50px !important。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-    min-height: 32px !important;
-    height: 32px !important;
-    width: 4.05rem !important;
-    max-width: 4.05rem !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    line-height: 32px !important;
-    padding: 0 0.35rem !important;
-    text-align: center !important;
-    border-radius: 8px !important;
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input::placeholder {
-    font-size: 12px !important;
-    font-weight: 500 !important;
-    color: var(--text-soft) !important;
-    opacity: 1 !important;
-}
-
-@media (max-width: 768px) {
-    .selected-product-card-name {
-        font-size: 15px !important;
-        min-height: 32px !important;
-        line-height: 1.22 !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
-        padding: 0.22rem 0.42rem !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"],
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] > div,
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="input"],
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] div[data-baseweb="base-input"],
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-        width: 3.8rem !important;
-        max-width: 3.8rem !important;
-        min-height: 32px !important;
-        height: 32px !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stTextInput"] input {
-        font-size: 13px !important;
-        line-height: 32px !important;
-        border-radius: 7px !important;
-    }
-}
-
-
-/* =========================================================
-   Phase 5 Step 2.15：強制壓縮已選商品數量 / 搭贈輸入框
-   目的：避開全站 stTextInput / BaseWeb min-height 規則，只鎖定 placeholder 為「數量」「搭贈」的輸入框。
-   注意：這兩個 placeholder 只用在已選商品卡片，不影響商品搜尋等一般輸入框。
-   ========================================================= */
-
-/* 商品名稱維持 15px，並與 32px 輸入框垂直置中。 */
-.selected-product-card-name {
-    font-size: 15px !important;
-    font-weight: 800 !important;
-    min-height: 32px !important;
-    line-height: 1.22 !important;
-    display: flex !important;
-    align-items: center !important;
-    padding-top: 0 !important;
-}
-
-/* 直接用 placeholder 鎖定「數量 / 搭贈」兩個欄位，比依賴外層 :has(.selected-product-card-row) 更穩。 */
-div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
-div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) {
-    width: 3.55rem !important;
-    max-width: 3.55rem !important;
-    min-width: 3.55rem !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
-div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div {
-    width: 3.55rem !important;
-    max-width: 3.55rem !important;
-    min-width: 3.55rem !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    max-height: 32px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* BaseWeb 外框：這一層常被全站 min-height: 46px / 50px 撐高，必須一起覆蓋。 */
-div[data-baseweb="input"]:has(input[placeholder="數量"]),
-div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
-div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
-div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]) {
-    width: 3.55rem !important;
-    max-width: 3.55rem !important;
-    min-width: 3.55rem !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    max-height: 32px !important;
-    border-radius: 8px !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
-    display: flex !important;
-    align-items: center !important;
-}
-
-/* 真正 input 本體：覆蓋全站 input font-size:16px 與手機版 min-height:50px。 */
-input[placeholder="數量"],
-input[placeholder="搭贈"] {
-    width: 3.55rem !important;
-    max-width: 3.55rem !important;
-    min-width: 3.55rem !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    max-height: 32px !important;
-    line-height: 32px !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    text-align: center !important;
-    padding: 0 0.28rem !important;
-    border-radius: 8px !important;
-    box-sizing: border-box !important;
-}
-
-input[placeholder="數量"]::placeholder,
-input[placeholder="搭贈"]::placeholder {
-    font-size: 11px !important;
-    font-weight: 500 !important;
-    color: var(--text-soft) !important;
-    opacity: 1 !important;
-    text-align: center !important;
-}
-
-/* 壓縮已選商品卡片本身，避免 input 已縮小但卡片仍留太多上下空白。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) > div {
-    padding: 0.18rem 0.42rem !important;
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) [data-testid="column"] {
-    display: flex !important;
-    align-items: center !important;
-    min-width: 0 !important;
-}
-
-@media (max-width: 768px) {
-    div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
-    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
-    div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
-    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
-    div[data-baseweb="input"]:has(input[placeholder="數量"]),
-    div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
-    div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
-    div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
-    input[placeholder="數量"],
-    input[placeholder="搭贈"] {
-        width: 3.45rem !important;
-        max-width: 3.45rem !important;
-        min-width: 3.45rem !important;
-        height: 32px !important;
-        min-height: 32px !important;
-        max-height: 32px !important;
-    }
-
-    input[placeholder="數量"],
-    input[placeholder="搭贈"] {
-        font-size: 13px !important;
-        line-height: 32px !important;
-        padding: 0 0.24rem !important;
-    }
-
-    input[placeholder="數量"]::placeholder,
-    input[placeholder="搭贈"]::placeholder {
-        font-size: 11px !important;
-    }
-}
-
-
-/* =========================================================
-   Phase 5 Step 2.16-1：已選商品單張卡片內部排列修正
-   目的：不改功能，只讓「商品名稱｜數量｜搭贈」在手機版盡量維持同列，
-        並縮短桌面版輸入框與商品名稱的距離。
-   ========================================================= */
-
-/* 桌面版先避免單張商品卡片吃滿整個頁寬，降低左右距離過大的問題。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) {
-    width: 100% !important;
-    max-width: 42rem !important;
-}
-
-/* 只針對已選商品卡片內的 horizontal block，覆蓋手機版全站 column 單欄規則。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stHorizontalBlock"]:has(.selected-product-card-row) {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    column-gap: 0.45rem !important;
-    row-gap: 0 !important;
-}
-
-/* 商品名稱欄：吃剩餘寬度，但允許縮小，避免把數量 / 搭贈擠到下一行。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(.selected-product-card-name) {
-    flex: 1 1 auto !important;
-    width: auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-    display: flex !important;
-    align-items: center !important;
-}
-
-/* 數量 / 搭贈欄：固定成小欄位，避免桌面版被拉到很遠，手機版也維持同列。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="數量"]),
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="搭贈"]) {
-    flex: 0 0 3.75rem !important;
-    width: 3.75rem !important;
-    min-width: 3.75rem !important;
-    max-width: 3.75rem !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-/* 商品名稱在欄位內垂直置中；長品名允許換行，但不擠壓數字欄。 */
-.selected-product-card-name {
-    width: 100% !important;
-    min-width: 0 !important;
-    font-size: 15px !important;
-    line-height: 1.25 !important;
-    word-break: break-word !important;
-}
-
-@media (max-width: 768px) {
-    /* 手機版不要套用全站 column 100% 的堆疊規則到已選商品卡片。 */
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="stHorizontalBlock"]:has(.selected-product-card-row) {
-        flex-wrap: nowrap !important;
-        column-gap: 0.34rem !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(.selected-product-card-name) {
-        flex: 1 1 auto !important;
-        width: auto !important;
-        min-width: 0 !important;
-        max-width: none !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="數量"]),
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(.selected-product-card-row) div[data-testid="column"]:has(input[placeholder="搭贈"]) {
-        flex: 0 0 3.45rem !important;
-        width: 3.45rem !important;
-        min-width: 3.45rem !important;
-        max-width: 3.45rem !important;
-    }
-
-    .selected-product-card-name {
-        font-size: 15px !important;
-        line-height: 1.22 !important;
-    }
-}
-
-
-/* =========================================================
-   Phase 5 Step 2.16-A：CSS 全站規則降權整理 + 已選商品卡片橫向保護
-   目的：不改功能；降低手機版全站 columns 規則對小型 UI 的限制，
-        並只針對「數量 / 搭贈」輸入列維持 商品名稱｜數量｜搭贈 同列。
-   ========================================================= */
-
-/* 桌面與手機共用：只要同一個 horizontal block 內含「數量」輸入框，就視為已選商品卡片輸入列。 */
-div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    gap: 0.42rem !important;
-}
-
-/* 不讓已選商品卡片內的 columns 被全站或 Streamlit 預設規則撐成整行。 */
-div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"] {
-    min-width: 0 !important;
-    width: auto !important;
-    display: flex !important;
-    align-items: center !important;
-}
-
-/* 第一欄：商品名稱吃剩餘空間，但可以縮小。 */
-div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) {
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    max-width: none !important;
-}
-
-/* 第二、三欄：數量與搭贈固定小寬度。 */
-div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
-div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
-    flex: 0 0 3.55rem !important;
-    width: 3.55rem !important;
-    min-width: 3.55rem !important;
-    max-width: 3.55rem !important;
-    justify-content: center !important;
-}
-
-/* 卡片外層維持緊湊；桌面版避免滿版造成距離過遠。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
-    max-width: 42rem !important;
-}
-
-/* 數量 / 搭贈輸入框：覆蓋全站 44px / 手機 50px 高度規則。 */
-div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
-div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
-div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
-div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
-div[data-baseweb="input"]:has(input[placeholder="數量"]),
-div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
-div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
-div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
-input[placeholder="數量"],
-input[placeholder="搭贈"] {
-    width: 3.55rem !important;
-    max-width: 3.55rem !important;
-    min-width: 3.55rem !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    max-height: 32px !important;
-    box-sizing: border-box !important;
-}
-
-input[placeholder="數量"],
-input[placeholder="搭贈"] {
-    font-size: 13px !important;
-    line-height: 32px !important;
-    text-align: center !important;
-    padding: 0 0.24rem !important;
-}
-
-input[placeholder="數量"]::placeholder,
-input[placeholder="搭贈"]::placeholder {
-    font-size: 11px !important;
-    text-align: center !important;
-}
-
-@media (max-width: 768px) {
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
-        flex-wrap: nowrap !important;
-        gap: 0.32rem !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3),
-    div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
-    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
-    div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
-    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
-    div[data-baseweb="input"]:has(input[placeholder="數量"]),
-    div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
-    div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
-    div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
-    input[placeholder="數量"],
-    input[placeholder="搭贈"] {
-        width: 3.35rem !important;
-        max-width: 3.35rem !important;
-        min-width: 3.35rem !important;
-    }
-
-    .selected-product-card-name {
-        font-size: 15px !important;
-        line-height: 1.22 !important;
-    }
-}
-
-/* =========================================================
-   Phase 5 Step 2.16-B：已選商品卡片輸入列定位修正
-   目的：用 grid 取代前一版 flex 修補，避免手機版輸入框被推到卡片外。
-   功能不變，只影響包含 placeholder「數量」的已選商品卡片列。
-   ========================================================= */
-
-/* 卡片本體：避免桌面版過寬，也避免手機版內容溢出。 */
-div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
-    width: 100% !important;
-    max-width: 42rem !important;
-    overflow: hidden !important;
-}
-
-/* 卡片內距再收斂，讓 grid 有足夠寬度安排 3 欄。 */
+/* 卡片內距：保留足夠點擊空間，同時讓 32px 輸入框看起來緊湊。 */
 div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
     padding: 0.22rem 0.46rem !important;
     box-sizing: border-box !important;
 }
 
-/* 關鍵修正：已選商品列改用 CSS grid，固定兩個小輸入框，商品名稱吃剩餘空間。 */
+/* 關鍵：已選商品列使用 grid，商品名稱吃剩餘空間，兩個輸入框固定寬度。 */
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) 3.55rem 3.55rem !important;
@@ -1639,37 +1151,29 @@ div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data
     overflow: hidden !important;
 }
 
-/* 第 1 欄商品名稱。 */
+/* 第 1 欄：商品名稱。 */
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) {
     grid-column: 1 !important;
 }
 
-/* 第 2、3 欄固定輸入框寬度。 */
-div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2) {
-    grid-column: 2 !important;
+/* 第 2、3 欄：數量與搭贈固定小欄位。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
     width: 3.55rem !important;
     min-width: 3.55rem !important;
     max-width: 3.55rem !important;
     justify-content: center !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2) {
+    grid-column: 2 !important;
 }
 
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
     grid-column: 3 !important;
-    width: 3.55rem !important;
-    min-width: 3.55rem !important;
-    max-width: 3.55rem !important;
-    justify-content: center !important;
 }
 
-.selected-product-card-name {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-}
-
-/* 數量 / 搭贈輸入框：同步固定寬高，避免外層拉大。 */
+/* 數量 / 搭贈輸入框：同步固定外層與 input 本體，避免被全站 input 規則撐高。 */
 div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
 div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
 div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
@@ -1689,6 +1193,25 @@ input[placeholder="搭贈"] {
     box-sizing: border-box !important;
 }
 
+input[placeholder="數量"],
+input[placeholder="搭贈"] {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 32px !important;
+    text-align: center !important;
+    padding: 0 0.24rem !important;
+    border-radius: 8px !important;
+}
+
+input[placeholder="數量"]::placeholder,
+input[placeholder="搭贈"]::placeholder {
+    color: var(--text-soft) !important;
+    opacity: 1 !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+}
+
 @media (max-width: 768px) {
     div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
         max-width: 100% !important;
@@ -1701,7 +1224,6 @@ input[placeholder="搭贈"] {
     div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
         grid-template-columns: minmax(0, 1fr) 3.25rem 3.25rem !important;
         column-gap: 0.28rem !important;
-        width: 100% !important;
     }
 
     div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
