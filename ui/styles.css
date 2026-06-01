@@ -46,11 +46,6 @@ h1, h2, h3, .stMarkdown p, label, span {
     color: var(--text-main) !important;
 }
 
-[data-testid="stSidebar"] {
-    background: #ffffff;
-    border-right: 1px solid var(--border);
-}
-
 [data-testid="stSidebar"] > div:first-child {
     padding-top: 1.25rem;
 }
@@ -234,7 +229,6 @@ h1, h2, h3, .stMarkdown p, label, span {
     margin-bottom: 0.25rem;
 }
 
-
 .cart-summary {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -400,8 +394,6 @@ hr {
     border-color: var(--border);
 }
 
-
-
 .cart-final-panel {
     background: #111827;
     color: #ffffff !important;
@@ -433,7 +425,6 @@ hr {
     font-weight: 650;
     margin: 0.35rem 0 0.55rem;
 }
-
 
 .operation-card {
     background: #ffffff;
@@ -526,7 +517,6 @@ hr {
         padding: 0.85rem 0.85rem 6.25rem 0.85rem;
     }
 
-
     [data-testid="stSidebar"] {
         border-right: none;
     }
@@ -551,7 +541,6 @@ hr {
         height: 32px;
         border-radius: 11px;
     }
-
 
     /* 手機版大多數欄位維持單欄；移除 !important，讓特定小型元件可用專屬規則覆蓋。 */
     div[data-testid="column"] {
@@ -584,7 +573,6 @@ hr {
         font-size: 0.98rem !important;
     }
 
-
     .cart-final-panel {
         padding: 0.85rem;
     }
@@ -596,7 +584,6 @@ hr {
         padding: 0.65rem 0.9rem;
         border-radius: 16px;
     }
-
 
     .hero-card {
         padding: 1rem;
@@ -829,8 +816,9 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
     }
 }
 
-
-/* Phase 4 Step 10：精簡商品區標題與狀態列 */
+/* =========================================================
+   Phase 6：精簡區塊標題與狀態列
+   ========================================================= */
 .inline-section-heading {
     display: flex;
     align-items: baseline;
@@ -867,7 +855,6 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
         font-size: 0.8rem;
     }
 }
-
 
 /* =========================================================
    Phase 6：已選商品卡片數量輸入區
