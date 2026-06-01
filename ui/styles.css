@@ -43,7 +43,7 @@ h1, h2, h3, .stMarkdown p, label, span {
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] label {
-    color: var(--text-main) !important;
+    color: var(--text-main);
 }
 
 [data-testid="stSidebar"] > div:first-child {
@@ -98,7 +98,7 @@ h1, h2, h3, .stMarkdown p, label, span {
 
 [data-testid="stSidebar"] label[data-baseweb="radio"] p {
     font-weight: 750;
-    color: var(--text-main) !important;
+    color: var(--text-main);
 }
 
 [data-testid="stSidebar"] div.stButton > button {
@@ -646,14 +646,14 @@ hr {
    ========================================================= */
 
 .filter-group-title {
-    color: var(--text-main) !important;
+    color: var(--text-main);
     font-size: 0.92rem;
     font-weight: 850;
     margin: 0.85rem 0 0.4rem;
 }
 
 .filter-empty {
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     border: 1px dashed var(--border-strong);
     border-radius: 14px;
     padding: 0.7rem;
@@ -665,7 +665,7 @@ hr {
     display: inline-flex;
     align-items: center;
     max-width: 100%;
-    color: #1e3a8a !important;
+    color: #1e3a8a;
     background: #eff6ff;
     border: 1px solid #bfdbfe;
     border-radius: 999px;
@@ -677,13 +677,13 @@ hr {
 }
 
 .filter-summary-muted {
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     background: var(--surface-soft);
     border-color: var(--border);
 }
 
 .filter-summary-search {
-    color: #92400e !important;
+    color: #92400e;
     background: #fffbeb;
     border-color: #fde68a;
 }
@@ -693,7 +693,7 @@ hr {
     align-items: center;
     border: 1px solid var(--border);
     background: #ffffff;
-    color: var(--text-muted) !important;
+    color: var(--text-muted);
     border-radius: 999px;
     padding: 0.28rem 0.62rem;
     font-size: 0.8rem;
