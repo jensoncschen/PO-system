@@ -201,6 +201,18 @@ def _ensure_product_filter_flow_state() -> None:
             st.session_state[key] = default_value
 
 
+def _ensure_product_filter_reset_trigger() -> None:
+    """初始化篩選 checkbox 重置計數器，用新 key 安全清空品牌 / 品類選項。"""
+    if "product_filter_reset_trigger" not in st.session_state:
+        st.session_state.product_filter_reset_trigger = 0
+
+
+def _get_product_filter_suffix() -> str:
+    """取得品牌 / 品類篩選 checkbox 使用的 key 後綴。"""
+    _ensure_product_filter_reset_trigger()
+    return f"_{st.session_state.product_filter_reset_trigger}"
+
+
 def _confirm_product_filters() -> None:
     """確認品牌與品類篩選後，收合篩選區並展開商品選擇區。"""
     _ensure_product_filter_flow_state()
@@ -235,11 +247,10 @@ def _render_inline_heading(title: str, helper_text: str = "") -> None:
     )
 
 
-def _clear_filter_states(key_prefixes: list[str]) -> None:
-    """清除指定前綴的篩選 checkbox 狀態，並回到篩選流程預設狀態。"""
-    for key in list(st.session_state.keys()):
-        if any(key.startswith(prefix) for prefix in key_prefixes):
-            st.session_state[key] = False
+def _reset_product_filter_selection() -> None:
+    """安全清除品牌 / 品類篩選選項，避免直接修改已建立的 checkbox widget state。"""
+    _ensure_product_filter_reset_trigger()
+    st.session_state.product_filter_reset_trigger += 1
     _reset_product_filter_flow()
 
 
@@ -377,7 +388,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 )
                 st.session_state.cart_list = []
                 st.session_state.input_reset_trigger += 1 
-                st.session_state.form_reset_trigger += 1  
+                st.session_state.form_reset_trigger += 1
+                _reset_product_filter_selection()
                 st.cache_data.clear()
                 st.success(f"訂單 {generated_bill_no} 建立成功。")
                 time.sleep(1.2)
@@ -399,6 +411,9 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
     input_suffix = f"_{st.session_state.input_reset_trigger}"
     _ensure_product_filter_flow_state()
+    filter_suffix = _get_product_filter_suffix()
+    brand_filter_key_prefix = f"filter_brand{filter_suffix}"
+    category_filter_key_prefix = f"filter_category{filter_suffix}"
 
     with st.container(border=True):
         st.markdown("<div class='mini-label'>SEARCH</div>", unsafe_allow_html=True)
@@ -412,14 +427,14 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         _render_inline_heading("商品篩選", "搜尋優先｜未勾選不限")
 
         brand_options = _get_unique_options(df_products["品牌"])
-        selected_brand_count = len(_get_selected_values(brand_options, "filter_brand"))
+        selected_brand_count = len(_get_selected_values(brand_options, brand_filter_key_prefix))
 
         brand_expander_label = f"1. 品牌篩選（已選 {selected_brand_count}）"
         with st.expander(brand_expander_label, expanded=st.session_state.brand_filter_expanded):
             selected_brand_filters = _render_checkbox_grid(
                 "品牌",
                 brand_options,
-                "filter_brand",
+                brand_filter_key_prefix,
                 columns=5,
                 on_change=_keep_filter_expander_open,
                 on_change_args=("brand",),
@@ -430,13 +445,13 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             df_after_brand_filter = df_after_brand_filter[df_after_brand_filter["品牌"].astype(str).isin(selected_brand_filters)]
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
-        selected_category_count = len(_get_selected_values(category_options, "filter_category"))
+        selected_category_count = len(_get_selected_values(category_options, category_filter_key_prefix))
         category_expander_label = f"2. 品類篩選（依品牌顯示｜已選 {selected_category_count}）"
         with st.expander(category_expander_label, expanded=st.session_state.category_filter_expanded):
             selected_category_filters = _render_checkbox_grid(
                 "品類",
                 category_options,
-                "filter_category",
+                category_filter_key_prefix,
                 columns=5,
                 on_change=_keep_filter_expander_open,
                 on_change_args=("category",),
@@ -459,8 +474,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 "清除篩選",
                 use_container_width=True,
                 key="clear_product_filters",
-                on_click=_clear_filter_states,
-                args=(["filter_brand_", "filter_category_"],),
+                on_click=_reset_product_filter_selection,
             )
 
         df_step1 = df_after_brand_filter.copy()
