@@ -258,6 +258,12 @@ h1, h2, h3, .stMarkdown p, label, span {
     letter-spacing: -0.03em;
 }
 
+/* =========================================================
+   Phase 6：共用表單、輸入框與按鈕基礎樣式
+   注意：本區為全站規則，階段五只整理註解與結構，不改 selector / 樣式值。
+   ========================================================= */
+
+/* 共用白色卡片容器：Streamlit 表單與 border container。 */
 div[data-testid="stForm"],
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background: rgba(255, 255, 255, 0.96) !important;
@@ -270,12 +276,14 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div {
     padding: 0.1rem;
 }
 
+/* 全站輸入文字顏色與基本字級。 */
 input, textarea, select {
     font-size: 16px !important;
     color: var(--text-main) !important;
     -webkit-text-fill-color: var(--text-main) !important;
 }
 
+/* Streamlit / BaseWeb 輸入框外層。 */
 div[data-baseweb="input"],
 div[data-baseweb="select"],
 div[data-baseweb="base-input"] {
@@ -298,6 +306,7 @@ div[data-testid="stNumberInput"] input {
     min-height: 44px;
 }
 
+/* 全站一般按鈕。 */
 button,
 div.stButton > button,
 button[data-testid="stFormSubmitButton"],
@@ -320,6 +329,7 @@ div[data-testid="stDownloadButton"] button * {
     -webkit-text-fill-color: var(--text-main) !important;
 }
 
+/* Streamlit primary / form submit / download primary 按鈕。 */
 div.stButton > button[kind="primary"],
 button[data-testid="stFormSubmitButton"],
 div[data-testid="stDownloadButton"] button[kind="primary"] {
@@ -336,6 +346,7 @@ div[data-testid="stDownloadButton"] button[kind="primary"] * {
     -webkit-text-fill-color: #ffffff !important;
 }
 
+/* 按鈕 hover 狀態。 */
 div.stButton > button:hover,
 div[data-testid="stDownloadButton"] button:hover {
     border-color: var(--text-soft) !important;
@@ -557,6 +568,7 @@ hr {
         width: 100% !important;
     }
 
+    /* 手機版輸入框與按鈕高度：全站規則，暫時保留 Phase 5 穩定值。 */
     div[data-baseweb="input"],
     div[data-baseweb="select"],
     div[data-baseweb="base-input"],
