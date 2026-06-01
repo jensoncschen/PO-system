@@ -401,19 +401,6 @@ hr {
 }
 
 
-.product-count-chip {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--border);
-    background: #ffffff;
-    color: var(--text-muted) !important;
-    border-radius: 999px;
-    padding: 0.28rem 0.62rem;
-    font-size: 0.8rem;
-    font-weight: 750;
-    margin: 0.2rem 0 0.6rem;
-}
-
 
 .cart-final-panel {
     background: #111827;
@@ -653,7 +640,11 @@ hr {
     }
 }
 
-/* Phase 4：商品篩選面板 */
+/* =========================================================
+   Phase 6：商品篩選與商品選擇區
+   整理範圍：品牌 / 品類 / 商品 checkbox、expander、篩選摘要、確認篩選按鈕
+   注意：目前 checkbox 與 expander selector 維持原作用範圍，只整理位置，不改視覺行為。
+   ========================================================= */
 
 .filter-group-title {
     color: var(--text-main) !important;
@@ -692,7 +683,38 @@ hr {
     border-color: var(--border);
 }
 
-/* 讓篩選用 checkbox 更接近方塊型選單 */
+.filter-summary-search {
+    color: #92400e !important;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.product-count-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--text-muted) !important;
+    border-radius: 999px;
+    padding: 0.28rem 0.62rem;
+    font-size: 0.8rem;
+    font-weight: 750;
+    margin: 0.2rem 0 0.6rem;
+}
+
+/* Expander 外觀：用於品牌、品類與商品選擇區。 */
+div[data-testid="stExpander"] {
+    border-radius: 16px !important;
+    border-color: var(--border) !important;
+    background: #ffffff !important;
+}
+
+div[data-testid="stExpander"] summary {
+    color: var(--text-main) !important;
+    font-weight: 850 !important;
+}
+
+/* 方塊型 checkbox：品牌、品類與商品選擇目前共用這組樣式。 */
 div[data-testid="stCheckbox"] label {
     background: #ffffff;
     border: 1px solid var(--border);
@@ -714,58 +736,7 @@ div[data-testid="stCheckbox"] label p {
     font-size: 0.9rem;
 }
 
-@media (max-width: 768px) {
-    .filter-summary {
-        display: flex;
-        width: 100%;
-        border-radius: 16px;
-        white-space: normal;
-    }
-
-    div[data-testid="stCheckbox"] label {
-        min-height: 48px;
-    }
-}
-
-/* Phase 4 Step 2：篩選細節收尾 */
-.filter-summary-search {
-    color: #92400e !important;
-    background: #fffbeb;
-    border-color: #fde68a;
-}
-
-/* 減少篩選區和商品選擇區的視覺斷層 */
-div[data-testid="stExpander"] {
-    border-radius: 16px !important;
-    border-color: var(--border) !important;
-    background: #ffffff !important;
-}
-
-div[data-testid="stExpander"] summary {
-    color: var(--text-main) !important;
-    font-weight: 850 !important;
-}
-
-@media (max-width: 768px) {
-    .filter-group-title {
-        margin-top: 0.75rem;
-    }
-}
-
-
-/* 篩選面板內的 checkbox：桌面版依螢幕寬度排列，手機版交給 Streamlit 自動堆疊 */
-div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
-    flex-wrap: wrap !important;
-    gap: 0.42rem !important;
-}
-
-div[data-testid="stExpander"] div[data-testid="column"] {
-    flex: 0 0 calc(20% - 0.42rem) !important;
-    min-width: calc(20% - 0.42rem) !important;
-    width: calc(20% - 0.42rem) !important;
-}
-
-/* 已選取的篩選方塊更明顯 */
+/* 已選取的篩選方塊更明顯。 */
 div[data-testid="stCheckbox"] label:has(input:checked) {
     background: #111827 !important;
     border-color: #111827 !important;
@@ -777,9 +748,36 @@ div[data-testid="stCheckbox"] label:has(input:checked) span {
     -webkit-text-fill-color: #ffffff !important;
 }
 
-/* 壓低 checkbox 原生圖示的存在感，讓整體更像篩選籤 */
+/* 壓低 checkbox 原生圖示的存在感，讓整體更像篩選籤。 */
 div[data-testid="stCheckbox"] label > div:first-child {
     margin-right: 0.32rem !important;
+}
+
+/* 篩選面板內的 checkbox：桌面版依螢幕寬度排列，手機版交給 Streamlit 自動堆疊。 */
+div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap !important;
+    gap: 0.42rem !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="column"] {
+    flex: 0 0 calc(20% - 0.42rem) !important;
+    min-width: calc(20% - 0.42rem) !important;
+    width: calc(20% - 0.42rem) !important;
+}
+
+/* 確認篩選按鈕：由 order_page.py 的 confirm-filter-button-anchor 鎖定。 */
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button {
+    background-color: #0000FF !important;
+    border-color: #0000FF !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:hover,
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:focus {
+    background-color: #0000CC !important;
+    border-color: #0000CC !important;
+    color: #FFFFFF !important;
 }
 
 @media (max-width: 1100px) {
@@ -799,7 +797,17 @@ div[data-testid="stCheckbox"] label > div:first-child {
 }
 
 @media (max-width: 768px) {
-    /* 手機版：不再強制兩欄，沿用全站手機單欄規則，確保點選與閱讀穩定。 */
+    .filter-summary {
+        display: flex;
+        width: 100%;
+        border-radius: 16px;
+        white-space: normal;
+    }
+
+    .filter-group-title {
+        margin-top: 0.75rem;
+    }
+
     div[data-testid="stExpander"] div[data-testid="column"] {
         flex: 1 1 100% !important;
         min-width: 100% !important;
@@ -819,7 +827,6 @@ div[data-testid="stCheckbox"] label > div:first-child {
         font-size: 0.86rem;
         line-height: 1.25;
     }
-
 }
 
 
@@ -1031,18 +1038,3 @@ input[placeholder="搭贈"]::placeholder {
     }
 }
 
-
-/* Phase 6：確認篩選按鈕樣式 */
-div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button {
-    background-color: #0000FF !important;
-    border-color: #0000FF !important;
-    color: #FFFFFF !important;
-    font-weight: 700 !important;
-}
-
-div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:hover,
-div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:focus {
-    background-color: #0000CC !important;
-    border-color: #0000CC !important;
-    color: #FFFFFF !important;
-}
