@@ -155,8 +155,9 @@ def _render_checkbox_grid(
     控制品牌 / 品類 / 商品 checkbox 的兩欄排列，避免影響其他 expander。
     """
     variant_class = "product" if grid_variant == "product" else "filter"
+    # Phase 7 Step 1B：anchor 需保留實際內容，避免 Streamlit 將空白 markdown 壓縮後 CSS 無法命中。
     st.markdown(
-        f"<div class='filter-grid-anchor filter-grid-anchor--{variant_class}'></div>",
+        f"<span class='filter-grid-anchor filter-grid-anchor--{variant_class}' aria-hidden='true'>filter-grid</span>",
         unsafe_allow_html=True,
     )
     st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
