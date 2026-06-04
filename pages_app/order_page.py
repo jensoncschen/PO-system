@@ -147,11 +147,18 @@ def _render_checkbox_grid(
     columns: int = 5,
     on_change=None,
     on_change_args: tuple = (),
+    grid_variant: str = "filter",
 ) -> list[str]:
     """以方塊勾選方式呈現複選篩選。
 
-    使用 Streamlit 原生欄位建立桌面版響應式排列；手機版若被 Streamlit 自動堆疊為單欄也可正常使用。
+    使用 Streamlit 原生欄位建立桌面版響應式排列；手機版由 CSS 透過專屬 anchor
+    控制品牌 / 品類 / 商品 checkbox 的兩欄排列，避免影響其他 expander。
     """
+    variant_class = "product" if grid_variant == "product" else "filter"
+    st.markdown(
+        f"<div class='filter-grid-anchor filter-grid-anchor--{variant_class}'></div>",
+        unsafe_allow_html=True,
+    )
     st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
 
     if not options:
@@ -438,6 +445,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 columns=5,
                 on_change=_keep_filter_expander_open,
                 on_change_args=("brand",),
+                grid_variant="filter",
             )
 
         df_after_brand_filter = df_products.copy()
@@ -455,6 +463,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 columns=5,
                 on_change=_keep_filter_expander_open,
                 on_change_args=("category",),
+                grid_variant="filter",
             )
 
         selected_brand_count = len(selected_brand_filters)
@@ -544,7 +553,13 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         )
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
-            selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=5)
+            selected_products_batch = _render_checkbox_grid(
+                "商品",
+                product_options,
+                product_key_prefix,
+                columns=5,
+                grid_variant="product",
+            )
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
