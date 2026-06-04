@@ -1040,98 +1040,67 @@ input[placeholder="搭贈"]::placeholder {
 
 
 /* =========================================================
-   Phase 7 Step 1C：手機版篩選 / 商品 checkbox 兩欄排列（不依賴 st.columns）
-   原因：Streamlit 手機版會將 st.columns 自動堆疊成單欄，
-   因此 order_page.py 已改為連續輸出 checkbox，再由這段 CSS 控制外層容器寬度。
-   影響範圍：只作用於 stExpander 內的 checkbox，不影響已選商品數量卡片。
+   Phase 7 Step 1D：手機版篩選 checkbox 兩欄修正
+   原則：恢復 st.columns() 桌面多欄；手機版只在 expander 內把
+   checkbox row 改成 CSS grid 兩欄，避開全站 column 單欄限制。
    ========================================================= */
-
-/* 隱藏定位 anchor，但保留 DOM 供支援 :has() 的瀏覽器區分品牌/品類與商品。 */
-div[data-testid="stMarkdown"]:has(.filter-grid-anchor) {
+.filter-grid-scope {
     height: 0 !important;
     min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
     line-height: 0 !important;
-}
-
-div[data-testid="stMarkdown"]:has(.filter-grid-anchor) p {
-    margin: 0 !important;
-    padding: 0 !important;
-    line-height: 0 !important;
-}
-
-/* 桌機 / 平板：checkbox 以 5 欄概念排列；不再依賴 Streamlit columns。 */
-div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stCheckbox"]),
-div[data-testid="stExpander"] div[data-testid="stElementContainer"]:has(div[data-testid="stCheckbox"]),
-div[data-testid="stExpander"] div.element-container:has(div[data-testid="stCheckbox"]) {
-    display: inline-flex !important;
-    width: calc(20% - 0.42rem) !important;
-    max-width: calc(20% - 0.42rem) !important;
-    min-width: calc(20% - 0.42rem) !important;
-    margin: 0 0.42rem 0.42rem 0 !important;
-    vertical-align: top !important;
-    box-sizing: border-box !important;
-}
-
-div[data-testid="stExpander"] div[data-testid="stCheckbox"] {
-    width: 100% !important;
-}
-
-@media (max-width: 1100px) {
-    div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stCheckbox"]),
-    div[data-testid="stExpander"] div[data-testid="stElementContainer"]:has(div[data-testid="stCheckbox"]),
-    div[data-testid="stExpander"] div.element-container:has(div[data-testid="stCheckbox"]) {
-        width: calc(25% - 0.42rem) !important;
-        max-width: calc(25% - 0.42rem) !important;
-        min-width: calc(25% - 0.42rem) !important;
-    }
-}
-
-@media (max-width: 900px) {
-    div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stCheckbox"]),
-    div[data-testid="stExpander"] div[data-testid="stElementContainer"]:has(div[data-testid="stCheckbox"]),
-    div[data-testid="stExpander"] div.element-container:has(div[data-testid="stCheckbox"]) {
-        width: calc(33.333% - 0.42rem) !important;
-        max-width: calc(33.333% - 0.42rem) !important;
-        min-width: calc(33.333% - 0.42rem) !important;
-    }
+    font-size: 0 !important;
+    color: transparent !important;
 }
 
 @media (max-width: 768px) {
-    /* 手機版：品牌 / 品類 / 商品 checkbox 兩欄。 */
-    div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stCheckbox"]),
-    div[data-testid="stExpander"] div[data-testid="stElementContainer"]:has(div[data-testid="stCheckbox"]),
-    div[data-testid="stExpander"] div.element-container:has(div[data-testid="stCheckbox"]) {
-        display: inline-flex !important;
-        width: calc(50% - 0.36rem) !important;
-        max-width: calc(50% - 0.36rem) !important;
-        min-width: calc(50% - 0.36rem) !important;
-        margin: 0 0.36rem 0.42rem 0 !important;
-        vertical-align: top !important;
+    /* 壓過 Phase 6 手機版 expander columns = 100% 的規則。
+       使用 grid 而不是 flex，避免 Streamlit columns 的 flex-basis 干擾。 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.42rem !important;
+        align-items: stretch !important;
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        flex: none !important;
+        display: block !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] > div {
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] {
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label {
+        width: 100% !important;
         box-sizing: border-box !important;
-    }
-
-    /* 品牌 / 品類 fallback 高度：較矮，節省手機畫面。 */
-    div[data-testid="stExpander"] div[data-testid="stCheckbox"] label {
         min-height: 40px !important;
-        padding: 0.42rem 0.5rem !important;
+        padding: 0.44rem 0.52rem !important;
     }
 
-    div[data-testid="stExpander"] div[data-testid="stCheckbox"] label p {
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label p {
         font-size: 0.84rem !important;
-        line-height: 1.18 !important;
+        line-height: 1.2 !important;
     }
 
-    /* 商品選擇：若 :has() 有命中 product anchor，保留較高高度與最多兩行商品名稱。 */
-    div[data-testid="stExpander"]:has(.filter-grid-anchor--product) div[data-testid="stCheckbox"] label {
+    /* 商品選擇保留較高高度，因為商品名稱通常比品牌 / 品類長。 */
+    div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label {
         min-height: 52px !important;
-        padding: 0.5rem 0.52rem !important;
+        padding: 0.52rem 0.52rem !important;
     }
 
-    div[data-testid="stExpander"]:has(.filter-grid-anchor--product) div[data-testid="stCheckbox"] label p {
-        line-height: 1.22 !important;
+    div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label p {
         display: -webkit-box !important;
         -webkit-line-clamp: 2 !important;
         -webkit-box-orient: vertical !important;
