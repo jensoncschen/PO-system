@@ -1058,3 +1058,78 @@ input[placeholder="搭贈"]::placeholder {
     }
 }
 
+
+
+/* =========================================================
+   Phase 7 Step 1B：手機版篩選 / 商品 checkbox 兩欄強制修正
+   原因：部分 Streamlit 版本會讓空白 anchor 或 :has() 命中不穩，
+   因此補上 expander 內 columns 的保守 fallback。
+   影響範圍：只在 768px 以下、只作用於 stExpander 內的 st.columns。
+   ========================================================= */
+@media (max-width: 768px) {
+    /* 隱藏 order_page.py 放入的定位 anchor，但保留 DOM，供支援 :has() 的瀏覽器精準命中。 */
+    div[data-testid="stMarkdown"]:has(.filter-grid-anchor) {
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        line-height: 0 !important;
+    }
+
+    div[data-testid="stMarkdown"]:has(.filter-grid-anchor) p {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+    }
+
+    /* fallback：避免前方手機版全站 column min-width:100% 將 expander checkbox 壓回單欄。 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+        gap: 0.42rem !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex: 0 0 calc(50% - 0.24rem) !important;
+        min-width: calc(50% - 0.24rem) !important;
+        width: calc(50% - 0.24rem) !important;
+        max-width: calc(50% - 0.24rem) !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] > div {
+        width: 100% !important;
+    }
+
+    /* fallback 高度：若瀏覽器沒有命中特定 anchor，至少保持兩欄且手機可點擊。 */
+    div[data-testid="stExpander"] div[data-testid="stCheckbox"] label {
+        min-height: 44px !important;
+        padding: 0.48rem 0.52rem !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stCheckbox"] label p {
+        font-size: 0.84rem !important;
+        line-height: 1.2 !important;
+    }
+
+    /* 支援 :has() 時，品牌 / 品類維持較矮。 */
+    div[data-testid="stExpander"]:has(.filter-grid-anchor--filter) div[data-testid="stCheckbox"] label {
+        min-height: 38px !important;
+        padding: 0.42rem 0.5rem !important;
+    }
+
+    /* 支援 :has() 時，商品選擇保留較高高度，避免商品名稱難讀或難點。 */
+    div[data-testid="stExpander"]:has(.filter-grid-anchor--product) div[data-testid="stCheckbox"] label {
+        min-height: 50px !important;
+        padding: 0.5rem 0.52rem !important;
+    }
+
+    div[data-testid="stExpander"]:has(.filter-grid-anchor--product) div[data-testid="stCheckbox"] label p {
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+    }
+}
