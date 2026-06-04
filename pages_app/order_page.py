@@ -151,13 +151,12 @@ def _render_checkbox_grid(
 ) -> list[str]:
     """以方塊勾選方式呈現複選篩選。
 
-    Phase 7 Step 1C：不再用 st.columns() 排 checkbox。
-    原因是 Streamlit 手機版會主動把 columns 堆疊成單欄，CSS 很難穩定覆蓋。
-    改為連續輸出 checkbox，再由 ui/styles.css 針對 expander 內的 checkbox 外層容器做 grid-like 排列。
+    使用 Streamlit 原生欄位建立桌面版響應式排列。
+    Phase 7 Step 1D 保留 st.columns()，避免破壞桌面版；手機兩欄交給 CSS grid 覆蓋。
     """
-    variant_class = "product" if grid_variant == "product" else "filter"
+    safe_variant = "product" if grid_variant == "product" else "filter"
     st.markdown(
-        f"<span class='filter-grid-anchor filter-grid-anchor--{variant_class}' aria-hidden='true'>filter-grid</span>",
+        f"<div class='filter-grid-scope filter-grid-scope--{safe_variant}' aria-hidden='true'>.</div>",
         unsafe_allow_html=True,
     )
     st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
@@ -167,17 +166,22 @@ def _render_checkbox_grid(
         return []
 
     selected_values: list[str] = []
+    column_count = max(1, min(columns, len(options)))
 
-    for option in options:
-        checkbox_key = _make_filter_key(key_prefix, option)
-        checked = st.checkbox(
-            option,
-            key=checkbox_key,
-            on_change=on_change,
-            args=on_change_args,
-        )
-        if checked:
-            selected_values.append(option)
+    for start in range(0, len(options), column_count):
+        row_options = options[start:start + column_count]
+        cols = st.columns(column_count, gap="small")
+        for col, option in zip(cols, row_options):
+            checkbox_key = _make_filter_key(key_prefix, option)
+            with col:
+                checked = st.checkbox(
+                    option,
+                    key=checkbox_key,
+                    on_change=on_change,
+                    args=on_change_args,
+                )
+                if checked:
+                    selected_values.append(option)
 
     return selected_values
 
@@ -458,7 +462,6 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 columns=5,
                 on_change=_keep_filter_expander_open,
                 on_change_args=("category",),
-                grid_variant="filter",
             )
 
         selected_brand_count = len(selected_brand_filters)
@@ -548,13 +551,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         )
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
-            selected_products_batch = _render_checkbox_grid(
-                "商品",
-                product_options,
-                product_key_prefix,
-                columns=5,
-                grid_variant="product",
-            )
+            selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=5, grid_variant="product")
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
