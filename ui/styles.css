@@ -1178,3 +1178,30 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[plac
         line-height: 1.12 !important;
     }
 }
+
+/* =========================================================
+   Phase 7 Step 1G：已選商品長品名字體縮小修正
+   原則：保留 Step 1F 的輸入框置中，不改卡片高度。
+   修正點：改由 Python 視覺長度 class 命中後，這裡只強化長品名字級。
+   ========================================================= */
+.selected-product-card-name.selected-product-card-name--long {
+    font-size: 14px !important;
+    line-height: 1.14 !important;
+}
+
+.selected-product-card-name.selected-product-card-name--xlong {
+    font-size: 13px !important;
+    line-height: 1.12 !important;
+}
+
+@media (max-width: 768px) {
+    .selected-product-card-name.selected-product-card-name--long {
+        font-size: 13.5px !important;
+        line-height: 1.12 !important;
+    }
+
+    .selected-product-card-name.selected-product-card-name--xlong {
+        font-size: 13px !important;
+        line-height: 1.1 !important;
+    }
+}
