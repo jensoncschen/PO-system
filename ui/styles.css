@@ -1280,3 +1280,45 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
         column-gap: 6px !important;
     }
 }
+
+/* =========================================================
+   Phase 7 Step 3B：手機版購物車確認區欄寬強化
+   基準：Phase 7 Step 2A-2
+   原則：只針對購物車確認區 data_editor，保留左側列操作欄，
+         讓商品 / 訂購 / 搭贈三欄盡量落在手機螢幕範圍內。
+   ========================================================= */
+@media (max-width: 768px) {
+    /* 購物車表格外層：限制在手機容器寬度內，避免整個表格撐出畫面。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"],
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* Streamlit data editor 內層常有固定最小寬度；在購物車區域內盡量限制為容器寬。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"] > div,
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    /* data editor 工具列圖示不要撐太寬；保留功能但縮小間距。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"] button,
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] button {
+        min-width: 32px !important;
+        width: 32px !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* 左側列操作欄需要保留刪除功能，不隱藏；只嘗試縮小其最小寬度。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) [role="rowheader"],
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) [aria-colindex="1"] {
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+    }
+}
