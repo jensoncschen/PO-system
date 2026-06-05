@@ -1094,16 +1094,24 @@ input[placeholder="搭贈"]::placeholder {
         line-height: 1.2 !important;
     }
 
-    /* 商品選擇保留較高高度，因為商品名稱通常比品牌 / 品類長。 */
+    /* 商品選擇：Phase 7 Step 1E。
+       商品名稱常把重要規格放在最後，因此手機版允許最多三行，
+       避免過早省略規格；品牌 / 品類仍維持較矮卡片。 */
     div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label {
-        min-height: 52px !important;
+        min-height: 78px !important;
         padding: 0.52rem 0.52rem !important;
+        align-items: flex-start !important;
     }
 
     div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label p {
         display: -webkit-box !important;
-        -webkit-line-clamp: 2 !important;
+        -webkit-line-clamp: 3 !important;
+        line-clamp: 3 !important;
         -webkit-box-orient: vertical !important;
         overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: normal !important;
+        font-size: 0.82rem !important;
+        line-height: 1.28 !important;
     }
 }
