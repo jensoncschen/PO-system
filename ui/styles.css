@@ -1235,3 +1235,48 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
         line-height: 1.18 !important;
     }
 }
+
+/* =========================================================
+   Phase 7 Step 2A：手機版篩選區間距整理
+   基準：Phase 7 Step 1J
+   原則：只整理手機版篩選 / 商品選擇 expander 內距與 checkbox 間距，
+         不調整 checkbox 高度、不調整已選商品卡片、不改 Python 邏輯。
+   ========================================================= */
+@media (max-width: 768px) {
+    /* 篩選 expander 內容區：微調上下內距，讓展開後的空白更一致。 */
+    div[data-testid="stExpander"] div[data-testid="stExpanderDetails"] {
+        padding-top: 0.38rem !important;
+        padding-bottom: 0.48rem !important;
+    }
+
+    /* 品牌 / 品類 / 商品 checkbox 的兩欄格線間距：維持高度，只整理間距。 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
+        gap: 6px !important;
+        row-gap: 6px !important;
+        column-gap: 6px !important;
+        margin-top: 0.18rem !important;
+        margin-bottom: 0.18rem !important;
+    }
+
+    /* Streamlit column 內層常會額外產生垂直 gap；只在 expander checkbox 內歸零。 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] > div,
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] div[data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+    }
+
+    /* checkbox 元件本身不要再額外撐出上下間距；不改 label 高度與 padding。 */
+    div[data-testid="stExpander"] div[data-testid="stElementContainer"]:has(div[data-testid="stCheckbox"]),
+    div[data-testid="stExpander"] div[data-testid="stCheckbox"] {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* 商品選擇區仍沿用 Step 1E 的高度與三行顯示，只統一格線間距。 */
+    div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
+        gap: 6px !important;
+        row-gap: 6px !important;
+        column-gap: 6px !important;
+    }
+}
