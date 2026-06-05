@@ -1180,117 +1180,58 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[plac
 }
 
 /* =========================================================
-   Phase 7 Step 1G：已選商品長品名字體縮小修正
-   原則：保留 Step 1F 的輸入框置中，不改卡片高度。
-   修正點：改由 Python 視覺長度 class 命中後，這裡只強化長品名字級。
-   ========================================================= */
-.selected-product-card-name.selected-product-card-name--long {
-    font-size: 14px !important;
-    line-height: 1.14 !important;
-}
-
-.selected-product-card-name.selected-product-card-name--xlong {
-    font-size: 13px !important;
-    line-height: 1.12 !important;
-}
-
-@media (max-width: 768px) {
-    .selected-product-card-name.selected-product-card-name--long {
-        font-size: 13.5px !important;
-        line-height: 1.12 !important;
-    }
-
-    .selected-product-card-name.selected-product-card-name--xlong {
-        font-size: 13px !important;
-        line-height: 1.1 !important;
-    }
-}
-
-/* =========================================================
-   Phase 7 Step 1H：已選商品 12 中文字門檻縮字修正
-   原則：不改已選商品卡片高度；只強化長品名字級。
-   Python 端已用 inline style 強制套用，這裡保留 class fallback。
-   ========================================================= */
-.selected-product-card-name.selected-product-card-name--long {
-    font-size: 13px !important;
-    line-height: 1.12 !important;
-}
-
-.selected-product-card-name.selected-product-card-name--xlong {
-    font-size: 12.5px !important;
-    line-height: 1.1 !important;
-}
-
-/* =========================================================
-   Phase 7 Step 1I：已選商品名稱文字本體縮放修正
-   原則：
-   1. 不增加已選商品卡片高度。
-   2. 不影響數量 / 搭贈輸入框置中。
-   3. 不影響篩選兩欄與商品選擇三行。
-   4. 直接鎖定內層 span 文字本體，避免外層 div 或全站 CSS 卡住字級。
+   Phase 7 Step 1J：已選商品卡片高度小幅增加，避免第二行品名被遮住
+   基準：Phase 7 Step 1F
+   原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
    ========================================================= */
 
-/* 外層只負責版面與裁切，不再用它控制長品名字級。 */
-.selected-product-card-name {
-    overflow: hidden !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
+/* 已選商品卡片本體：小幅增加上下內距，讓兩行品名有空間。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
+    padding: 0.34rem 0.46rem !important;
+    box-sizing: border-box !important;
+}
+
+/* 已選商品列：增加列高，避免第一欄商品名稱第二行被 row 高度裁切。 */
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) {
+    min-height: 48px !important;
     align-items: center !important;
 }
 
-/* 文字本體：讓縮放與換行真正套在商品名稱文字上。 */
-.selected-product-card-name .selected-product-card-name-text {
-    display: inline-block !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    color: var(--text-main) !important;
+/* 已選商品列的 Streamlit column 外層：同步增加高度，只限制在已選商品列。 */
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data-testid="column"] {
+    min-height: 44px !important;
+    align-items: center !important;
+}
+
+/* 商品名稱：不再強求縮字，改成保留兩行高度，避免第二行被遮住。 */
+.selected-product-card-name {
+    min-height: 44px !important;
+    max-height: 46px !important;
     font-size: 15px !important;
-    font-weight: 800 !important;
-    line-height: 1.16 !important;
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-    transform-origin: left center !important;
+    line-height: 1.18 !important;
+    align-items: center !important;
+    overflow: hidden !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
 }
 
-/* 超過 12 個中文字：字級縮小 + 視覺縮放雙保險。 */
-.selected-product-card-name .selected-product-card-name-text.selected-product-card-name-text--long,
-.selected-product-card-name[data-name-size="long"] .selected-product-card-name-text {
-    font-size: 13px !important;
-    line-height: 1.1 !important;
-    transform: scale(0.9) !important;
-    transform-origin: left center !important;
-    width: 112% !important;
-    max-width: 112% !important;
-}
-
-/* 超過 18 個中文字：再小一點，但不主動增加卡片高度。 */
-.selected-product-card-name .selected-product-card-name-text.selected-product-card-name-text--xlong,
-.selected-product-card-name[data-name-size="xlong"] .selected-product-card-name-text {
-    font-size: 12.5px !important;
-    line-height: 1.08 !important;
-    transform: scale(0.84) !important;
-    transform-origin: left center !important;
-    width: 119% !important;
-    max-width: 119% !important;
-}
-
+/* 手機版再給一點點高度，因為商品名稱較容易換成兩行。 */
 @media (max-width: 768px) {
-    .selected-product-card-name .selected-product-card-name-text.selected-product-card-name-text--long,
-    .selected-product-card-name[data-name-size="long"] .selected-product-card-name-text {
-        font-size: 13px !important;
-        line-height: 1.08 !important;
-        transform: scale(0.88) !important;
-        width: 114% !important;
-        max-width: 114% !important;
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
+        padding: 0.38rem 0.46rem !important;
     }
 
-    .selected-product-card-name .selected-product-card-name-text.selected-product-card-name-text--xlong,
-    .selected-product-card-name[data-name-size="xlong"] .selected-product-card-name-text {
-        font-size: 12.5px !important;
-        line-height: 1.06 !important;
-        transform: scale(0.82) !important;
-        width: 122% !important;
-        max-width: 122% !important;
+    div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) {
+        min-height: 52px !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data-testid="column"] {
+        min-height: 48px !important;
+    }
+
+    .selected-product-card-name {
+        min-height: 48px !important;
+        max-height: 50px !important;
+        line-height: 1.18 !important;
     }
 }
