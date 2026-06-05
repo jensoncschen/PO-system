@@ -140,6 +140,66 @@ def _safe_int(value, default: int = 0) -> int:
         return default
 
 
+
+
+def _is_valid_cart_product_value(value) -> bool:
+    """判斷購物車列是否保有原始商品資料，避免 data_editor 誤新增空白列造成送出失敗。"""
+    if value is None:
+        return False
+    try:
+        if pd.isna(value):
+            return False
+    except Exception:
+        pass
+
+    text_value = str(value).strip()
+    return bool(text_value) and text_value.lower() not in ["nan", "none"]
+
+
+def _sanitize_cart_editor_records(edited_cart: pd.DataFrame) -> tuple[list[dict], int]:
+    """清理購物車確認表格結果，保留刪除列功能，但忽略誤新增的空白列。"""
+    if edited_cart is None or edited_cart.empty:
+        return [], 0
+
+    cleaned_records: list[dict] = []
+    removed_count = 0
+
+    for item in edited_cart.to_dict("records"):
+        product_id = item.get("產品編號")
+        product_name = item.get("產品名稱")
+
+        if not _is_valid_cart_product_value(product_id) or not _is_valid_cart_product_value(product_name):
+            removed_count += 1
+            continue
+
+        item["訂購數量"] = _safe_int(item.get("訂購數量", 0))
+        item["搭贈數量"] = _safe_int(item.get("搭贈數量", 0))
+        cleaned_records.append(item)
+
+    return cleaned_records, removed_count
+
+
+
+def _validate_cart_before_submission(cart_list: list[dict]) -> tuple[bool, str]:
+    """送出訂單前做最小防呆，避免空訂單或商品資料不完整寫入。"""
+    if not cart_list:
+        return False, "購物車目前是空的，請先加入商品。"
+
+    total_quantity = 0
+    total_gift = 0
+
+    for item in cart_list:
+        if not _is_valid_cart_product_value(item.get("產品編號")) or not _is_valid_cart_product_value(item.get("產品名稱")):
+            return False, "購物車中有商品資料不完整，請刪除異常列後重新加入商品。"
+
+        total_quantity += max(_safe_int(item.get("訂購數量", 0)), 0)
+        total_gift += max(_safe_int(item.get("搭贈數量", 0)), 0)
+
+    if total_quantity <= 0 and total_gift <= 0:
+        return False, "購物車商品的訂購與搭贈數量皆為 0，請先輸入數量後再送出。"
+
+    return True, ""
+
 def _render_checkbox_grid(
     title: str,
     options: list[str],
@@ -387,10 +447,15 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
     def trigger_order_submission():
         if not selected_sales_name or not selected_cust_name:
             st.error("請確認已選擇業務與客戶。")
-        elif len(st.session_state.cart_list) == 0:
-            st.warning("購物車目前是空的，請先加入商品。")
-        else:
-            with st.spinner("正在寫入雲端..."):
+            return
+
+        is_valid_cart, validation_message = _validate_cart_before_submission(st.session_state.cart_list)
+        if not is_valid_cart:
+            st.warning(validation_message)
+            return
+
+        with st.spinner("正在寫入雲端..."):
+            try:
                 generated_bill_no = submit_new_order(
                     st.session_state.cart_list, 
                     selected_sales_name, 
@@ -400,14 +465,18 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                     df_salespeople, 
                     df_customers
                 )
-                st.session_state.cart_list = []
-                st.session_state.input_reset_trigger += 1 
-                st.session_state.form_reset_trigger += 1
-                _reset_product_filter_selection()
-                st.cache_data.clear()
-                st.success(f"訂單 {generated_bill_no} 建立成功。")
-                time.sleep(1.2)
-                st.rerun()
+            except Exception as exc:
+                st.error(f"訂單送出失敗，購物車已保留。錯誤原因：{exc}")
+                return
+
+            st.session_state.cart_list = []
+            st.session_state.input_reset_trigger += 1 
+            st.session_state.form_reset_trigger += 1
+            _reset_product_filter_selection()
+            st.cache_data.clear()
+            st.success(f"訂單 {generated_bill_no} 建立成功。")
+            time.sleep(1.2)
+            st.rerun()
 
     cart_count = len(st.session_state.cart_list)
     total_quantity = sum(_safe_int(item.get("訂購數量", 0)) for item in st.session_state.cart_list)
@@ -667,11 +736,11 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             )
 
             if not edited_cart.equals(cart_df):
-                if "訂購數量" in edited_cart.columns:
-                    edited_cart["訂購數量"] = edited_cart["訂購數量"].apply(_safe_int)
-                if "搭贈數量" in edited_cart.columns:
-                    edited_cart["搭贈數量"] = edited_cart["搭贈數量"].apply(_safe_int)
-                st.session_state.cart_list = edited_cart.to_dict('records')
+                cleaned_cart_records, removed_blank_rows = _sanitize_cart_editor_records(edited_cart)
+                st.session_state.cart_list = cleaned_cart_records
+
+                if removed_blank_rows > 0:
+                    st.warning("已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。")
 
             final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
             final_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇客戶"
