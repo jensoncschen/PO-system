@@ -7,7 +7,7 @@ import streamlit as st
 
 from services.order_service import submit_new_order
 from ui.components import render_page_header, render_section_header, render_sticky_cart_bar
-from utils.formatters import safe_html
+from utils.formatters import safe_html, safe_int
 
 
 MAX_PRODUCT_OPTIONS = 50
@@ -121,25 +121,6 @@ def _get_unique_options(series: pd.Series) -> list[str]:
 
 
 
-def _safe_int(value, default: int = 0) -> int:
-    """將訂購數 / 搭贈數安全轉成整數，避免空值、NaN 或字串造成送出訂單失敗。"""
-    if value is None:
-        return default
-    try:
-        if pd.isna(value):
-            return default
-    except Exception:
-        pass
-
-    try:
-        text_value = str(value).strip()
-        if text_value == "":
-            return default
-        return int(float(text_value))
-    except (TypeError, ValueError):
-        return default
-
-
 
 
 def _is_valid_cart_product_value(value) -> bool:
@@ -172,8 +153,8 @@ def _sanitize_cart_editor_records(edited_cart: pd.DataFrame) -> tuple[list[dict]
             removed_count += 1
             continue
 
-        item["訂購數量"] = _safe_int(item.get("訂購數量", 0))
-        item["搭贈數量"] = _safe_int(item.get("搭贈數量", 0))
+        item["訂購數量"] = safe_int(item.get("訂購數量", 0))
+        item["搭贈數量"] = safe_int(item.get("搭贈數量", 0))
         cleaned_records.append(item)
 
     return cleaned_records, removed_count
@@ -192,8 +173,8 @@ def _validate_cart_before_submission(cart_list: list[dict]) -> tuple[bool, str]:
         if not _is_valid_cart_product_value(item.get("產品編號")) or not _is_valid_cart_product_value(item.get("產品名稱")):
             return False, "購物車中有商品資料不完整，請刪除異常列後重新加入商品。"
 
-        total_quantity += max(_safe_int(item.get("訂購數量", 0)), 0)
-        total_gift += max(_safe_int(item.get("搭贈數量", 0)), 0)
+        total_quantity += max(safe_int(item.get("訂購數量", 0)), 0)
+        total_gift += max(safe_int(item.get("搭贈數量", 0)), 0)
 
     if total_quantity <= 0 and total_gift <= 0:
         return False, "購物車商品的訂購與搭贈數量皆為 0，請先輸入數量後再送出。"
@@ -335,7 +316,7 @@ def _prepare_quantity_text_state(product_name: str) -> None:
         if key not in st.session_state:
             st.session_state[key] = ""
         elif not isinstance(st.session_state[key], str):
-            numeric_value = _safe_int(st.session_state[key])
+            numeric_value = safe_int(st.session_state[key])
             st.session_state[key] = "" if numeric_value == 0 else str(numeric_value)
         elif st.session_state[key].strip() in ["0", "0.0"]:
             st.session_state[key] = ""
@@ -479,8 +460,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             st.rerun()
 
     cart_count = len(st.session_state.cart_list)
-    total_quantity = sum(_safe_int(item.get("訂購數量", 0)) for item in st.session_state.cart_list)
-    total_gift = sum(_safe_int(item.get("搭贈數量", 0)) for item in st.session_state.cart_list)
+    total_quantity = sum(safe_int(item.get("訂購數量", 0)) for item in st.session_state.cart_list)
+    total_gift = sum(safe_int(item.get("搭贈數量", 0)) for item in st.session_state.cart_list)
     if cart_count > 0:
         render_sticky_cart_bar(cart_count, total_quantity, total_gift)
 
@@ -647,8 +628,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                         q_raw = st.session_state.get(f"q_{p_name}")
                         g_raw = st.session_state.get(f"g_{p_name}")
 
-                        q_val = max(_safe_int(q_raw), 0)
-                        g_val = max(_safe_int(g_raw), 0)
+                        q_val = max(safe_int(q_raw), 0)
+                        g_val = max(safe_int(g_raw), 0)
 
                         if q_val > 0 or g_val > 0:
                             p_info = global_prod_dict.get(p_name, {})
@@ -702,8 +683,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 st.warning(cart_notice)
 
             cart_df = pd.DataFrame(st.session_state.cart_list)
-            total_quantity = int(cart_df["訂購數量"].apply(_safe_int).sum()) if "訂購數量" in cart_df.columns else 0
-            total_gift = int(cart_df["搭贈數量"].apply(_safe_int).sum()) if "搭贈數量" in cart_df.columns else 0
+            total_quantity = int(cart_df["訂購數量"].apply(safe_int).sum()) if "訂購數量" in cart_df.columns else 0
+            total_gift = int(cart_df["搭贈數量"].apply(safe_int).sum()) if "搭贈數量" in cart_df.columns else 0
             st.markdown(f"""
                 <div class='cart-summary'>
                     <div class='summary-card'>
