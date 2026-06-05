@@ -282,61 +282,6 @@ def _prepare_quantity_text_state(product_name: str) -> None:
 
 
 
-def _estimate_product_name_chinese_units(product_name: str) -> float:
-    """估算商品名稱約等於幾個中文字寬。
-
-    Phase 7 Step 1H 規則：
-    - 中文 / 全形字 / 日韓文字：算 1 個中文字寬。
-    - 半形英文 / 數字 / 符號：算 0.5 個中文字寬。
-
-    這個值只用來決定已選商品卡片字體大小，不影響商品資料與訂單流程。
-    """
-    text = str(product_name or "")
-    chinese_units = 0.0
-
-    for char in text:
-        code = ord(char)
-        is_wide_char = (
-            0x4E00 <= code <= 0x9FFF      # CJK Unified Ideographs
-            or 0x3400 <= code <= 0x4DBF   # CJK Extension A
-            or 0x3040 <= code <= 0x30FF   # Japanese Hiragana / Katakana
-            or 0xAC00 <= code <= 0xD7AF   # Hangul
-            or 0xFF00 <= code <= 0xFFEF   # Fullwidth forms
-        )
-        chinese_units += 1.0 if is_wide_char else 0.5
-
-    return chinese_units
-
-
-def _get_selected_product_name_style(product_name: str) -> tuple[str, str, str]:
-    """依 12 個中文字門檻回傳已選商品名稱文字本體用的 class 與 inline style。
-
-    Phase 7 Step 1I：
-    前幾版只縮小外層 div，實機畫面仍沒有明顯縮小。
-    這版改成把樣式套在內層 span 文字本體，並用 transform scale 作為
-    font-size 被既有 CSS 覆蓋時的第二層保險。
-    """
-    chinese_units = _estimate_product_name_chinese_units(product_name)
-
-    if chinese_units > 18:
-        return (
-            " selected-product-card-name-text--xlong",
-            "font-size: 12.5px !important; line-height: 1.08 !important; "
-            "transform: scale(0.84) !important; transform-origin: left center !important; "
-            "width: 119% !important; max-width: 119% !important;",
-            "xlong",
-        )
-    if chinese_units > 12:
-        return (
-            " selected-product-card-name-text--long",
-            "font-size: 13px !important; line-height: 1.1 !important; "
-            "transform: scale(0.9) !important; transform-origin: left center !important; "
-            "width: 112% !important; max-width: 112% !important;",
-            "long",
-        )
-    return "", "", "normal"
-
-
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
     """用商品卡片呈現已選商品與數量欄位，讓手機版可單擊直接輸入。"""
     _render_compact_quantity_input_css()
@@ -353,16 +298,15 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
             name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
 
             with name_col:
-                name_text_class, name_inline_style, name_size_mode = _get_selected_product_name_style(product_name)
-                style_attr = f" style='{name_inline_style}'" if name_inline_style else ""
+                name_length = len(str(product_name))
+                name_size_class = ""
+                if name_length >= 36:
+                    name_size_class = " selected-product-card-name--xlong"
+                elif name_length >= 24:
+                    name_size_class = " selected-product-card-name--long"
 
                 st.markdown(
-                    "<div class='selected-product-card-row selected-product-card-name' "
-                    f"data-name-size='{name_size_mode}'>"
-                    f"<span class='selected-product-card-name-text{name_text_class}'{style_attr}>"
-                    f"{safe_html(product_name)}"
-                    "</span>"
-                    "</div>",
+                    f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'>{safe_html(product_name)}</div>",
                     unsafe_allow_html=True,
                 )
 
