@@ -153,7 +153,7 @@ def _is_valid_cart_product_value(value) -> bool:
         pass
 
     text_value = str(value).strip()
-    return bool(text_value) and text_value.lower() not in ["nan", "none"]
+    return bool(text_value) and text_value.lower() not in ["nan", "none", "n/a"]
 
 
 def _sanitize_cart_editor_records(edited_cart: pd.DataFrame) -> tuple[list[dict], int]:
@@ -647,15 +647,21 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                         q_raw = st.session_state.get(f"q_{p_name}")
                         g_raw = st.session_state.get(f"g_{p_name}")
 
-                        q_val = _safe_int(q_raw)
-                        g_val = _safe_int(g_raw)
+                        q_val = max(_safe_int(q_raw), 0)
+                        g_val = max(_safe_int(g_raw), 0)
 
                         if q_val > 0 or g_val > 0:
                             p_info = global_prod_dict.get(p_name, {})
+                            product_id = p_info.get("產品編號")
+
+                            if not _is_valid_cart_product_value(product_id):
+                                st.error(f"商品資料不完整，未加入購物車：{p_name}")
+                                continue
+
                             st.session_state.cart_list.insert(0, {
                                 "業務名稱": selected_sales_name,
                                 "客戶名稱": selected_cust_name,
-                                "產品編號": p_info.get("產品編號", "N/A"),
+                                "產品編號": product_id,
                                 "產品名稱": p_name,
                                 "品牌": p_info.get("品牌", ""),
                                 "品類": p_info.get("品類", ""),
@@ -691,6 +697,10 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
     with st.container(border=True):
         if len(st.session_state.cart_list) > 0:
+            cart_notice = st.session_state.pop("cart_editor_notice", "")
+            if cart_notice:
+                st.warning(cart_notice)
+
             cart_df = pd.DataFrame(st.session_state.cart_list)
             total_quantity = int(cart_df["訂購數量"].apply(_safe_int).sum()) if "訂購數量" in cart_df.columns else 0
             total_gift = int(cart_df["搭贈數量"].apply(_safe_int).sum()) if "搭贈數量" in cart_df.columns else 0
@@ -740,7 +750,10 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 st.session_state.cart_list = cleaned_cart_records
 
                 if removed_blank_rows > 0:
-                    st.warning("已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。")
+                    st.session_state.cart_editor_notice = "已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。"
+
+                # data_editor 修改後立即重新整理一次，避免摘要與「送出前確認」仍顯示舊合計。
+                st.rerun()
 
             final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
             final_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇客戶"
