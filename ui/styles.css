@@ -259,8 +259,8 @@ h1, h2, h3, .stMarkdown p, label, span {
 }
 
 /* =========================================================
-   Phase 6：共用表單、輸入框與按鈕基礎樣式
-   注意：本區為全站規則，階段五只整理註解與結構，不改 selector / 樣式值。
+   共用表單、輸入框與按鈕基礎樣式
+   Phase 9 註解整理：本區為全站規則，只更新註解，不改 selector / 樣式值。
    ========================================================= */
 
 /* 共用白色卡片容器：Streamlit 表單與 border container。 */
@@ -568,7 +568,7 @@ hr {
         width: 100% !important;
     }
 
-    /* 手機版輸入框與按鈕高度：全站規則，暫時保留 Phase 5 穩定值。 */
+    /* 手機版輸入框與按鈕高度：全站規則，保留目前穩定高度設定。 */
     div[data-baseweb="input"],
     div[data-baseweb="select"],
     div[data-baseweb="base-input"],
@@ -640,9 +640,9 @@ hr {
 }
 
 /* =========================================================
-   Phase 6：商品篩選與商品選擇區
-   整理範圍：品牌 / 品類 / 商品 checkbox、expander、篩選摘要、確認篩選按鈕
-   注意：目前 checkbox 與 expander selector 維持原作用範圍，只整理位置，不改視覺行為。
+   商品篩選與商品選擇區
+   範圍：品牌 / 品類 / 商品 checkbox、expander、篩選摘要、確認篩選按鈕。
+   注意：checkbox 與 expander selector 維持原作用範圍，不改視覺行為。
    ========================================================= */
 
 .filter-group-title {
@@ -829,7 +829,7 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
 }
 
 /* =========================================================
-   Phase 6：精簡區塊標題與狀態列
+   精簡區塊標題與狀態列
    ========================================================= */
 .inline-section-heading {
     display: flex;
@@ -869,9 +869,8 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
 }
 
 /* =========================================================
-   Phase 6：已選商品卡片數量輸入區
-   來源：整理 Phase 5 Step 2.16-B grid fix
-   目的：維持「商品名稱｜數量｜搭贈」同列排列，並移除 Phase 5 多段重複修補。
+   已選商品卡片數量輸入區
+   目的：維持「商品名稱｜數量｜搭贈」同列排列。
    對應 order_page.py：.selected-products-card-note / .selected-product-card-row / .selected-product-card-name
    ========================================================= */
 .selected-products-card-note {
@@ -1040,8 +1039,8 @@ input[placeholder="搭贈"]::placeholder {
 
 
 /* =========================================================
-   Phase 7 Step 1D：手機版篩選 checkbox 兩欄修正
-   原則：恢復 st.columns() 桌面多欄；手機版只在 expander 內把
+   手機版篩選 checkbox 兩欄排列
+   原則：保留 st.columns() 桌面多欄；手機版只在 expander 內把
    checkbox row 改成 CSS grid 兩欄，避開全站 column 單欄限制。
    ========================================================= */
 .filter-grid-scope {
@@ -1056,7 +1055,7 @@ input[placeholder="搭贈"]::placeholder {
 }
 
 @media (max-width: 768px) {
-    /* 壓過 Phase 6 手機版 expander columns = 100% 的規則。
+    /* 壓過手機版 expander columns 單欄規則。
        使用 grid 而不是 flex，避免 Streamlit columns 的 flex-basis 干擾。 */
     div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
         display: grid !important;
@@ -1094,7 +1093,7 @@ input[placeholder="搭贈"]::placeholder {
         line-height: 1.2 !important;
     }
 
-    /* 商品選擇：Phase 7 Step 1E。
+    /* 商品選擇長品名顯示：
        商品名稱常把重要規格放在最後，因此手機版允許最多三行，
        避免過早省略規格；品牌 / 品類仍維持較矮卡片。 */
     div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label {
@@ -1117,11 +1116,11 @@ input[placeholder="搭贈"]::placeholder {
 }
 
 /* =========================================================
-   Phase 7 Step 1F：已選商品卡片文字與輸入框垂直置中
+   已選商品卡片文字與輸入框垂直置中
    原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
    ========================================================= */
 
-/* 長品名只縮小字體，不增加已選商品卡片高度。 */
+/* 長品名縮小字體，避免擠壓數量 / 搭贈欄位。 */
 .selected-product-card-name.selected-product-card-name--long {
     font-size: 14px !important;
     line-height: 1.16 !important;
@@ -1180,8 +1179,8 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[plac
 }
 
 /* =========================================================
-   Phase 7 Step 1J：已選商品卡片高度小幅增加，避免第二行品名被遮住
-   基準：Phase 7 Step 1F
+   已選商品卡片高度微調
+   目的：避免第二行品名被遮住。
    原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
    ========================================================= */
 
@@ -1237,8 +1236,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
 }
 
 /* =========================================================
-   Phase 7 Step 2A：手機版篩選區間距整理
-   基準：Phase 7 Step 1J
+   手機版篩選區間距整理
    原則：只整理手機版篩選 / 商品選擇 expander 內距與 checkbox 間距，
          不調整 checkbox 高度、不調整已選商品卡片、不改 Python 邏輯。
    ========================================================= */
@@ -1273,7 +1271,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
         padding-bottom: 0 !important;
     }
 
-    /* 商品選擇區仍沿用 Step 1E 的高度與三行顯示，只統一格線間距。 */
+    /* 商品選擇區維持長品名三行顯示，只統一格線間距。 */
     div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
         gap: 6px !important;
         row-gap: 6px !important;
@@ -1282,8 +1280,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
 }
 
 /* =========================================================
-   Phase 7 Step 3B：手機版購物車確認區欄寬強化
-   基準：Phase 7 Step 2A-2
+   手機版購物車確認區欄寬強化
    原則：只針對購物車確認區 data_editor，保留左側列操作欄，
          讓商品 / 訂購 / 搭贈三欄盡量落在手機螢幕範圍內。
    ========================================================= */
