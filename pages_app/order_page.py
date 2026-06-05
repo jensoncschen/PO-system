@@ -282,6 +282,41 @@ def _prepare_quantity_text_state(product_name: str) -> None:
 
 
 
+def _estimate_product_name_visual_width(product_name: str) -> int:
+    """估算商品名稱在手機版的視覺長度。
+
+    Python 的 len() 對中文、全形字、半形英數都算 1，
+    但手機畫面上中文 / 全形字通常比半形英數更佔寬。
+    這裡只用來決定是否加上長品名字體 class，不影響商品資料與訂單流程。
+    """
+    text = str(product_name or "")
+    visual_width = 0
+    for char in text:
+        code = ord(char)
+        if (
+            0x4E00 <= code <= 0x9FFF      # CJK Unified Ideographs
+            or 0x3400 <= code <= 0x4DBF   # CJK Extension A
+            or 0x3040 <= code <= 0x30FF   # Japanese Hiragana / Katakana
+            or 0xAC00 <= code <= 0xD7AF   # Hangul
+            or 0xFF00 <= code <= 0xFFEF   # Fullwidth forms
+        ):
+            visual_width += 2
+        else:
+            visual_width += 1
+    return visual_width
+
+
+def _get_selected_product_name_size_class(product_name: str) -> str:
+    """依商品名稱視覺長度回傳已選商品卡片用的字級 class。"""
+    visual_width = _estimate_product_name_visual_width(product_name)
+
+    if visual_width >= 38:
+        return " selected-product-card-name--xlong"
+    if visual_width >= 28:
+        return " selected-product-card-name--long"
+    return ""
+
+
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
     """用商品卡片呈現已選商品與數量欄位，讓手機版可單擊直接輸入。"""
     _render_compact_quantity_input_css()
@@ -298,12 +333,7 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
             name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
 
             with name_col:
-                name_length = len(str(product_name))
-                name_size_class = ""
-                if name_length >= 36:
-                    name_size_class = " selected-product-card-name--xlong"
-                elif name_length >= 24:
-                    name_size_class = " selected-product-card-name--long"
+                name_size_class = _get_selected_product_name_size_class(product_name)
 
                 st.markdown(
                     f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'>{safe_html(product_name)}</div>",
