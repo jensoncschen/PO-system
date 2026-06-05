@@ -650,7 +650,9 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             edited_cart = st.data_editor(
                 cart_df,
                 column_config={
-                    "產品名稱": st.column_config.TextColumn("商品", disabled=True, width="large"),
+                    # Phase 7 Step 3A：手機版購物車確認區欄寬優化
+                    # 商品欄位縮小，讓「訂購 / 搭贈」在手機版更容易同時顯示。
+                    "產品名稱": st.column_config.TextColumn("商品", disabled=True, width="small"),
                     "訂購數量": st.column_config.NumberColumn("訂購", min_value=0, step=1, width="small"),
                     "搭贈數量": st.column_config.NumberColumn("搭贈", min_value=0, step=1, width="small"),
                 },
