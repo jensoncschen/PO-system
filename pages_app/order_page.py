@@ -1,695 +1,1324 @@
-import hashlib
-import time
-from datetime import datetime
+:root {
+    --app-bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-soft: #f9fafb;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --text-soft: #9ca3af;
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --radius: 18px;
+}
 
-import pandas as pd
-import streamlit as st
+.stApp {
+    background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.06), transparent 28rem),
+        var(--app-bg);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+}
 
-from services.order_service import submit_new_order
-from ui.components import render_page_header, render_section_header, render_sticky_cart_bar
-from utils.formatters import safe_html
+.main .block-container {
+    max-width: 1120px;
+    padding-top: 1.25rem;
+    padding-bottom: 6.5rem;
+}
 
+h1, h2, h3, .stMarkdown p, label, span {
+    color: var(--text-main);
+}
 
-MAX_PRODUCT_OPTIONS = 50
+[data-testid="stSidebar"] {
+    background: #ffffff;
+    border-right: 1px solid var(--border);
+}
 
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label {
+    color: var(--text-main);
+}
 
-def _normalize_search_text(value) -> str:
-    """將搜尋字串統一整理成小寫文字，避免空值或 NaN 影響比對。"""
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except Exception:
-        pass
-    return str(value).strip().lower()
+[data-testid="stSidebar"] > div:first-child {
+    padding-top: 1.25rem;
+}
 
+.sidebar-brand {
+    padding: 0.15rem 0 0.75rem;
+    margin-bottom: 0.65rem;
+    border-bottom: 1px solid var(--border);
+}
 
-def _search_products(df_products: pd.DataFrame, search_text: str) -> pd.DataFrame:
-    """依多欄位與多關鍵字搜尋商品，並依符合程度排序。"""
-    clean_input = _normalize_search_text(search_text)
-    if not clean_input:
-        return df_products.copy()
+.sidebar-title {
+    font-size: 1.05rem;
+    font-weight: 850;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+    margin-bottom: 0.18rem;
+}
 
-    keywords = [keyword for keyword in clean_input.split() if keyword]
-    if not keywords:
-        return df_products.copy()
+.sidebar-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+}
 
-    scored_rows: list[tuple[int, int]] = []
+.sidebar-section-label {
+    margin: 1rem 0 0.45rem;
+    font-size: 0.76rem;
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    color: var(--text-soft);
+}
 
-    for row in df_products.itertuples(index=True):
-        row_index = row.Index
-        score = 0
+[data-testid="stSidebar"] [role="radiogroup"] {
+    gap: 0.35rem;
+}
 
-        product_name = _normalize_search_text(getattr(row, "產品名稱", ""))
-        barcode = _normalize_search_text(getattr(row, "國際條碼", ""))
-        brand = _normalize_search_text(getattr(row, "品牌", ""))
-        category = _normalize_search_text(getattr(row, "品類", ""))
-        product_code = _normalize_search_text(getattr(row, "產品編號", ""))
+[data-testid="stSidebar"] label[data-baseweb="radio"] {
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.6rem 0.7rem;
+    margin-bottom: 0.35rem;
+    transition: all 0.15s ease;
+}
 
-        searchable_text = " ".join([product_name, barcode, brand, category, product_code])
+[data-testid="stSidebar"] label[data-baseweb="radio"]:hover {
+    border-color: var(--border-strong);
+    background: #ffffff;
+}
 
-        exact_match = False
-        if barcode and barcode == clean_input:
-            score += 1000
-            exact_match = True
-        if product_code and product_code == clean_input:
-            score += 900
-            exact_match = True
-        if product_name and product_name == clean_input:
-            score += 700
-            exact_match = True
-        elif product_name and clean_input in product_name:
-            score += 400
-            exact_match = True
+[data-testid="stSidebar"] label[data-baseweb="radio"] p {
+    font-weight: 750;
+    color: var(--text-main);
+}
 
-        matched_all_keywords = all(keyword in searchable_text for keyword in keywords)
-        if matched_all_keywords:
-            score += 200
+[data-testid="stSidebar"] div.stButton > button {
+    width: 100%;
+    justify-content: center;
+    background: #ffffff !important;
+    border: 1px solid var(--border-strong) !important;
+    color: var(--text-main) !important;
+    border-radius: 14px !important;
+    min-height: 44px !important;
+    font-weight: 750 !important;
+}
 
-        if not exact_match and not matched_all_keywords:
-            continue
+[data-testid="stSidebar"] .sidebar-note {
+    margin-top: 0.6rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
 
-        for keyword in keywords:
-            if keyword in product_name:
-                score += 80
-            if keyword in barcode:
-                score += 70
-            if keyword in product_code:
-                score += 60
-            if keyword in brand:
-                score += 35
-            if keyword in category:
-                score += 30
+.hero-card {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 1.25rem 1.35rem;
+    margin-bottom: 1.15rem;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
 
-        if score > 0:
-            scored_rows.append((row_index, score))
+.page-title {
+    font-size: 2.15rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.15;
+    margin-bottom: 0.35rem;
+}
 
-    if not scored_rows:
-        return df_products.iloc[0:0].copy()
+.page-subtitle {
+    color: var(--text-muted);
+    font-size: 0.98rem;
+    line-height: 1.6;
+    margin-bottom: 0.7rem;
+}
 
-    score_df = pd.DataFrame(scored_rows, columns=["_row_index", "_search_score"])
-    score_df["_original_order"] = range(len(score_df))
+.hero-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+}
 
-    result = df_products.loc[score_df["_row_index"]].copy()
-    result["_search_score"] = score_df["_search_score"].to_numpy()
-    result["_original_order"] = score_df["_original_order"].to_numpy()
-    result = result.sort_values(["_search_score", "_original_order"], ascending=[False, True])
-    return result.drop(columns=["_search_score", "_original_order"])
+.hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.32rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 650;
+}
 
+.section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.15rem 0 0.65rem 0;
+}
 
-def _limit_product_options(product_options: list[str], max_count: int = MAX_PRODUCT_OPTIONS) -> tuple[list[str], int, bool]:
-    """限制商品 checkbox 顯示數量，避免一次渲染過多商品造成手機操作壓力。"""
-    total_count = len(product_options)
-    if total_count <= max_count:
-        return product_options, total_count, False
-    return product_options[:max_count], total_count, True
+.section-title-wrap {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
 
+.section-index {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 0.92rem;
+    font-weight: 800;
+    box-shadow: 0 6px 14px rgba(17, 24, 39, 0.12);
+}
 
-def _make_filter_key(prefix: str, value: str) -> str:
-    """產生穩定的篩選 key，避免品牌或品類含特殊字元時影響 session_state。"""
-    digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()[:10]
-    return f"{prefix}_{digest}"
+.section-title-text {
+    font-size: 1.18rem;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    margin-top: 0.05rem;
+}
 
+.section-note {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-top: 0.15rem;
+}
 
-def _get_unique_options(series: pd.Series) -> list[str]:
-    """取得乾淨且穩定排序的篩選選項。"""
-    values = series.dropna().astype(str).str.strip()
-    values = [value for value in values.unique().tolist() if value and value.lower() not in ["nan", "none"]]
-    return sorted(values)
+.section-tag {
+    padding: 0.3rem 0.62rem;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 13px;
+    font-weight: 750;
+    white-space: nowrap;
+}
 
+.mini-label {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
 
+.cart-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-bottom: 0.75rem;
+}
 
+.summary-card {
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 0.75rem;
+}
 
-def _safe_int(value, default: int = 0) -> int:
-    """將訂購數 / 搭贈數安全轉成整數，避免空值、NaN 或字串造成送出訂單失敗。"""
-    if value is None:
-        return default
-    try:
-        if pd.isna(value):
-            return default
-    except Exception:
-        pass
+.summary-label {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 650;
+    margin-bottom: 0.25rem;
+}
 
-    try:
-        text_value = str(value).strip()
-        if text_value == "":
-            return default
-        return int(float(text_value))
-    except (TypeError, ValueError):
-        return default
+.summary-value {
+    color: var(--text-main);
+    font-size: 1.35rem;
+    line-height: 1;
+    font-weight: 850;
+    letter-spacing: -0.03em;
+}
 
+/* =========================================================
+   Phase 6：共用表單、輸入框與按鈕基礎樣式
+   注意：本區為全站規則，階段五只整理註解與結構，不改 selector / 樣式值。
+   ========================================================= */
 
-def _render_checkbox_grid(
-    title: str,
-    options: list[str],
-    key_prefix: str,
-    columns: int = 4,
-    on_change=None,
-    on_change_args: tuple = (),
-    grid_variant: str = "filter",
-) -> list[str]:
-    """以方塊勾選方式呈現複選篩選。
+/* 共用白色卡片容器：Streamlit 表單與 border container。 */
+div[data-testid="stForm"],
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
 
-    使用 Streamlit 原生欄位建立桌面版響應式排列。
-    Phase 7 Step 2A-2：保留 st.columns()，但每組改為 4 欄，讓手機兩欄排列可連續填滿。
-    """
-    safe_variant = "product" if grid_variant == "product" else "filter"
-    st.markdown(
-        f"<div class='filter-grid-scope filter-grid-scope--{safe_variant}' aria-hidden='true'>.</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
+div[data-testid="stVerticalBlockBorderWrapper"] > div {
+    padding: 0.1rem;
+}
 
-    if not options:
-        st.markdown("<div class='filter-empty'>目前沒有可篩選的選項</div>", unsafe_allow_html=True)
-        return []
+/* 全站輸入文字顏色與基本字級。 */
+input, textarea, select {
+    font-size: 16px !important;
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
 
-    selected_values: list[str] = []
-    column_count = max(1, min(columns, len(options)))
+/* Streamlit / BaseWeb 輸入框外層。 */
+div[data-baseweb="input"],
+div[data-baseweb="select"],
+div[data-baseweb="base-input"] {
+    border-radius: 14px !important;
+    border-color: var(--border-strong) !important;
+    background: #ffffff !important;
+    min-height: 46px;
+    box-shadow: none !important;
+}
 
-    for start in range(0, len(options), column_count):
-        row_options = options[start:start + column_count]
-        cols = st.columns(column_count, gap="small")
-        for col, option in zip(cols, row_options):
-            checkbox_key = _make_filter_key(key_prefix, option)
-            with col:
-                checked = st.checkbox(
-                    option,
-                    key=checkbox_key,
-                    on_change=on_change,
-                    args=on_change_args,
-                )
-                if checked:
-                    selected_values.append(option)
+div[data-baseweb="input"]:focus-within,
+div[data-baseweb="base-input"]:focus-within,
+div[data-baseweb="select"]:focus-within {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
 
-    return selected_values
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input {
+    min-height: 44px;
+}
 
+/* 全站一般按鈕。 */
+button,
+div.stButton > button,
+button[data-testid="stFormSubmitButton"],
+div[data-testid="stDownloadButton"] button {
+    min-height: 46px !important;
+    border-radius: 14px !important;
+    font-weight: 750 !important;
+    border: 1px solid var(--border-strong) !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
 
-def _get_selected_values(options: list[str], key_prefix: str) -> list[str]:
-    """依 checkbox key 讀取目前已選項目，用於在 expander 標題顯示狀態數量。"""
-    selected_values: list[str] = []
-    for option in options:
-        checkbox_key = _make_filter_key(key_prefix, option)
-        if st.session_state.get(checkbox_key):
-            selected_values.append(option)
-    return selected_values
+button *,
+div.stButton > button *,
+button[data-testid="stFormSubmitButton"] *,
+div[data-testid="stDownloadButton"] button * {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
 
+/* Streamlit primary / form submit / download primary 按鈕。 */
+div.stButton > button[kind="primary"],
+button[data-testid="stFormSubmitButton"],
+div[data-testid="stDownloadButton"] button[kind="primary"] {
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
 
-def _ensure_product_filter_flow_state() -> None:
-    """初始化商品篩選流程狀態，讓確認篩選後再展開商品選擇。"""
-    default_states = {
-        "brand_filter_expanded": False,
-        "category_filter_expanded": False,
-        "product_select_expanded": False,
+div.stButton > button[kind="primary"] *,
+button[data-testid="stFormSubmitButton"] *,
+div[data-testid="stDownloadButton"] button[kind="primary"] * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+/* 按鈕 hover 狀態。 */
+div.stButton > button:hover,
+div[data-testid="stDownloadButton"] button:hover {
+    border-color: var(--text-soft) !important;
+    background: var(--surface-soft) !important;
+}
+
+div.stButton > button[kind="primary"]:hover,
+button[data-testid="stFormSubmitButton"]:hover,
+div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
+    background: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+.stAlert {
+    border-radius: 16px;
+}
+
+.sticky-cart-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    width: min(720px, calc(100% - 2rem));
+    min-height: 50px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+    z-index: 999992;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 1rem;
+    backdrop-filter: blur(10px);
+}
+
+.sticky-cart-content {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-main);
+    font-weight: 850;
+    font-size: 0.95rem;
+    white-space: nowrap;
+}
+
+.sticky-cart-muted {
+    display: none;
+}
+
+hr {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-color: var(--border);
+}
+
+.cart-final-panel {
+    background: #111827;
+    color: #ffffff;
+    border-radius: 18px;
+    padding: 0.9rem 1rem;
+    margin: 0.85rem 0;
+}
+
+.cart-final-panel * {
+    color: #ffffff;
+}
+
+.cart-final-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    opacity: 0.72;
+    margin-bottom: 0.25rem;
+}
+
+.cart-final-value {
+    font-size: 1rem;
+    font-weight: 850;
+    line-height: 1.4;
+}
+
+.mobile-edit-note {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 650;
+    margin: 0.35rem 0 0.55rem;
+}
+
+.operation-card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1rem;
+    height: 100%;
+}
+
+.operation-title {
+    color: var(--text-main);
+    font-size: 1.02rem;
+    font-weight: 850;
+    margin-bottom: 0.25rem;
+}
+
+.operation-desc {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 650;
+    line-height: 1.55;
+    margin-bottom: 0.8rem;
+}
+
+.warning-card {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 18px;
+    padding: 0.85rem 0.95rem;
+    margin: 0.65rem 0 0.8rem;
+}
+
+.warning-title {
+    color: #9a3412;
+    font-size: 0.9rem;
+    font-weight: 850;
+    margin-bottom: 0.25rem;
+}
+
+.warning-text {
+    color: #9a3412;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    font-weight: 650;
+}
+
+.admin-link-card {
+    display: block;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1rem;
+    text-decoration: none;
+    margin: 0.5rem 0 0.8rem;
+}
+
+.admin-link-title {
+    color: var(--text-main);
+    font-size: 1.04rem;
+    font-weight: 850;
+    margin-bottom: 0.25rem;
+}
+
+.admin-link-desc {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-weight: 650;
+    line-height: 1.5;
+}
+
+.admin-link-url {
+    color: var(--primary);
+    font-size: 0.86rem;
+    font-weight: 800;
+    margin-top: 0.7rem;
+}
+
+.empty-state-card {
+    background: var(--surface-soft);
+    border: 1px dashed var(--border-strong);
+    border-radius: 18px;
+    padding: 1rem;
+    color: var(--text-muted);
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+    .main .block-container {
+        padding: 0.85rem 0.85rem 6.25rem 0.85rem;
     }
-    for key, default_value in default_states.items():
-        if key not in st.session_state:
-            st.session_state[key] = default_value
 
-
-def _ensure_product_filter_reset_trigger() -> None:
-    """初始化篩選 checkbox 重置計數器，用新 key 安全清空品牌 / 品類選項。"""
-    if "product_filter_reset_trigger" not in st.session_state:
-        st.session_state.product_filter_reset_trigger = 0
-
-
-def _get_product_filter_suffix() -> str:
-    """取得品牌 / 品類篩選 checkbox 使用的 key 後綴。"""
-    _ensure_product_filter_reset_trigger()
-    return f"_{st.session_state.product_filter_reset_trigger}"
-
-
-def _confirm_product_filters() -> None:
-    """確認品牌與品類篩選後，收合篩選區並展開商品選擇區。"""
-    _ensure_product_filter_flow_state()
-    st.session_state.brand_filter_expanded = False
-    st.session_state.category_filter_expanded = False
-    st.session_state.product_select_expanded = True
-
-
-def _reset_product_filter_flow() -> None:
-    """將商品篩選與商品選擇區回到預設收合狀態。"""
-    _ensure_product_filter_flow_state()
-    st.session_state.brand_filter_expanded = False
-    st.session_state.category_filter_expanded = False
-    st.session_state.product_select_expanded = False
-
-
-def _keep_filter_expander_open(expander_name: str) -> None:
-    """checkbox 變更時維持所在篩選區展開，避免 Streamlit rerun 後自動收合。"""
-    _ensure_product_filter_flow_state()
-    if expander_name == "brand":
-        st.session_state.brand_filter_expanded = True
-    elif expander_name == "category":
-        st.session_state.category_filter_expanded = True
-
-
-def _render_inline_heading(title: str, helper_text: str = "") -> None:
-    """顯示精簡的區塊標題，將輔助說明併到同一行。"""
-    helper_html = f"<span>{safe_html(helper_text)}</span>" if helper_text else ""
-    st.markdown(
-        f"<div class='inline-section-heading'><strong>{safe_html(title)}</strong>{helper_html}</div>",
-        unsafe_allow_html=True,
-    )
-
-
-def _reset_product_filter_selection() -> None:
-    """安全清除品牌 / 品類篩選選項，避免直接修改已建立的 checkbox widget state。"""
-    _ensure_product_filter_reset_trigger()
-    st.session_state.product_filter_reset_trigger += 1
-    _reset_product_filter_flow()
-
-
-
-
-def _render_compact_quantity_input_css() -> None:
-    """已選商品卡片樣式已移至 ui/styles.css，保留函式避免影響呼叫流程。"""
-    return
-
-
-def _prepare_quantity_text_state(product_name: str) -> None:
-    """讓文字輸入框以空白起始，並用 placeholder 提示欄位用途。"""
-    for prefix in ["q", "g"]:
-        key = f"{prefix}_{product_name}"
-        if key not in st.session_state:
-            st.session_state[key] = ""
-        elif not isinstance(st.session_state[key], str):
-            numeric_value = _safe_int(st.session_state[key])
-            st.session_state[key] = "" if numeric_value == 0 else str(numeric_value)
-        elif st.session_state[key].strip() in ["0", "0.0"]:
-            st.session_state[key] = ""
-
-
-
-def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
-    """用商品卡片呈現已選商品與數量欄位，讓手機版可單擊直接輸入。"""
-    _render_compact_quantity_input_css()
-
-    st.markdown(
-        "<div class='selected-products-card-note'>數量空白會視為 0。</div>",
-        unsafe_allow_html=True,
-    )
-
-    for product_name in selected_products:
-        _prepare_quantity_text_state(product_name)
-
-        with st.container(border=True):
-            name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
-
-            with name_col:
-                name_length = len(str(product_name))
-                name_size_class = ""
-                if name_length >= 36:
-                    name_size_class = " selected-product-card-name--xlong"
-                elif name_length >= 24:
-                    name_size_class = " selected-product-card-name--long"
-
-                st.markdown(
-                    f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'>{safe_html(product_name)}</div>",
-                    unsafe_allow_html=True,
-                )
-
-            with qty_col:
-                st.text_input(
-                    "訂購",
-                    key=f"q_{product_name}",
-                    label_visibility="collapsed",
-                    placeholder="數量",
-                    max_chars=4,
-                )
-            with gift_col:
-                st.text_input(
-                    "搭贈",
-                    key=f"g_{product_name}",
-                    label_visibility="collapsed",
-                    placeholder="搭贈",
-                    max_chars=4,
-                )
-
-
-def _get_product_options(df_products_filtered: pd.DataFrame) -> list[str]:
-    """取得商品清單，保留目前資料順序並去除重複商品名稱。"""
-    product_names: list[str] = []
-    seen_names: set[str] = set()
-
-    if "產品名稱" not in df_products_filtered.columns:
-        return product_names
-
-    for raw_name in df_products_filtered["產品名稱"].dropna().tolist():
-        product_name = str(raw_name).strip()
-        if not product_name or product_name.lower() in ["nan", "none"]:
-            continue
-        if product_name in seen_names:
-            continue
-        seen_names.add(product_name)
-        product_names.append(product_name)
-
-    return product_names
-
-
-
-def render_order_page(conn, df_customers, df_products, df_salespeople, global_prod_dict) -> None:
-    render_page_header(
-        "快速下單",
-        "手機優先的訂單建立流程。單手操作、先加商品、最後一次確認送出。",
-        ["1 訂單資訊", "2 新增商品", "3 購物車確認"],
-    )
-
-    form_suffix = f"_{st.session_state.form_reset_trigger}"
-
-    # 區塊 1：訂單資訊
-    render_section_header(
-        "1",
-        "訂單資訊",
-        "先確認業務、客戶與日期。這三項會帶入本次訂單。",
-        "必填",
-    )
-
-    with st.container(border=True):
-        c1, c2, c3 = st.columns([1.25, 1.75, 1], gap="medium")
-        with c1:
-            sales_list = df_salespeople["業務名稱"].unique().tolist()
-            selected_sales_name = st.selectbox(
-                "業務", sales_list, index=None, placeholder="選擇業務", key=f"sales_sb{form_suffix}"
-            )
-        with c2:
-            current_cust = []
-            if selected_sales_name:
-                current_cust = df_customers[df_customers["業務名稱"]==selected_sales_name]["客戶名稱"].unique().tolist()
-            selected_cust_name = st.selectbox(
-                "客戶", current_cust, index=None, placeholder="選擇客戶", key=f"cust_sb{form_suffix}"
-            )
-        with c3:
-            order_date = st.date_input("日期", datetime.now())
-
-    # 統一結帳動作，保留原本訂單邏輯
-    def trigger_order_submission():
-        if not selected_sales_name or not selected_cust_name:
-            st.error("請確認已選擇業務與客戶。")
-        elif len(st.session_state.cart_list) == 0:
-            st.warning("購物車目前是空的，請先加入商品。")
-        else:
-            with st.spinner("正在寫入雲端..."):
-                generated_bill_no = submit_new_order(
-                    st.session_state.cart_list, 
-                    selected_sales_name, 
-                    selected_cust_name, 
-                    order_date, 
-                    conn, 
-                    df_salespeople, 
-                    df_customers
-                )
-                st.session_state.cart_list = []
-                st.session_state.input_reset_trigger += 1 
-                st.session_state.form_reset_trigger += 1
-                _reset_product_filter_selection()
-                st.cache_data.clear()
-                st.success(f"訂單 {generated_bill_no} 建立成功。")
-                time.sleep(1.2)
-                st.rerun()
-
-    cart_count = len(st.session_state.cart_list)
-    total_quantity = sum(_safe_int(item.get("訂購數量", 0)) for item in st.session_state.cart_list)
-    total_gift = sum(_safe_int(item.get("搭贈數量", 0)) for item in st.session_state.cart_list)
-    if cart_count > 0:
-        render_sticky_cart_bar(cart_count, total_quantity, total_gift)
-
-    # 區塊 2：新增商品
-    render_section_header(
-        "2",
-        "新增商品",
-        "先用條碼或名稱搜尋；需要瀏覽時再用品牌與品類縮小範圍。",
-        "可重複加入",
-    )
-
-    input_suffix = f"_{st.session_state.input_reset_trigger}"
-    _ensure_product_filter_flow_state()
-    filter_suffix = _get_product_filter_suffix()
-    brand_filter_key_prefix = f"filter_brand{filter_suffix}"
-    category_filter_key_prefix = f"filter_category{filter_suffix}"
-
-    with st.container(border=True):
-        st.markdown("<div class='mini-label'>SEARCH</div>", unsafe_allow_html=True)
-        _render_inline_heading("商品搜尋", "條碼或商品名稱")
-        barcode_input = st.text_input(
-            "條碼或商品名稱", 
-            placeholder="掃描條碼，或輸入商品名稱關鍵字",
-            key=f"barcode_scan{input_suffix}"
-        )
-
-        _render_inline_heading("商品篩選", "搜尋優先｜未勾選不限")
-
-        brand_options = _get_unique_options(df_products["品牌"])
-        selected_brand_count = len(_get_selected_values(brand_options, brand_filter_key_prefix))
-
-        brand_expander_label = f"1. 品牌篩選（已選 {selected_brand_count}）"
-        with st.expander(brand_expander_label, expanded=st.session_state.brand_filter_expanded):
-            selected_brand_filters = _render_checkbox_grid(
-                "品牌",
-                brand_options,
-                brand_filter_key_prefix,
-                columns=4,
-                on_change=_keep_filter_expander_open,
-                on_change_args=("brand",),
-            )
-
-        df_after_brand_filter = df_products.copy()
-        if selected_brand_filters:
-            df_after_brand_filter = df_after_brand_filter[df_after_brand_filter["品牌"].astype(str).isin(selected_brand_filters)]
-
-        category_options = _get_unique_options(df_after_brand_filter["品類"])
-        selected_category_count = len(_get_selected_values(category_options, category_filter_key_prefix))
-        category_expander_label = f"2. 品類篩選（依品牌顯示｜已選 {selected_category_count}）"
-        with st.expander(category_expander_label, expanded=st.session_state.category_filter_expanded):
-            selected_category_filters = _render_checkbox_grid(
-                "品類",
-                category_options,
-                category_filter_key_prefix,
-                columns=4,
-                on_change=_keep_filter_expander_open,
-                on_change_args=("category",),
-            )
-
-        selected_brand_count = len(selected_brand_filters)
-        selected_category_count = len(selected_category_filters)
-
-        st.markdown("<div class='confirm-filter-button-anchor'></div>", unsafe_allow_html=True)
-        st.button(
-            "確認篩選",
-            type="primary",
-            use_container_width=True,
-            key=f"confirm_product_filters{input_suffix}",
-            on_click=_confirm_product_filters,
-        )
-
-        if selected_brand_count or selected_category_count:
-            st.button(
-                "清除篩選",
-                use_container_width=True,
-                key="clear_product_filters",
-                on_click=_reset_product_filter_selection,
-            )
-
-        df_step1 = df_after_brand_filter.copy()
-        if selected_category_filters:
-            df_step1 = df_step1[df_step1["品類"].astype(str).isin(selected_category_filters)]
-
-        selected_filter_parts = []
-        if selected_brand_filters:
-            selected_filter_parts.append("品牌：" + "、".join(selected_brand_filters))
-        if selected_category_filters:
-            selected_filter_parts.append("品類：" + "、".join(selected_category_filters))
-
-        if barcode_input:
-            clean_input = barcode_input.strip()
-            df_step2 = _search_products(df_products, clean_input)
-
-            if df_step2.empty:
-                st.error(f"找不到包含「{safe_html(clean_input)}」的商品資料。可搜尋產品名稱、條碼、品牌、品類或產品編號。")
-
-            if selected_filter_parts:
-                st.markdown(
-                    "<div class='filter-summary filter-summary-search'>搜尋結果｜符合 " + str(len(df_step2)) + " 項｜篩選暫不套用</div>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    f"<div class='filter-summary'>搜尋結果｜符合 {len(df_step2)} 項</div>",
-                    unsafe_allow_html=True,
-                )
-        else:
-            df_step2 = df_step1.copy()
-            if selected_filter_parts:
-                st.markdown(
-                    f"<div class='filter-summary'>品牌 {selected_brand_count}｜品類 {selected_category_count}｜符合 {len(df_step2)} 項</div>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    f"<div class='filter-summary filter-summary-muted'>未套用篩選｜共 {len(df_step2)} 項</div>",
-                    unsafe_allow_html=True,
-                )
-
-        if df_step2.empty and not barcode_input:
-            st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
-
-        all_product_options = _get_product_options(df_step2)
-        product_options, total_product_count, is_product_limited = _limit_product_options(all_product_options)
-        product_key_prefix = f"select_product{input_suffix}"
-
-        if is_product_limited:
-            st.info(
-                f"符合 {total_product_count} 項，目前只顯示前 {len(product_options)} 項。請輸入更多關鍵字縮小範圍。"
-            )
-
-        # 條碼或關鍵字搜尋只找到單一商品時，自動勾選，延續原本 multiselect 的預設選取體驗。
-        if barcode_input and len(product_options) == 1:
-            single_product_key = _make_filter_key(product_key_prefix, product_options[0])
-            if single_product_key not in st.session_state:
-                st.session_state[single_product_key] = True
-
-        selected_product_count = len(_get_selected_values(product_options, product_key_prefix))
-        product_expander_label = f"3. 選擇商品（符合 {total_product_count}｜顯示 {len(product_options)}｜已選 {selected_product_count}）"
-        product_expander_expanded = bool(
-            barcode_input
-            or st.session_state.product_select_expanded
-            or selected_product_count > 0
-        )
-
-        with st.expander(product_expander_label, expanded=product_expander_expanded):
-            selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=4, grid_variant="product")
-
-        if selected_products_batch:
-            st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
-
-            _render_selected_product_inputs(selected_products_batch, product_key_prefix)
-
-            submitted = st.button("加入購物車", type="primary", use_container_width=True, key=f"add_selected_products{input_suffix}")
-
-            if submitted:
-                if not selected_sales_name or not selected_cust_name:
-                    st.error("請先在訂單資訊區選擇業務與客戶。")
-                else:
-                    items_added_count = 0
-                    keys_to_clear = []
-
-                    for p_name in selected_products_batch:
-                        q_raw = st.session_state.get(f"q_{p_name}")
-                        g_raw = st.session_state.get(f"g_{p_name}")
-
-                        q_val = _safe_int(q_raw)
-                        g_val = _safe_int(g_raw)
-
-                        if q_val > 0 or g_val > 0:
-                            p_info = global_prod_dict.get(p_name, {})
-                            st.session_state.cart_list.insert(0, {
-                                "業務名稱": selected_sales_name,
-                                "客戶名稱": selected_cust_name,
-                                "產品編號": p_info.get("產品編號", "N/A"),
-                                "產品名稱": p_name,
-                                "品牌": p_info.get("品牌", ""),
-                                "品類": p_info.get("品類", ""),
-                                "訂購數量": q_val,
-                                "搭贈數量": g_val
-                            })
-                            items_added_count += 1
-
-                        keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
-
-                    if items_added_count > 0:
-                        for k in keys_to_clear:
-                            if k in st.session_state:
-                                del st.session_state[k]
-
-                        # 透過更新 input_reset_trigger 讓商品選取 checkbox 使用新的 key，
-                        # 避免在同一輪渲染中直接改已建立的 checkbox state 而觸發 StreamlitAPIException。
-                        st.session_state.input_reset_trigger += 1
-                        _reset_product_filter_flow()
-                        st.toast(f"成功加入 {items_added_count} 項商品")
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.warning("所有商品的數量皆未輸入，未加入任何項目。")
-
-    # 區塊 3：購物車
-    render_section_header(
-        "3",
-        "購物車",
-        "送出前請確認商品、訂購數與搭贈數。表格內可直接修改數量。",
-        "最後確認",
-    )
-
-    with st.container(border=True):
-        if len(st.session_state.cart_list) > 0:
-            cart_df = pd.DataFrame(st.session_state.cart_list)
-            total_quantity = int(cart_df["訂購數量"].apply(_safe_int).sum()) if "訂購數量" in cart_df.columns else 0
-            total_gift = int(cart_df["搭贈數量"].apply(_safe_int).sum()) if "搭贈數量" in cart_df.columns else 0
-            st.markdown(f"""
-                <div class='cart-summary'>
-                    <div class='summary-card'>
-                        <div class='summary-label'>商品項目</div>
-                        <div class='summary-value'>{len(cart_df)}</div>
-                    </div>
-                    <div class='summary-card'>
-                        <div class='summary-label'>訂購數量</div>
-                        <div class='summary-value'>{total_quantity}</div>
-                    </div>
-                    <div class='summary-card'>
-                        <div class='summary-label'>搭贈數量</div>
-                        <div class='summary-value'>{total_gift}</div>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-
-            st.markdown(
-                "<div class='mobile-edit-note'>請在下方表格確認商品與數量；需要修改時可直接調整數字，刪除商品可使用表格列操作。</div>",
-                unsafe_allow_html=True
-            )
-
-            edited_cart = st.data_editor(
-                cart_df,
-                column_config={
-                    # Phase 7 Step 3A：手機版購物車確認區欄寬優化
-                    # 商品欄位縮小，讓「訂購 / 搭贈」在手機版更容易同時顯示。
-                    "產品名稱": st.column_config.TextColumn("商品", disabled=True, width="small"),
-                    "訂購數量": st.column_config.NumberColumn("訂購", min_value=0, step=1, width="small"),
-                    "搭贈數量": st.column_config.NumberColumn("搭贈", min_value=0, step=1, width="small"),
-                },
-                column_order=["產品名稱", "訂購數量", "搭贈數量"],
-                use_container_width=True,
-                hide_index=True,
-                num_rows="dynamic",
-                key="final_cart_editor"
-            )
-
-            if not edited_cart.equals(cart_df):
-                if "訂購數量" in edited_cart.columns:
-                    edited_cart["訂購數量"] = edited_cart["訂購數量"].apply(_safe_int)
-                if "搭贈數量" in edited_cart.columns:
-                    edited_cart["搭贈數量"] = edited_cart["搭贈數量"].apply(_safe_int)
-                st.session_state.cart_list = edited_cart.to_dict('records')
-
-            final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
-            final_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇客戶"
-            st.markdown(f"""
-                <div class='cart-final-panel'>
-                    <div class='cart-final-title'>送出前確認</div>
-                    <div class='cart-final-value'>{final_sales_label} → {final_cust_label}</div>
-                    <div class='cart-final-title' style='margin-top:0.45rem;'>本次合計</div>
-                    <div class='cart-final-value'>{len(st.session_state.cart_list)} 項商品｜訂購 {total_quantity}｜搭贈 {total_gift}</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-            st.markdown("")
-            col_clear, col_submit = st.columns([1, 2], gap="medium")
-            with col_clear:
-                if st.button("清空購物車", use_container_width=True, key="clear_cart_main_btn"):
-                    st.session_state.cart_list = []
-                    st.rerun()
-            with col_submit:
-                if st.button("送出訂單", type="primary", use_container_width=True, key="bottom_checkout_btn"):
-                    trigger_order_submission()
-        else:
-            st.info("購物車目前是空的。請先在新增商品區加入商品。")
-
+    [data-testid="stSidebar"] {
+        border-right: none;
+    }
+
+    .hero-steps {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.4rem;
+    }
+
+    .hero-pill {
+        justify-content: center;
+        padding: 0.48rem 0.65rem;
+    }
+
+    .section-header {
+        gap: 0.55rem;
+    }
+
+    .section-index {
+        width: 32px;
+        height: 32px;
+        border-radius: 11px;
+    }
+
+    /* 手機版大多數欄位維持單欄；移除 !important，讓特定小型元件可用專屬規則覆蓋。 */
+    div[data-testid="column"] {
+        min-width: 100%;
+    }
+
+    /* 手機版：一般欄位維持單欄，但表單內的「訂購數／搭贈數」維持左右並排，減少長單滑動距離。 */
+    div[data-testid="stForm"] div[data-testid="column"] {
+        min-width: 0 !important;
+        flex: 1 1 0 !important;
+    }
+
+    div[data-testid="stForm"] div[data-testid="column"] > div {
+        width: 100% !important;
+    }
+
+    /* 手機版輸入框與按鈕高度：全站規則，暫時保留 Phase 5 穩定值。 */
+    div[data-baseweb="input"],
+    div[data-baseweb="select"],
+    div[data-baseweb="base-input"],
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input {
+        min-height: 50px !important;
+    }
+
+    button,
+    div.stButton > button,
+    button[data-testid="stFormSubmitButton"],
+    div[data-testid="stDownloadButton"] button {
+        min-height: 50px !important;
+        font-size: 0.98rem !important;
+    }
+
+    .cart-final-panel {
+        padding: 0.85rem;
+    }
+
+    .sticky-cart-bar {
+        bottom: calc(0.85rem + env(safe-area-inset-bottom));
+        width: calc(100% - 1.5rem);
+        min-height: 48px;
+        padding: 0.65rem 0.9rem;
+        border-radius: 16px;
+    }
+
+    .hero-card {
+        padding: 1rem;
+        border-radius: 20px;
+    }
+
+    .page-title {
+        font-size: 1.7rem;
+    }
+
+    .page-subtitle {
+        font-size: 0.92rem;
+    }
+
+    .section-header {
+        align-items: flex-start;
+        margin-top: 1rem;
+    }
+
+    .section-title-text {
+        font-size: 1.08rem;
+    }
+
+    .section-tag {
+        display: none;
+    }
+
+    .cart-summary {
+        grid-template-columns: 1fr;
+    }
+
+    div[data-testid="stDataFrame"],
+    div[data-testid="stDataEditor"] {
+        font-size: 0.84rem;
+    }
+
+    .sticky-cart-content {
+        justify-content: center;
+        font-size: 0.9rem;
+        line-height: 1.25;
+    }
+}
+
+/* =========================================================
+   Phase 6：商品篩選與商品選擇區
+   整理範圍：品牌 / 品類 / 商品 checkbox、expander、篩選摘要、確認篩選按鈕
+   注意：目前 checkbox 與 expander selector 維持原作用範圍，只整理位置，不改視覺行為。
+   ========================================================= */
+
+.filter-group-title {
+    color: var(--text-main);
+    font-size: 0.92rem;
+    font-weight: 850;
+    margin: 0.85rem 0 0.4rem;
+}
+
+.filter-empty {
+    color: var(--text-muted);
+    border: 1px dashed var(--border-strong);
+    border-radius: 14px;
+    padding: 0.7rem;
+    font-size: 0.85rem;
+    font-weight: 650;
+}
+
+.filter-summary {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    color: #1e3a8a;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    font-weight: 750;
+    margin: 0.4rem 0 0.75rem;
+}
+
+.filter-summary-muted {
+    color: var(--text-muted);
+    background: var(--surface-soft);
+    border-color: var(--border);
+}
+
+.filter-summary-search {
+    color: #92400e;
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.product-count-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: 0.28rem 0.62rem;
+    font-size: 0.8rem;
+    font-weight: 750;
+    margin: 0.2rem 0 0.6rem;
+}
+
+/* Expander 外觀：用於品牌、品類與商品選擇區。 */
+div[data-testid="stExpander"] {
+    border-radius: 16px !important;
+    border-color: var(--border) !important;
+    background: #ffffff !important;
+}
+
+div[data-testid="stExpander"] summary {
+    color: var(--text-main) !important;
+    font-weight: 850 !important;
+}
+
+/* 方塊型 checkbox：品牌、品類與商品選擇目前共用這組樣式。 */
+div[data-testid="stCheckbox"] label {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.58rem 0.65rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+div[data-testid="stCheckbox"] label:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-soft);
+}
+
+div[data-testid="stCheckbox"] label p {
+    color: var(--text-main) !important;
+    font-weight: 750;
+    font-size: 0.9rem;
+}
+
+/* 已選取的篩選方塊更明顯。 */
+div[data-testid="stCheckbox"] label:has(input:checked) {
+    background: #111827 !important;
+    border-color: #111827 !important;
+}
+
+div[data-testid="stCheckbox"] label:has(input:checked) p,
+div[data-testid="stCheckbox"] label:has(input:checked) span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+/* 壓低 checkbox 原生圖示的存在感，讓整體更像篩選籤。 */
+div[data-testid="stCheckbox"] label > div:first-child {
+    margin-right: 0.32rem !important;
+}
+
+/* 篩選面板內的 checkbox：桌面版依螢幕寬度排列，手機版交給 Streamlit 自動堆疊。 */
+div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap !important;
+    gap: 0.42rem !important;
+}
+
+div[data-testid="stExpander"] div[data-testid="column"] {
+    flex: 0 0 calc(20% - 0.42rem) !important;
+    min-width: calc(20% - 0.42rem) !important;
+    width: calc(20% - 0.42rem) !important;
+}
+
+/* 確認篩選按鈕：由 order_page.py 的 confirm-filter-button-anchor 鎖定。 */
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button {
+    background-color: #0000FF !important;
+    border-color: #0000FF !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:hover,
+div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-testid="stButton"] button:focus {
+    background-color: #0000CC !important;
+    border-color: #0000CC !important;
+    color: #FFFFFF !important;
+}
+
+@media (max-width: 1100px) {
+    div[data-testid="stExpander"] div[data-testid="column"] {
+        flex-basis: calc(25% - 0.42rem) !important;
+        min-width: calc(25% - 0.42rem) !important;
+        width: calc(25% - 0.42rem) !important;
+    }
+}
+
+@media (max-width: 900px) {
+    div[data-testid="stExpander"] div[data-testid="column"] {
+        flex-basis: calc(33.333% - 0.42rem) !important;
+        min-width: calc(33.333% - 0.42rem) !important;
+        width: calc(33.333% - 0.42rem) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-summary {
+        display: flex;
+        width: 100%;
+        border-radius: 16px;
+        white-space: normal;
+    }
+
+    .filter-group-title {
+        margin-top: 0.75rem;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="column"] {
+        flex: 1 1 100% !important;
+        min-width: 100% !important;
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+        gap: 0.42rem !important;
+    }
+
+    div[data-testid="stCheckbox"] label {
+        min-height: 44px !important;
+        padding: 0.52rem 0.56rem;
+    }
+
+    div[data-testid="stCheckbox"] label p {
+        font-size: 0.86rem;
+        line-height: 1.25;
+    }
+}
+
+/* =========================================================
+   Phase 6：精簡區塊標題與狀態列
+   ========================================================= */
+.inline-section-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin: 0.3rem 0 0.45rem;
+}
+
+.inline-section-heading strong {
+    color: var(--text-main);
+    font-size: 0.98rem;
+    font-weight: 850;
+    letter-spacing: -0.01em;
+}
+
+.inline-section-heading span {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+@media (max-width: 768px) {
+    .inline-section-heading {
+        gap: 0.38rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .inline-section-heading strong {
+        font-size: 0.96rem;
+    }
+
+    .inline-section-heading span {
+        font-size: 0.8rem;
+    }
+}
+
+/* =========================================================
+   Phase 6：已選商品卡片數量輸入區
+   來源：整理 Phase 5 Step 2.16-B grid fix
+   目的：維持「商品名稱｜數量｜搭贈」同列排列，並移除 Phase 5 多段重複修補。
+   對應 order_page.py：.selected-products-card-note / .selected-product-card-row / .selected-product-card-name
+   ========================================================= */
+.selected-products-card-note {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin: 0.05rem 0 0.28rem 0;
+    line-height: 1.35;
+}
+
+/* 商品名稱：固定 15px，允許長品名換行，但不把數量 / 搭贈欄推出卡片。 */
+.selected-product-card-name {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    color: var(--text-main) !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    line-height: 1.22 !important;
+    padding-top: 0 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+}
+
+/* 卡片本體：限制最大寬度，避免桌面版拉太開，也避免手機版內容溢出。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
+    width: 100% !important;
+    max-width: 42rem !important;
+    overflow: hidden !important;
+    background: #ffffff;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+/* 卡片內距：保留足夠點擊空間，同時讓 32px 輸入框看起來緊湊。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
+    padding: 0.22rem 0.46rem !important;
+    box-sizing: border-box !important;
+}
+
+/* 關鍵：已選商品列使用 grid，商品名稱吃剩餘空間，兩個輸入框固定寬度。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 3.55rem 3.55rem !important;
+    column-gap: 0.42rem !important;
+    row-gap: 0 !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+}
+
+/* 清掉 Streamlit column 原本寬度，交給上方 grid 控制。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"] {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    flex: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: stretch !important;
+    overflow: hidden !important;
+}
+
+/* 第 1 欄：商品名稱。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) {
+    grid-column: 1 !important;
+}
+
+/* 第 2、3 欄：數量與搭贈固定小欄位。 */
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
+    width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    justify-content: center !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2) {
+    grid-column: 2 !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
+    grid-column: 3 !important;
+}
+
+/* 數量 / 搭贈輸入框：同步固定外層與 input 本體，避免被全站 input 規則撐高。 */
+div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
+div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
+div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
+div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
+div[data-baseweb="input"]:has(input[placeholder="數量"]),
+div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
+div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
+div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
+input[placeholder="數量"],
+input[placeholder="搭贈"] {
+    width: 3.55rem !important;
+    min-width: 3.55rem !important;
+    max-width: 3.55rem !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    box-sizing: border-box !important;
+}
+
+input[placeholder="數量"],
+input[placeholder="搭贈"] {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 32px !important;
+    text-align: center !important;
+    padding: 0 0.24rem !important;
+    border-radius: 8px !important;
+}
+
+input[placeholder="數量"]::placeholder,
+input[placeholder="搭贈"]::placeholder {
+    color: var(--text-soft) !important;
+    opacity: 1 !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+}
+
+@media (max-width: 768px) {
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
+        max-width: 100% !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
+        padding: 0.2rem 0.36rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
+        grid-template-columns: minmax(0, 1fr) 3.25rem 3.25rem !important;
+        column-gap: 0.28rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3),
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
+    div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
+    div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]) > div,
+    div[data-baseweb="input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="input"]:has(input[placeholder="搭贈"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="數量"]),
+    div[data-baseweb="base-input"]:has(input[placeholder="搭贈"]),
+    input[placeholder="數量"],
+    input[placeholder="搭贈"] {
+        width: 3.25rem !important;
+        min-width: 3.25rem !important;
+        max-width: 3.25rem !important;
+    }
+
+    .selected-product-card-name {
+        font-size: 15px !important;
+        line-height: 1.18 !important;
+    }
+}
+
+
+
+/* =========================================================
+   Phase 7 Step 1D：手機版篩選 checkbox 兩欄修正
+   原則：恢復 st.columns() 桌面多欄；手機版只在 expander 內把
+   checkbox row 改成 CSS grid 兩欄，避開全站 column 單欄限制。
+   ========================================================= */
+.filter-grid-scope {
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    line-height: 0 !important;
+    font-size: 0 !important;
+    color: transparent !important;
+}
+
+@media (max-width: 768px) {
+    /* 壓過 Phase 6 手機版 expander columns = 100% 的規則。
+       使用 grid 而不是 flex，避免 Streamlit columns 的 flex-basis 干擾。 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.42rem !important;
+        align-items: stretch !important;
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        flex: none !important;
+        display: block !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] > div {
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] {
+        width: 100% !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label {
+        width: 100% !important;
+        box-sizing: border-box !important;
+        min-height: 40px !important;
+        padding: 0.44rem 0.52rem !important;
+    }
+
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label p {
+        font-size: 0.84rem !important;
+        line-height: 1.2 !important;
+    }
+
+    /* 商品選擇：Phase 7 Step 1E。
+       商品名稱常把重要規格放在最後，因此手機版允許最多三行，
+       避免過早省略規格；品牌 / 品類仍維持較矮卡片。 */
+    div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label {
+        min-height: 78px !important;
+        padding: 0.52rem 0.52rem !important;
+        align-items: flex-start !important;
+    }
+
+    div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label p {
+        display: -webkit-box !important;
+        -webkit-line-clamp: 3 !important;
+        line-clamp: 3 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: normal !important;
+        font-size: 0.82rem !important;
+        line-height: 1.28 !important;
+    }
+}
+
+/* =========================================================
+   Phase 7 Step 1F：已選商品卡片文字與輸入框垂直置中
+   原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
+   ========================================================= */
+
+/* 長品名只縮小字體，不增加已選商品卡片高度。 */
+.selected-product-card-name.selected-product-card-name--long {
+    font-size: 14px !important;
+    line-height: 1.16 !important;
+}
+
+.selected-product-card-name.selected-product-card-name--xlong {
+    font-size: 13px !important;
+    line-height: 1.14 !important;
+}
+
+/* 只鎖定已選商品列內的數量 / 搭贈輸入框，避免影響商品搜尋與其他表單 input。 */
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"] > div,
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="input"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="base-input"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="input"] > div,
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="base-input"] > div {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    box-sizing: border-box !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="數量"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="搭贈"] {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    line-height: 1.15 !important;
+    padding: 0 0.24rem 2px 0.24rem !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="數量"]::placeholder,
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="搭贈"]::placeholder {
+    line-height: 1.15 !important;
+    text-align: center !important;
+}
+
+@media (max-width: 768px) {
+    .selected-product-card-name.selected-product-card-name--long {
+        font-size: 13.5px !important;
+        line-height: 1.14 !important;
+    }
+
+    .selected-product-card-name.selected-product-card-name--xlong {
+        font-size: 13px !important;
+        line-height: 1.12 !important;
+    }
+}
+
+/* =========================================================
+   Phase 7 Step 1J：已選商品卡片高度小幅增加，避免第二行品名被遮住
+   基準：Phase 7 Step 1F
+   原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
+   ========================================================= */
+
+/* 已選商品卡片本體：小幅增加上下內距，讓兩行品名有空間。 */
+div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
+    padding: 0.34rem 0.46rem !important;
+    box-sizing: border-box !important;
+}
+
+/* 已選商品列：增加列高，避免第一欄商品名稱第二行被 row 高度裁切。 */
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) {
+    min-height: 48px !important;
+    align-items: center !important;
+}
+
+/* 已選商品列的 Streamlit column 外層：同步增加高度，只限制在已選商品列。 */
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data-testid="column"] {
+    min-height: 44px !important;
+    align-items: center !important;
+}
+
+/* 商品名稱：不再強求縮字，改成保留兩行高度，避免第二行被遮住。 */
+.selected-product-card-name {
+    min-height: 44px !important;
+    max-height: 46px !important;
+    font-size: 15px !important;
+    line-height: 1.18 !important;
+    align-items: center !important;
+    overflow: hidden !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* 手機版再給一點點高度，因為商品名稱較容易換成兩行。 */
+@media (max-width: 768px) {
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
+        padding: 0.38rem 0.46rem !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) {
+        min-height: 52px !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data-testid="column"] {
+        min-height: 48px !important;
+    }
+
+    .selected-product-card-name {
+        min-height: 48px !important;
+        max-height: 50px !important;
+        line-height: 1.18 !important;
+    }
+}
+
+/* =========================================================
+   Phase 7 Step 2A：手機版篩選區間距整理
+   基準：Phase 7 Step 1J
+   原則：只整理手機版篩選 / 商品選擇 expander 內距與 checkbox 間距，
+         不調整 checkbox 高度、不調整已選商品卡片、不改 Python 邏輯。
+   ========================================================= */
+@media (max-width: 768px) {
+    /* 篩選 expander 內容區：微調上下內距，讓展開後的空白更一致。 */
+    div[data-testid="stExpander"] div[data-testid="stExpanderDetails"] {
+        padding-top: 0.38rem !important;
+        padding-bottom: 0.48rem !important;
+    }
+
+    /* 品牌 / 品類 / 商品 checkbox 的兩欄格線間距：維持高度，只整理間距。 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
+        gap: 6px !important;
+        row-gap: 6px !important;
+        column-gap: 6px !important;
+        margin-top: 0.18rem !important;
+        margin-bottom: 0.18rem !important;
+    }
+
+    /* Streamlit column 內層常會額外產生垂直 gap；只在 expander checkbox 內歸零。 */
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] > div,
+    div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) > div[data-testid="column"] div[data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+    }
+
+    /* checkbox 元件本身不要再額外撐出上下間距；不改 label 高度與 padding。 */
+    div[data-testid="stExpander"] div[data-testid="stElementContainer"]:has(div[data-testid="stCheckbox"]),
+    div[data-testid="stExpander"] div[data-testid="stCheckbox"] {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* 商品選擇區仍沿用 Step 1E 的高度與三行顯示，只統一格線間距。 */
+    div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
+        gap: 6px !important;
+        row-gap: 6px !important;
+        column-gap: 6px !important;
+    }
+}
+
+/* =========================================================
+   Phase 7 Step 3B：手機版購物車確認區欄寬強化
+   基準：Phase 7 Step 2A-2
+   原則：只針對購物車確認區 data_editor，保留左側列操作欄，
+         讓商品 / 訂購 / 搭贈三欄盡量落在手機螢幕範圍內。
+   ========================================================= */
+@media (max-width: 768px) {
+    /* 購物車表格外層：限制在手機容器寬度內，避免整個表格撐出畫面。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"],
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* Streamlit data editor 內層常有固定最小寬度；在購物車區域內盡量限制為容器寬。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"] > div,
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    /* data editor 工具列圖示不要撐太寬；保留功能但縮小間距。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"] button,
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] button {
+        min-width: 32px !important;
+        width: 32px !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* 左側列操作欄需要保留刪除功能，不隱藏；只嘗試縮小其最小寬度。 */
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) [role="rowheader"],
+    div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) [aria-colindex="1"] {
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+    }
+}
