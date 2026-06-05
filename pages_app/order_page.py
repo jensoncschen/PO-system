@@ -308,25 +308,33 @@ def _estimate_product_name_chinese_units(product_name: str) -> float:
     return chinese_units
 
 
-def _get_selected_product_name_style(product_name: str) -> tuple[str, str]:
-    """依 12 個中文字門檻回傳已選商品卡片用的 class 與 inline style。
+def _get_selected_product_name_style(product_name: str) -> tuple[str, str, str]:
+    """依 12 個中文字門檻回傳已選商品名稱文字本體用的 class 與 inline style。
 
-    使用 inline style 是為了避免 Streamlit / BaseWeb 或既有 CSS 權重導致
-    長品名字體縮小規則沒有命中。
+    Phase 7 Step 1I：
+    前幾版只縮小外層 div，實機畫面仍沒有明顯縮小。
+    這版改成把樣式套在內層 span 文字本體，並用 transform scale 作為
+    font-size 被既有 CSS 覆蓋時的第二層保險。
     """
     chinese_units = _estimate_product_name_chinese_units(product_name)
 
     if chinese_units > 18:
         return (
-            " selected-product-card-name--xlong",
-            "font-size: 12.5px !important; line-height: 1.1 !important;",
+            " selected-product-card-name-text--xlong",
+            "font-size: 12.5px !important; line-height: 1.08 !important; "
+            "transform: scale(0.84) !important; transform-origin: left center !important; "
+            "width: 119% !important; max-width: 119% !important;",
+            "xlong",
         )
     if chinese_units > 12:
         return (
-            " selected-product-card-name--long",
-            "font-size: 13px !important; line-height: 1.12 !important;",
+            " selected-product-card-name-text--long",
+            "font-size: 13px !important; line-height: 1.1 !important; "
+            "transform: scale(0.9) !important; transform-origin: left center !important; "
+            "width: 112% !important; max-width: 112% !important;",
+            "long",
         )
-    return "", ""
+    return "", "", "normal"
 
 
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
@@ -345,11 +353,16 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
             name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
 
             with name_col:
-                name_size_class, name_inline_style = _get_selected_product_name_style(product_name)
+                name_text_class, name_inline_style, name_size_mode = _get_selected_product_name_style(product_name)
                 style_attr = f" style='{name_inline_style}'" if name_inline_style else ""
 
                 st.markdown(
-                    f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'{style_attr}>{safe_html(product_name)}</div>",
+                    "<div class='selected-product-card-row selected-product-card-name' "
+                    f"data-name-size='{name_size_mode}'>"
+                    f"<span class='selected-product-card-name-text{name_text_class}'{style_attr}>"
+                    f"{safe_html(product_name)}"
+                    "</span>"
+                    "</div>",
                     unsafe_allow_html=True,
                 )
 
