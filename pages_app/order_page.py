@@ -282,39 +282,51 @@ def _prepare_quantity_text_state(product_name: str) -> None:
 
 
 
-def _estimate_product_name_visual_width(product_name: str) -> int:
-    """估算商品名稱在手機版的視覺長度。
+def _estimate_product_name_chinese_units(product_name: str) -> float:
+    """估算商品名稱約等於幾個中文字寬。
 
-    Python 的 len() 對中文、全形字、半形英數都算 1，
-    但手機畫面上中文 / 全形字通常比半形英數更佔寬。
-    這裡只用來決定是否加上長品名字體 class，不影響商品資料與訂單流程。
+    Phase 7 Step 1H 規則：
+    - 中文 / 全形字 / 日韓文字：算 1 個中文字寬。
+    - 半形英文 / 數字 / 符號：算 0.5 個中文字寬。
+
+    這個值只用來決定已選商品卡片字體大小，不影響商品資料與訂單流程。
     """
     text = str(product_name or "")
-    visual_width = 0
+    chinese_units = 0.0
+
     for char in text:
         code = ord(char)
-        if (
+        is_wide_char = (
             0x4E00 <= code <= 0x9FFF      # CJK Unified Ideographs
             or 0x3400 <= code <= 0x4DBF   # CJK Extension A
             or 0x3040 <= code <= 0x30FF   # Japanese Hiragana / Katakana
             or 0xAC00 <= code <= 0xD7AF   # Hangul
             or 0xFF00 <= code <= 0xFFEF   # Fullwidth forms
-        ):
-            visual_width += 2
-        else:
-            visual_width += 1
-    return visual_width
+        )
+        chinese_units += 1.0 if is_wide_char else 0.5
+
+    return chinese_units
 
 
-def _get_selected_product_name_size_class(product_name: str) -> str:
-    """依商品名稱視覺長度回傳已選商品卡片用的字級 class。"""
-    visual_width = _estimate_product_name_visual_width(product_name)
+def _get_selected_product_name_style(product_name: str) -> tuple[str, str]:
+    """依 12 個中文字門檻回傳已選商品卡片用的 class 與 inline style。
 
-    if visual_width >= 38:
-        return " selected-product-card-name--xlong"
-    if visual_width >= 28:
-        return " selected-product-card-name--long"
-    return ""
+    使用 inline style 是為了避免 Streamlit / BaseWeb 或既有 CSS 權重導致
+    長品名字體縮小規則沒有命中。
+    """
+    chinese_units = _estimate_product_name_chinese_units(product_name)
+
+    if chinese_units > 18:
+        return (
+            " selected-product-card-name--xlong",
+            "font-size: 12.5px !important; line-height: 1.1 !important;",
+        )
+    if chinese_units > 12:
+        return (
+            " selected-product-card-name--long",
+            "font-size: 13px !important; line-height: 1.12 !important;",
+        )
+    return "", ""
 
 
 def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
@@ -333,10 +345,11 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
             name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
 
             with name_col:
-                name_size_class = _get_selected_product_name_size_class(product_name)
+                name_size_class, name_inline_style = _get_selected_product_name_style(product_name)
+                style_attr = f" style='{name_inline_style}'" if name_inline_style else ""
 
                 st.markdown(
-                    f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'>{safe_html(product_name)}</div>",
+                    f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'{style_attr}>{safe_html(product_name)}</div>",
                     unsafe_allow_html=True,
                 )
 
