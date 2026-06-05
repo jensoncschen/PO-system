@@ -298,8 +298,15 @@ def _render_selected_product_inputs(selected_products: list[str], product_key_pr
             name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
 
             with name_col:
+                name_length = len(str(product_name))
+                name_size_class = ""
+                if name_length >= 36:
+                    name_size_class = " selected-product-card-name--xlong"
+                elif name_length >= 24:
+                    name_size_class = " selected-product-card-name--long"
+
                 st.markdown(
-                    f"<div class='selected-product-card-row selected-product-card-name'>{safe_html(product_name)}</div>",
+                    f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'>{safe_html(product_name)}</div>",
                     unsafe_allow_html=True,
                 )
 
