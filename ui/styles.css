@@ -1205,3 +1205,18 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[plac
         line-height: 1.1 !important;
     }
 }
+
+/* =========================================================
+   Phase 7 Step 1H：已選商品 12 中文字門檻縮字修正
+   原則：不改已選商品卡片高度；只強化長品名字級。
+   Python 端已用 inline style 強制套用，這裡保留 class fallback。
+   ========================================================= */
+.selected-product-card-name.selected-product-card-name--long {
+    font-size: 13px !important;
+    line-height: 1.12 !important;
+}
+
+.selected-product-card-name.selected-product-card-name--xlong {
+    font-size: 12.5px !important;
+    line-height: 1.1 !important;
+}
