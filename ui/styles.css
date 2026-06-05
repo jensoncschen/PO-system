@@ -1115,3 +1115,66 @@ input[placeholder="搭贈"]::placeholder {
         line-height: 1.28 !important;
     }
 }
+
+/* =========================================================
+   Phase 7 Step 1F：已選商品卡片文字與輸入框垂直置中
+   原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
+   ========================================================= */
+
+/* 長品名只縮小字體，不增加已選商品卡片高度。 */
+.selected-product-card-name.selected-product-card-name--long {
+    font-size: 14px !important;
+    line-height: 1.16 !important;
+}
+
+.selected-product-card-name.selected-product-card-name--xlong {
+    font-size: 13px !important;
+    line-height: 1.14 !important;
+}
+
+/* 只鎖定已選商品列內的數量 / 搭贈輸入框，避免影響商品搜尋與其他表單 input。 */
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"] > div,
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="input"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="base-input"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="input"] > div,
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="base-input"] > div {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    box-sizing: border-box !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="數量"],
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="搭贈"] {
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    line-height: 1.15 !important;
+    padding: 0 0.24rem 2px 0.24rem !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="數量"]::placeholder,
+div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[placeholder="搭贈"]::placeholder {
+    line-height: 1.15 !important;
+    text-align: center !important;
+}
+
+@media (max-width: 768px) {
+    .selected-product-card-name.selected-product-card-name--long {
+        font-size: 13.5px !important;
+        line-height: 1.14 !important;
+    }
+
+    .selected-product-card-name.selected-product-card-name--xlong {
+        font-size: 13px !important;
+        line-height: 1.12 !important;
+    }
+}
