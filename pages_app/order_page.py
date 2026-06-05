@@ -144,7 +144,7 @@ def _render_checkbox_grid(
     title: str,
     options: list[str],
     key_prefix: str,
-    columns: int = 5,
+    columns: int = 4,
     on_change=None,
     on_change_args: tuple = (),
     grid_variant: str = "filter",
@@ -152,7 +152,7 @@ def _render_checkbox_grid(
     """以方塊勾選方式呈現複選篩選。
 
     使用 Streamlit 原生欄位建立桌面版響應式排列。
-    Phase 7 Step 1D 保留 st.columns()，避免破壞桌面版；手機兩欄交給 CSS grid 覆蓋。
+    Phase 7 Step 2A-2：保留 st.columns()，但每組改為 4 欄，讓手機兩欄排列可連續填滿。
     """
     safe_variant = "product" if grid_variant == "product" else "filter"
     st.markdown(
@@ -449,7 +449,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 "品牌",
                 brand_options,
                 brand_filter_key_prefix,
-                columns=5,
+                columns=4,
                 on_change=_keep_filter_expander_open,
                 on_change_args=("brand",),
             )
@@ -466,7 +466,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 "品類",
                 category_options,
                 category_filter_key_prefix,
-                columns=5,
+                columns=4,
                 on_change=_keep_filter_expander_open,
                 on_change_args=("category",),
             )
@@ -558,7 +558,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         )
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
-            selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=5, grid_variant="product")
+            selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=4, grid_variant="product")
 
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
