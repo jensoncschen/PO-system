@@ -310,6 +310,8 @@ def _ensure_order_page_session_state() -> None:
         st.session_state.input_reset_trigger = 0
     if "form_reset_trigger" not in st.session_state:
         st.session_state.form_reset_trigger = 0
+    if "cart_editor_reset_trigger" not in st.session_state:
+        st.session_state.cart_editor_reset_trigger = 0
 
     _ensure_product_filter_flow_state()
     _ensure_product_filter_reset_trigger()
@@ -320,6 +322,7 @@ def _reset_order_page_after_successful_submission() -> None:
     st.session_state.cart_list = []
     st.session_state.input_reset_trigger += 1
     st.session_state.form_reset_trigger += 1
+    st.session_state.cart_editor_reset_trigger += 1
     _reset_product_filter_selection()
 
 
@@ -897,7 +900,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 use_container_width=True,
                 hide_index=True,
                 num_rows="dynamic",
-                key="final_cart_editor"
+                key=f"final_cart_editor_{st.session_state.cart_editor_reset_trigger}"
             )
 
             if _has_cart_editor_changed(edited_cart, cart_df):
@@ -908,6 +911,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                     st.session_state.cart_editor_notice = cart_editor_notice
 
                 # data_editor 修改後立即重新整理一次，避免摘要與「送出前確認」仍顯示舊合計。
+                # 同時更新 key，清掉 data_editor 內部暫存的空白新增列，避免誤新增空白列後重複 rerun。
+                st.session_state.cart_editor_reset_trigger += 1
                 st.rerun()
 
             final_sales_label, final_cust_label = _get_final_order_labels(selected_sales_name, selected_cust_name)
