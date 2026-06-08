@@ -302,6 +302,33 @@ def _reset_product_filter_selection() -> None:
     _reset_product_filter_flow()
 
 
+def _ensure_order_page_session_state() -> None:
+    """初始化下單頁必要狀態，避免 render 主流程分散處理 session_state 預設值。"""
+    if "cart_list" not in st.session_state:
+        st.session_state.cart_list = []
+    if "input_reset_trigger" not in st.session_state:
+        st.session_state.input_reset_trigger = 0
+    if "form_reset_trigger" not in st.session_state:
+        st.session_state.form_reset_trigger = 0
+
+    _ensure_product_filter_flow_state()
+    _ensure_product_filter_reset_trigger()
+
+
+def _reset_order_page_after_successful_submission() -> None:
+    """送出訂單成功後集中重置下單頁狀態。"""
+    st.session_state.cart_list = []
+    st.session_state.input_reset_trigger += 1
+    st.session_state.form_reset_trigger += 1
+    _reset_product_filter_selection()
+
+
+def _clear_session_state_keys(keys: list[str]) -> None:
+    """集中清除指定 session_state key，避免主流程出現重複刪除細節。"""
+    for key in keys:
+        if key in st.session_state:
+            del st.session_state[key]
+
 
 
 def _render_compact_quantity_input_css() -> None:
@@ -574,6 +601,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         ["1 訂單資訊", "2 新增商品", "3 購物車確認"],
     )
 
+    _ensure_order_page_session_state()
+
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
     # 區塊 1：訂單資訊
@@ -627,10 +656,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 st.error(f"訂單送出失敗，購物車已保留。錯誤原因：{exc}")
                 return
 
-            st.session_state.cart_list = []
-            st.session_state.input_reset_trigger += 1 
-            st.session_state.form_reset_trigger += 1
-            _reset_product_filter_selection()
+            _reset_order_page_after_successful_submission()
             st.cache_data.clear()
             st.success(f"訂單 {generated_bill_no} 建立成功。")
             time.sleep(1.2)
@@ -649,7 +675,6 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
     )
 
     input_suffix = f"_{st.session_state.input_reset_trigger}"
-    _ensure_product_filter_flow_state()
     filter_suffix = _get_product_filter_suffix()
     brand_filter_key_prefix = f"filter_brand{filter_suffix}"
     category_filter_key_prefix = f"filter_category{filter_suffix}"
@@ -806,9 +831,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                         for cart_item in cart_items_to_add:
                             st.session_state.cart_list.insert(0, cart_item)
 
-                        for key in keys_to_clear:
-                            if key in st.session_state:
-                                del st.session_state[key]
+                        _clear_session_state_keys(keys_to_clear)
 
                         # 透過更新 input_reset_trigger 讓商品選取 checkbox 使用新的 key，
                         # 避免在同一輪渲染中直接改已建立的 checkbox state 而觸發 StreamlitAPIException。
