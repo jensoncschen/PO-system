@@ -28,6 +28,15 @@
     padding-bottom: 6.5rem;
 }
 
+/* Phase 9.1：降低 expander 展開後第一次滾動被瀏覽器 scroll anchoring 拉回的機率。
+   只影響瀏覽器捲動定位，不改版面尺寸、顏色、間距或 Streamlit 元件結構。 */
+.main .block-container,
+div[data-testid="stExpander"],
+div[data-testid="stExpander"] div[data-testid="stExpanderDetails"],
+div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
+    overflow-anchor: none;
+}
+
 h1, h2, h3, .stMarkdown p, label, span {
     color: var(--text-main);
 }
