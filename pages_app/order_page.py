@@ -435,6 +435,64 @@ def _build_cart_item(
     }
 
 
+def _has_required_order_info(selected_sales_name: str | None, selected_cust_name: str | None) -> bool:
+    """確認建立訂單或加入購物車前，必要的業務與客戶資訊已選擇。"""
+    return bool(selected_sales_name and selected_cust_name)
+
+
+def _normalize_non_negative_quantity(value) -> int:
+    """將數量欄位轉為非負整數，避免負數進入購物車或送出流程。"""
+    return max(safe_int(value), 0)
+
+
+def _get_quantity_input_keys(product_name: str) -> list[str]:
+    """取得單一商品的數量 / 搭贈輸入欄位 key。"""
+    return [f"q_{product_name}", f"g_{product_name}"]
+
+
+def _get_selected_product_quantities(product_name: str, state) -> tuple[int, int]:
+    """從 session_state 讀取已選商品的訂購與搭贈數量。"""
+    quantity = _normalize_non_negative_quantity(state.get(f"q_{product_name}"))
+    gift_quantity = _normalize_non_negative_quantity(state.get(f"g_{product_name}"))
+    return quantity, gift_quantity
+
+
+def _build_cart_items_from_selected_products(
+    selected_products: list[str],
+    selected_sales_name: str,
+    selected_cust_name: str,
+    global_prod_dict: dict,
+    state,
+) -> tuple[list[dict], list[str], list[str]]:
+    """整理已選商品輸入結果，回傳可加入購物車的資料、需清空的 key 與異常商品。"""
+    cart_items: list[dict] = []
+    keys_to_clear: list[str] = []
+    invalid_product_names: list[str] = []
+
+    for product_name in selected_products:
+        quantity, gift_quantity = _get_selected_product_quantities(product_name, state)
+
+        if quantity > 0 or gift_quantity > 0:
+            product_info = global_prod_dict.get(product_name, {})
+            product_id = product_info.get("產品編號")
+
+            if not _is_valid_cart_product_value(product_id):
+                invalid_product_names.append(product_name)
+            else:
+                cart_items.append(_build_cart_item(
+                    selected_sales_name,
+                    selected_cust_name,
+                    product_name,
+                    product_info,
+                    quantity,
+                    gift_quantity,
+                ))
+
+        keys_to_clear.extend(_get_quantity_input_keys(product_name))
+
+    return cart_items, keys_to_clear, invalid_product_names
+
+
 
 def render_order_page(conn, df_customers, df_products, df_salespeople, global_prod_dict) -> None:
     render_page_header(
@@ -472,7 +530,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
     # 統一結帳動作，保留原本訂單邏輯
     def trigger_order_submission():
-        if not selected_sales_name or not selected_cust_name:
+        if not _has_required_order_info(selected_sales_name, selected_cust_name):
             st.error("請確認已選擇業務與客戶。")
             return
 
@@ -653,49 +711,33 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             submitted = st.button("加入購物車", type="primary", use_container_width=True, key=f"add_selected_products{input_suffix}")
 
             if submitted:
-                if not selected_sales_name or not selected_cust_name:
+                if not _has_required_order_info(selected_sales_name, selected_cust_name):
                     st.error("請先在訂單資訊區選擇業務與客戶。")
                 else:
-                    items_added_count = 0
-                    keys_to_clear = []
+                    cart_items_to_add, keys_to_clear, invalid_product_names = _build_cart_items_from_selected_products(
+                        selected_products_batch,
+                        selected_sales_name,
+                        selected_cust_name,
+                        global_prod_dict,
+                        st.session_state,
+                    )
 
-                    for p_name in selected_products_batch:
-                        q_raw = st.session_state.get(f"q_{p_name}")
-                        g_raw = st.session_state.get(f"g_{p_name}")
+                    for product_name in invalid_product_names:
+                        st.error(f"商品資料不完整，未加入購物車：{product_name}")
 
-                        q_val = max(safe_int(q_raw), 0)
-                        g_val = max(safe_int(g_raw), 0)
+                    if cart_items_to_add:
+                        for cart_item in cart_items_to_add:
+                            st.session_state.cart_list.insert(0, cart_item)
 
-                        if q_val > 0 or g_val > 0:
-                            p_info = global_prod_dict.get(p_name, {})
-                            product_id = p_info.get("產品編號")
-
-                            if not _is_valid_cart_product_value(product_id):
-                                st.error(f"商品資料不完整，未加入購物車：{p_name}")
-                                continue
-
-                            st.session_state.cart_list.insert(0, _build_cart_item(
-                                selected_sales_name,
-                                selected_cust_name,
-                                p_name,
-                                p_info,
-                                q_val,
-                                g_val,
-                            ))
-                            items_added_count += 1
-
-                        keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
-
-                    if items_added_count > 0:
-                        for k in keys_to_clear:
-                            if k in st.session_state:
-                                del st.session_state[k]
+                        for key in keys_to_clear:
+                            if key in st.session_state:
+                                del st.session_state[key]
 
                         # 透過更新 input_reset_trigger 讓商品選取 checkbox 使用新的 key，
                         # 避免在同一輪渲染中直接改已建立的 checkbox state 而觸發 StreamlitAPIException。
                         st.session_state.input_reset_trigger += 1
                         _reset_product_filter_flow()
-                        st.toast(f"成功加入 {items_added_count} 項商品")
+                        st.toast(f"成功加入 {len(cart_items_to_add)} 項商品")
                         time.sleep(0.5)
                         st.rerun()
                     else:
