@@ -397,6 +397,36 @@ def _get_cart_summary(cart_list: list[dict]) -> tuple[int, int, int]:
     return cart_count, total_quantity, total_gift
 
 
+def _build_cart_dataframe(cart_list: list[dict]) -> pd.DataFrame:
+    """將購物車清單轉成表格，集中管理購物車確認區資料來源。"""
+    return pd.DataFrame(cart_list)
+
+
+def _has_cart_editor_changed(edited_cart: pd.DataFrame, original_cart: pd.DataFrame) -> bool:
+    """判斷購物車確認表格是否有被修改，避免在 UI 區塊中混入比較細節。"""
+    if edited_cart is None:
+        return False
+    return not edited_cart.equals(original_cart)
+
+
+def _prepare_cart_editor_update(edited_cart: pd.DataFrame) -> tuple[list[dict], str]:
+    """整理購物車表格修改結果，回傳新的購物車資料與必要提示文字。"""
+    cleaned_cart_records, removed_blank_rows = _sanitize_cart_editor_records(edited_cart)
+
+    notice = ""
+    if removed_blank_rows > 0:
+        notice = "已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。"
+
+    return cleaned_cart_records, notice
+
+
+def _get_final_order_labels(selected_sales_name: str | None, selected_cust_name: str | None) -> tuple[str, str]:
+    """取得送出前確認區顯示用的業務與客戶文字。"""
+    final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
+    final_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇客戶"
+    return final_sales_label, final_cust_label
+
+
 def _filter_products_by_values(df_products: pd.DataFrame, column_name: str, selected_values: list[str]) -> pd.DataFrame:
     """依指定欄位篩選商品；未選擇時保留原資料。"""
     if not selected_values or column_name not in df_products.columns:
@@ -757,14 +787,13 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             if cart_notice:
                 st.warning(cart_notice)
 
-            cart_df = pd.DataFrame(st.session_state.cart_list)
-            total_quantity = int(cart_df["訂購數量"].apply(safe_int).sum()) if "訂購數量" in cart_df.columns else 0
-            total_gift = int(cart_df["搭贈數量"].apply(safe_int).sum()) if "搭贈數量" in cart_df.columns else 0
+            cart_df = _build_cart_dataframe(st.session_state.cart_list)
+            cart_count, total_quantity, total_gift = _get_cart_summary(st.session_state.cart_list)
             st.markdown(f"""
                 <div class='cart-summary'>
                     <div class='summary-card'>
                         <div class='summary-label'>商品項目</div>
-                        <div class='summary-value'>{len(cart_df)}</div>
+                        <div class='summary-value'>{cart_count}</div>
                     </div>
                     <div class='summary-card'>
                         <div class='summary-label'>訂購數量</div>
@@ -801,24 +830,23 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 key="final_cart_editor"
             )
 
-            if not edited_cart.equals(cart_df):
-                cleaned_cart_records, removed_blank_rows = _sanitize_cart_editor_records(edited_cart)
+            if _has_cart_editor_changed(edited_cart, cart_df):
+                cleaned_cart_records, cart_editor_notice = _prepare_cart_editor_update(edited_cart)
                 st.session_state.cart_list = cleaned_cart_records
 
-                if removed_blank_rows > 0:
-                    st.session_state.cart_editor_notice = "已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。"
+                if cart_editor_notice:
+                    st.session_state.cart_editor_notice = cart_editor_notice
 
                 # data_editor 修改後立即重新整理一次，避免摘要與「送出前確認」仍顯示舊合計。
                 st.rerun()
 
-            final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
-            final_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇客戶"
+            final_sales_label, final_cust_label = _get_final_order_labels(selected_sales_name, selected_cust_name)
             st.markdown(f"""
                 <div class='cart-final-panel'>
                     <div class='cart-final-title'>送出前確認</div>
                     <div class='cart-final-value'>{final_sales_label} → {final_cust_label}</div>
                     <div class='cart-final-title' style='margin-top:0.45rem;'>本次合計</div>
-                    <div class='cart-final-value'>{len(st.session_state.cart_list)} 項商品｜訂購 {total_quantity}｜搭贈 {total_gift}</div>
+                    <div class='cart-final-value'>{cart_count} 項商品｜訂購 {total_quantity}｜搭贈 {total_gift}</div>
                 </div>
             """, unsafe_allow_html=True)
 
