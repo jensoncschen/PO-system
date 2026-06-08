@@ -389,6 +389,52 @@ def _get_product_options(df_products_filtered: pd.DataFrame) -> list[str]:
     return product_names
 
 
+def _get_cart_summary(cart_list: list[dict]) -> tuple[int, int, int]:
+    """計算購物車項目數、訂購總數與搭贈總數。"""
+    cart_count = len(cart_list)
+    total_quantity = sum(safe_int(item.get("訂購數量", 0)) for item in cart_list)
+    total_gift = sum(safe_int(item.get("搭贈數量", 0)) for item in cart_list)
+    return cart_count, total_quantity, total_gift
+
+
+def _filter_products_by_values(df_products: pd.DataFrame, column_name: str, selected_values: list[str]) -> pd.DataFrame:
+    """依指定欄位篩選商品；未選擇時保留原資料。"""
+    if not selected_values or column_name not in df_products.columns:
+        return df_products.copy()
+    return df_products[df_products[column_name].astype(str).isin(selected_values)]
+
+
+def _build_selected_filter_parts(selected_brand_filters: list[str], selected_category_filters: list[str]) -> list[str]:
+    """組合目前已套用的品牌 / 品類篩選文字。"""
+    selected_filter_parts: list[str] = []
+    if selected_brand_filters:
+        selected_filter_parts.append("品牌：" + "、".join(selected_brand_filters))
+    if selected_category_filters:
+        selected_filter_parts.append("品類：" + "、".join(selected_category_filters))
+    return selected_filter_parts
+
+
+def _build_cart_item(
+    selected_sales_name: str,
+    selected_cust_name: str,
+    product_name: str,
+    product_info: dict,
+    quantity: int,
+    gift_quantity: int,
+) -> dict:
+    """依目前選擇的訂單資訊與商品資料建立購物車列。"""
+    return {
+        "業務名稱": selected_sales_name,
+        "客戶名稱": selected_cust_name,
+        "產品編號": product_info.get("產品編號"),
+        "產品名稱": product_name,
+        "品牌": product_info.get("品牌", ""),
+        "品類": product_info.get("品類", ""),
+        "訂購數量": quantity,
+        "搭贈數量": gift_quantity,
+    }
+
+
 
 def render_order_page(conn, df_customers, df_products, df_salespeople, global_prod_dict) -> None:
     render_page_header(
@@ -459,9 +505,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             time.sleep(1.2)
             st.rerun()
 
-    cart_count = len(st.session_state.cart_list)
-    total_quantity = sum(safe_int(item.get("訂購數量", 0)) for item in st.session_state.cart_list)
-    total_gift = sum(safe_int(item.get("搭贈數量", 0)) for item in st.session_state.cart_list)
+    cart_count, total_quantity, total_gift = _get_cart_summary(st.session_state.cart_list)
     if cart_count > 0:
         render_sticky_cart_bar(cart_count, total_quantity, total_gift)
 
@@ -504,9 +548,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 on_change_args=("brand",),
             )
 
-        df_after_brand_filter = df_products.copy()
-        if selected_brand_filters:
-            df_after_brand_filter = df_after_brand_filter[df_after_brand_filter["品牌"].astype(str).isin(selected_brand_filters)]
+        df_after_brand_filter = _filter_products_by_values(df_products, "品牌", selected_brand_filters)
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
         selected_category_count = len(_get_selected_values(category_options, category_filter_key_prefix))
@@ -541,15 +583,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 on_click=_reset_product_filter_selection,
             )
 
-        df_step1 = df_after_brand_filter.copy()
-        if selected_category_filters:
-            df_step1 = df_step1[df_step1["品類"].astype(str).isin(selected_category_filters)]
-
-        selected_filter_parts = []
-        if selected_brand_filters:
-            selected_filter_parts.append("品牌：" + "、".join(selected_brand_filters))
-        if selected_category_filters:
-            selected_filter_parts.append("品類：" + "、".join(selected_category_filters))
+        df_step1 = _filter_products_by_values(df_after_brand_filter, "品類", selected_category_filters)
+        selected_filter_parts = _build_selected_filter_parts(selected_brand_filters, selected_category_filters)
 
         if barcode_input:
             clean_input = barcode_input.strip()
@@ -639,16 +674,14 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                                 st.error(f"商品資料不完整，未加入購物車：{p_name}")
                                 continue
 
-                            st.session_state.cart_list.insert(0, {
-                                "業務名稱": selected_sales_name,
-                                "客戶名稱": selected_cust_name,
-                                "產品編號": product_id,
-                                "產品名稱": p_name,
-                                "品牌": p_info.get("品牌", ""),
-                                "品類": p_info.get("品類", ""),
-                                "訂購數量": q_val,
-                                "搭贈數量": g_val
-                            })
+                            st.session_state.cart_list.insert(0, _build_cart_item(
+                                selected_sales_name,
+                                selected_cust_name,
+                                p_name,
+                                p_info,
+                                q_val,
+                                g_val,
+                            ))
                             items_added_count += 1
 
                         keys_to_clear.extend([f"q_{p_name}", f"g_{p_name}"])
