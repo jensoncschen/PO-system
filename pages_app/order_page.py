@@ -444,6 +444,49 @@ def _build_selected_filter_parts(selected_brand_filters: list[str], selected_cat
     return selected_filter_parts
 
 
+def _get_filter_expander_label(step_no: int, title: str, selected_count: int, note: str = "") -> str:
+    """產生品牌 / 品類篩選 expander 標題文字，避免 render 區塊混入字串組合細節。"""
+    note_text = f"{note}｜" if note else ""
+    return f"{step_no}. {title}（{note_text}已選 {selected_count}）"
+
+
+def _get_product_expander_label(total_count: int, visible_count: int, selected_count: int) -> str:
+    """產生商品選擇 expander 標題文字。"""
+    return f"3. 選擇商品（符合 {total_count}｜顯示 {visible_count}｜已選 {selected_count}）"
+
+
+def _should_expand_product_selector(search_text: str, product_select_expanded: bool, selected_product_count: int) -> bool:
+    """判斷商品選擇區是否應展開，保留搜尋或已有選取時自動展開的既有行為。"""
+    return bool(search_text or product_select_expanded or selected_product_count > 0)
+
+
+def _get_filter_summary_html(
+    has_search_text: bool,
+    result_count: int,
+    selected_filter_parts: list[str],
+    selected_brand_count: int,
+    selected_category_count: int,
+) -> str:
+    """產生商品篩選結果提示 HTML，集中管理搜尋優先與未篩選提示文字。"""
+    if has_search_text:
+        if selected_filter_parts:
+            return (
+                "<div class='filter-summary filter-summary-search'>"
+                f"搜尋結果｜符合 {result_count} 項｜篩選暫不套用"
+                "</div>"
+            )
+        return f"<div class='filter-summary'>搜尋結果｜符合 {result_count} 項</div>"
+
+    if selected_filter_parts:
+        return (
+            "<div class='filter-summary'>"
+            f"品牌 {selected_brand_count}｜品類 {selected_category_count}｜符合 {result_count} 項"
+            "</div>"
+        )
+
+    return f"<div class='filter-summary filter-summary-muted'>未套用篩選｜共 {result_count} 項</div>"
+
+
 def _build_cart_item(
     selected_sales_name: str,
     selected_cust_name: str,
@@ -625,7 +668,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         brand_options = _get_unique_options(df_products["品牌"])
         selected_brand_count = len(_get_selected_values(brand_options, brand_filter_key_prefix))
 
-        brand_expander_label = f"1. 品牌篩選（已選 {selected_brand_count}）"
+        brand_expander_label = _get_filter_expander_label(1, "品牌篩選", selected_brand_count)
         with st.expander(brand_expander_label, expanded=st.session_state.brand_filter_expanded):
             selected_brand_filters = _render_checkbox_grid(
                 "品牌",
@@ -640,7 +683,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
         category_options = _get_unique_options(df_after_brand_filter["品類"])
         selected_category_count = len(_get_selected_values(category_options, category_filter_key_prefix))
-        category_expander_label = f"2. 品類篩選（依品牌顯示｜已選 {selected_category_count}）"
+        category_expander_label = _get_filter_expander_label(2, "品類篩選", selected_category_count, "依品牌顯示")
         with st.expander(category_expander_label, expanded=st.session_state.category_filter_expanded):
             selected_category_filters = _render_checkbox_grid(
                 "品類",
@@ -681,28 +724,28 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             if df_step2.empty:
                 st.error(f"找不到包含「{safe_html(clean_input)}」的商品資料。可搜尋產品名稱、條碼、品牌、品類或產品編號。")
 
-            if selected_filter_parts:
-                st.markdown(
-                    "<div class='filter-summary filter-summary-search'>搜尋結果｜符合 " + str(len(df_step2)) + " 項｜篩選暫不套用</div>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    f"<div class='filter-summary'>搜尋結果｜符合 {len(df_step2)} 項</div>",
-                    unsafe_allow_html=True,
-                )
+            st.markdown(
+                _get_filter_summary_html(
+                    True,
+                    len(df_step2),
+                    selected_filter_parts,
+                    selected_brand_count,
+                    selected_category_count,
+                ),
+                unsafe_allow_html=True,
+            )
         else:
             df_step2 = df_step1.copy()
-            if selected_filter_parts:
-                st.markdown(
-                    f"<div class='filter-summary'>品牌 {selected_brand_count}｜品類 {selected_category_count}｜符合 {len(df_step2)} 項</div>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    f"<div class='filter-summary filter-summary-muted'>未套用篩選｜共 {len(df_step2)} 項</div>",
-                    unsafe_allow_html=True,
-                )
+            st.markdown(
+                _get_filter_summary_html(
+                    False,
+                    len(df_step2),
+                    selected_filter_parts,
+                    selected_brand_count,
+                    selected_category_count,
+                ),
+                unsafe_allow_html=True,
+            )
 
         if df_step2.empty and not barcode_input:
             st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
@@ -723,11 +766,15 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 st.session_state[single_product_key] = True
 
         selected_product_count = len(_get_selected_values(product_options, product_key_prefix))
-        product_expander_label = f"3. 選擇商品（符合 {total_product_count}｜顯示 {len(product_options)}｜已選 {selected_product_count}）"
-        product_expander_expanded = bool(
-            barcode_input
-            or st.session_state.product_select_expanded
-            or selected_product_count > 0
+        product_expander_label = _get_product_expander_label(
+            total_product_count,
+            len(product_options),
+            selected_product_count,
+        )
+        product_expander_expanded = _should_expand_product_selector(
+            barcode_input,
+            st.session_state.product_select_expanded,
+            selected_product_count,
         )
 
         with st.expander(product_expander_label, expanded=product_expander_expanded):
