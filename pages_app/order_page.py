@@ -899,7 +899,9 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 column_order=["產品名稱", "訂購數量", "搭贈數量"],
                 use_container_width=True,
                 hide_index=True,
-                num_rows="dynamic",
+                # Phase 9.1：購物車確認區只允許確認與修改既有商品，不在此區新增商品。
+                # 若要新增商品，請回到上方商品選擇區，避免 data_editor 空白新增列造成重複 rerun。
+                num_rows="fixed",
                 key=f"final_cart_editor_{st.session_state.cart_editor_reset_trigger}"
             )
 
