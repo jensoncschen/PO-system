@@ -432,11 +432,24 @@ def _build_cart_dataframe(cart_list: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(cart_list)
 
 
-def _has_cart_editor_changed(edited_cart: pd.DataFrame, original_cart: pd.DataFrame) -> bool:
-    """判斷購物車確認表格是否有被修改，避免在 UI 區塊中混入比較細節。"""
-    if edited_cart is None:
-        return False
-    return not edited_cart.equals(original_cart)
+def _normalize_cart_records_for_compare(cart_records: list[dict]) -> list[dict]:
+    """將購物車資料轉成穩定格式，避免 data_editor 型別差異造成重複 rerun。"""
+    normalized_records: list[dict] = []
+
+    for item in cart_records:
+        normalized_item = dict(item)
+        normalized_item["訂購數量"] = safe_int(normalized_item.get("訂購數量", 0))
+        normalized_item["搭贈數量"] = safe_int(normalized_item.get("搭贈數量", 0))
+        normalized_records.append(normalized_item)
+
+    return normalized_records
+
+
+def _has_cart_records_changed(cleaned_cart_records: list[dict], current_cart_records: list[dict]) -> bool:
+    """判斷清理後的購物車資料是否真的改變，避免空白列被忽略後仍無限 rerun。"""
+    cleaned_normalized = _normalize_cart_records_for_compare(cleaned_cart_records)
+    current_normalized = _normalize_cart_records_for_compare(current_cart_records)
+    return cleaned_normalized != current_normalized
 
 
 def _prepare_cart_editor_update(edited_cart: pd.DataFrame) -> tuple[list[dict], str]:
@@ -902,11 +915,11 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 # Phase 9.1：購物車確認區只允許確認與修改既有商品，不在此區新增商品。
                 # 若要新增商品，請回到上方商品選擇區，避免 data_editor 空白新增列造成重複 rerun。
                 num_rows="fixed",
-                key=f"final_cart_editor_{st.session_state.cart_editor_reset_trigger}"
+                key=f"final_cart_editor_fixed_{st.session_state.cart_editor_reset_trigger}"
             )
 
-            if _has_cart_editor_changed(edited_cart, cart_df):
-                cleaned_cart_records, cart_editor_notice = _prepare_cart_editor_update(edited_cart)
+            cleaned_cart_records, cart_editor_notice = _prepare_cart_editor_update(edited_cart)
+            if _has_cart_records_changed(cleaned_cart_records, st.session_state.cart_list):
                 st.session_state.cart_list = cleaned_cart_records
 
                 if cart_editor_notice:
@@ -916,6 +929,9 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 # 同時更新 key，清掉 data_editor 內部暫存的空白新增列，避免誤新增空白列後重複 rerun。
                 st.session_state.cart_editor_reset_trigger += 1
                 st.rerun()
+            elif cart_editor_notice:
+                # 若只是誤新增空白列，清理後資料與目前購物車相同，不再 rerun，避免進入無限重整。
+                st.warning(cart_editor_notice)
 
             final_sales_label, final_cust_label = _get_final_order_labels(selected_sales_name, selected_cust_name)
             st.markdown(f"""
