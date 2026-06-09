@@ -310,9 +310,6 @@ def _ensure_order_page_session_state() -> None:
         st.session_state.input_reset_trigger = 0
     if "form_reset_trigger" not in st.session_state:
         st.session_state.form_reset_trigger = 0
-    if "cart_editor_reset_trigger" not in st.session_state:
-        st.session_state.cart_editor_reset_trigger = 0
-
     _ensure_product_filter_flow_state()
     _ensure_product_filter_reset_trigger()
 
@@ -322,7 +319,6 @@ def _reset_order_page_after_successful_submission() -> None:
     st.session_state.cart_list = []
     st.session_state.input_reset_trigger += 1
     st.session_state.form_reset_trigger += 1
-    st.session_state.cart_editor_reset_trigger += 1
     _reset_product_filter_selection()
 
 
@@ -645,6 +641,7 @@ def _build_cart_items_from_selected_products(
 
 
 def render_order_page(conn, df_customers, df_products, df_salespeople, global_prod_dict) -> None:
+    # 0. 頁面標題與基礎狀態初始化
     render_page_header(
         "快速下單",
         "手機優先的訂單建立流程。單手操作、先加商品、最後一次確認送出。",
@@ -655,7 +652,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
     form_suffix = f"_{st.session_state.form_reset_trigger}"
 
-    # 區塊 1：訂單資訊
+    # 1. 訂單資訊區：選擇業務、客戶與日期
     render_section_header(
         "1",
         "訂單資訊",
@@ -680,7 +677,8 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         with c3:
             order_date = st.date_input("日期", datetime.now())
 
-    # 統一結帳動作，保留原本訂單邏輯
+    # 2. 送出訂單動作：集中處理送出前檢查、寫入與成功後重置
+    #    此函式只由底部「送出訂單」按鈕呼叫，避免主流程中重複寫送出邏輯。
     def trigger_order_submission():
         if not _has_required_order_info(selected_sales_name, selected_cust_name):
             st.error("請確認已選擇業務與客戶。")
@@ -712,11 +710,12 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             time.sleep(1.2)
             st.rerun()
 
+    # 3. 手機版底部購物車提示列：只在購物車有商品時顯示
     cart_count, total_quantity, total_gift = _get_cart_summary(st.session_state.cart_list)
     if cart_count > 0:
         render_sticky_cart_bar(cart_count, total_quantity, total_gift)
 
-    # 區塊 2：新增商品
+    # 4. 新增商品區：搜尋、篩選、選取商品與輸入數量
     render_section_header(
         "2",
         "新增商品",
@@ -730,6 +729,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
     category_filter_key_prefix = f"filter_category{filter_suffix}"
 
     with st.container(border=True):
+        # 4-1. 商品搜尋：搜尋優先於品牌 / 品類篩選
         st.markdown("<div class='mini-label'>SEARCH</div>", unsafe_allow_html=True)
         _render_inline_heading("商品搜尋", "條碼或商品名稱")
         barcode_input = st.text_input(
@@ -738,6 +738,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
             key=f"barcode_scan{input_suffix}"
         )
 
+        # 4-2. 商品篩選：品牌與品類皆未勾選時視為不限
         _render_inline_heading("商品篩選", "搜尋優先｜未勾選不限")
 
         brand_options = _get_unique_options(df_products["品牌"])
@@ -772,6 +773,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         selected_brand_count = len(selected_brand_filters)
         selected_category_count = len(selected_category_filters)
 
+        # 4-3. 篩選確認 / 清除：只控制篩選流程，不直接改商品 checkbox 狀態
         st.markdown("<div class='confirm-filter-button-anchor'></div>", unsafe_allow_html=True)
         st.button(
             "確認篩選",
@@ -792,6 +794,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         df_step1 = _filter_products_by_values(df_after_brand_filter, "品類", selected_category_filters)
         selected_filter_parts = _build_selected_filter_parts(selected_brand_filters, selected_category_filters)
 
+        # 4-4. 產生商品候選清單：有搜尋時用搜尋結果，否則用品牌 / 品類篩選結果
         if barcode_input:
             clean_input = barcode_input.strip()
             df_step2 = _search_products(df_products, clean_input)
@@ -825,6 +828,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         if df_step2.empty and not barcode_input:
             st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
 
+        # 4-5. 商品選擇區：顯示符合條件的商品 checkbox
         all_product_options = _get_product_options(df_step2)
         product_options, total_product_count, is_product_limited = _limit_product_options(all_product_options)
         product_key_prefix = f"select_product{input_suffix}"
@@ -855,6 +859,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
         with st.expander(product_expander_label, expanded=product_expander_expanded):
             selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=4, grid_variant="product")
 
+        # 4-6. 已選商品輸入區與加入購物車：只處理本次選取商品
         if selected_products_batch:
             st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
 
@@ -893,7 +898,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                     else:
                         st.warning("所有商品的數量皆未輸入，未加入任何項目。")
 
-    # 區塊 3：購物車
+    # 5. 購物車確認區：確認、修改數量、清空或送出訂單
     render_section_header(
         "3",
         "購物車",
@@ -903,6 +908,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
     with st.container(border=True):
         if len(st.session_state.cart_list) > 0:
+            # 5-1. 顯示購物車摘要與提示訊息
             cart_notice = st.session_state.pop("cart_editor_notice", "")
             if cart_notice:
                 st.warning(cart_notice)
@@ -933,6 +939,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
 
             st.markdown("<div class='cart-editor-mobile-scope'></div>", unsafe_allow_html=True)
 
+            # 5-2. 購物車表格：只允許修改既有商品數量，不在此區新增商品
             edited_cart = st.data_editor(
                 cart_df,
                 column_config={
@@ -952,6 +959,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 key="final_cart_editor_p9_1_fixed"
             )
 
+            # 5-3. 表格回寫：只在商品數量真的變更時更新 cart_list
             updated_cart_records, removed_blank_rows = _build_cart_records_from_editor(
                 edited_cart,
                 st.session_state.cart_list,
@@ -969,6 +977,7 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 # 若只是誤新增空白列，資料沒有實際改變，不 rerun，避免進入無限重整。
                 st.warning("已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。")
 
+            # 5-4. 送出前確認與底部操作按鈕
             final_sales_label, final_cust_label = _get_final_order_labels(selected_sales_name, selected_cust_name)
             st.markdown(f"""
                 <div class='cart-final-panel'>
