@@ -740,7 +740,10 @@ div[data-testid="stExpander"] summary {
     font-weight: 850 !important;
 }
 
-/* 方塊型 checkbox：品牌、品類與商品選擇目前共用這組樣式。 */
+/* 05-3. 方塊型 checkbox 基礎樣式（高風險）
+   範圍：品牌、品類、商品選擇共用。
+   注意：此區會影響所有 st.checkbox 的外觀，不可任意縮小 padding / min-height。
+   若未來其他頁面新增 checkbox，需重新確認 selector 範圍是否過大。 */
 div[data-testid="stCheckbox"] label {
     background: #ffffff;
     border: 1px solid var(--border);
@@ -762,7 +765,9 @@ div[data-testid="stCheckbox"] label p {
     font-size: 0.9rem;
 }
 
-/* 已選取的篩選方塊更明顯。 */
+/* 05-4. 已選取狀態（高風險）
+   影響：已勾選品牌 / 品類 / 商品的黑底白字狀態。
+   注意：這裡依賴 :has(input:checked)，不要任意移除 !important。 */
 div[data-testid="stCheckbox"] label:has(input:checked) {
     background: #111827 !important;
     border-color: #111827 !important;
@@ -774,12 +779,16 @@ div[data-testid="stCheckbox"] label:has(input:checked) span {
     -webkit-text-fill-color: #ffffff !important;
 }
 
-/* 壓低 checkbox 原生圖示的存在感，讓整體更像篩選籤。 */
+/* 05-5. checkbox 原生圖示間距
+   目的：讓 Streamlit 原生 checkbox 更接近方塊型篩選籤。
+   注意：移除後可能讓 checkbox 圖示與文字距離異常。 */
 div[data-testid="stCheckbox"] label > div:first-child {
     margin-right: 0.32rem !important;
 }
 
-/* 篩選面板內的 checkbox：桌面版依螢幕寬度排列，手機版交給 Streamlit 自動堆疊。 */
+/* 05-6. expander 內 checkbox 桌面排列（高風險）
+   範圍：品牌 / 品類 / 商品 expander 內的 st.columns 排列。
+   注意：此區控制桌面版 5/4/3 欄寬，不要與手機版兩欄 grid 規則混合整理。 */
 div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"] {
     flex-wrap: wrap !important;
     gap: 0.42rem !important;
@@ -896,8 +905,10 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
 }
 
 /* =========================================================
-   07. 已選商品卡片與數量 / 搭贈輸入框
+   07. 已選商品卡片與數量 / 搭贈輸入框（高風險）
    目的：維持「商品名稱｜數量｜搭贈」同列排列。
+   影響範圍：商品名稱換行、數量 / 搭贈 32px 輸入框、placeholder 垂直置中、手機版可點擊性。
+   維護原則：不要在未測試桌機與手機前合併、刪除或移除此區塊的 !important。
    ========================================================= */
 .selected-products-card-note {
     font-size: 0.72rem;
@@ -906,7 +917,9 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
     line-height: 1.35;
 }
 
-/* 商品名稱：固定 15px，允許長品名換行，但不把數量 / 搭贈欄推出卡片。 */
+/* 07-1. 商品名稱欄（高風險）
+   固定 15px，允許長品名換行，但不把數量 / 搭贈欄推出卡片。
+   修改後必測長品名、手機版換行與輸入框是否仍同列。 */
 .selected-product-card-name {
     width: 100% !important;
     min-width: 0 !important;
@@ -923,7 +936,9 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
     word-break: break-word !important;
 }
 
-/* 卡片本體：限制最大寬度，避免桌面版拉太開，也避免手機版內容溢出。 */
+/* 07-2. 卡片本體寬度（高風險）
+   限制最大寬度，避免桌面版拉太開，也避免手機版內容溢出。
+   此段使用 :has(input[placeholder="數量"]) 鎖定已選商品卡片，不建議改成全站 stVerticalBlockBorderWrapper。 */
 div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) {
     width: 100% !important;
     max-width: 42rem !important;
@@ -934,13 +949,17 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"])
     box-shadow: none;
 }
 
-/* 卡片內距：保留足夠點擊空間，同時讓 32px 輸入框看起來緊湊。 */
+/* 07-3. 卡片內距（高風險）
+   保留足夠點擊空間，同時讓 32px 輸入框看起來緊湊。
+   修改 padding 可能影響長品名第二行與手機版點擊區域。 */
 div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
     padding: 0.22rem 0.46rem !important;
     box-sizing: border-box !important;
 }
 
-/* 關鍵：已選商品列使用 grid，商品名稱吃剩餘空間，兩個輸入框固定寬度。 */
+/* 07-4. 已選商品列 grid 排列（高風險）
+   關鍵規則：商品名稱吃剩餘空間，數量 / 搭贈固定寬度。
+   不建議改回單純 st.columns 控制，否則手機版可能堆疊或把輸入框推出螢幕。 */
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) 3.55rem 3.55rem !important;
@@ -952,7 +971,9 @@ div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) {
     overflow: hidden !important;
 }
 
-/* 清掉 Streamlit column 原本寬度，交給上方 grid 控制。 */
+/* 07-5. Streamlit column 寬度覆蓋（高風險）
+   清掉 Streamlit column 原本寬度，交給上方 grid 控制。
+   這段若刪除，可能造成數量 / 搭贈欄位寬度失控。 */
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"] {
     width: auto !important;
     min-width: 0 !important;
@@ -964,12 +985,12 @@ div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data
     overflow: hidden !important;
 }
 
-/* 第 1 欄：商品名稱。 */
+/* 07-6. 第 1 欄：商品名稱。 */
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(1) {
     grid-column: 1 !important;
 }
 
-/* 第 2、3 欄：數量與搭贈固定小欄位。 */
+/* 07-7. 第 2、3 欄：數量與搭贈固定小欄位。 */
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(2),
 div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data-testid="column"]:nth-child(3) {
     width: 3.55rem !important;
@@ -986,8 +1007,9 @@ div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data
     grid-column: 3 !important;
 }
 
-/* 07-2. 數量 / 搭贈輸入框：同步固定外層與 input 本體。
-   高風險：此段用來壓住全站 input 與 BaseWeb 外層高度，避免小輸入框被撐高。
+/* 07-8. 數量 / 搭贈輸入框尺寸（高風險）
+   同步固定 Streamlit / BaseWeb 外層與 input 本體。
+   此段用來壓住全站 input 與 BaseWeb 外層高度，避免小輸入框被撐高。
    修改後必測已選商品卡片、手機版可點擊性與 placeholder 垂直置中。 */
 div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
 div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
@@ -1067,9 +1089,11 @@ input[placeholder="搭贈"]::placeholder {
 
 
 /* =========================================================
-   08. 手機版篩選 checkbox 兩欄排列
+   08. 手機版篩選 checkbox 兩欄排列（高風險）
    原則：保留 st.columns() 桌面多欄；手機版只在 expander 內把
    checkbox row 改成 CSS grid 兩欄。
+   影響：品牌 / 品類 / 商品選擇、商品長品名三行顯示。
+   注意：此區大量依賴 :has() 與 Streamlit data-testid，不建議合併或刪 !important。
    ========================================================= */
 .filter-grid-scope {
     height: 0 !important;
@@ -1083,7 +1107,8 @@ input[placeholder="搭贈"]::placeholder {
 }
 
 @media (max-width: 768px) {
-    /* 壓過手機版 expander columns 單欄規則。
+    /* 08-1. 手機版 checkbox row 轉為兩欄 grid
+       壓過手機版 expander columns 單欄規則。
        使用 grid 而不是 flex，避免 Streamlit columns 的 flex-basis 干擾。 */
     div[data-testid="stExpander"] div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) {
         display: grid !important;
@@ -1121,9 +1146,10 @@ input[placeholder="搭贈"]::placeholder {
         line-height: 1.2 !important;
     }
 
-    /* 商品選擇長品名顯示：
+    /* 08-2. 商品選擇長品名顯示（高風險）
        商品名稱常把重要規格放在最後，因此手機版允許最多三行，
-       避免過早省略規格；品牌 / 品類仍維持較矮卡片。 */
+       避免過早省略規格；品牌 / 品類仍維持較矮卡片。
+       注意：此段只應影響 .filter-grid-scope--product，不要擴大到品牌 / 品類。 */
     div[data-testid="stExpander"]:has(.filter-grid-scope--product) div[data-testid="stHorizontalBlock"]:has(div[data-testid="stCheckbox"]) div[data-testid="stCheckbox"] label {
         min-height: 78px !important;
         padding: 0.52rem 0.52rem !important;
@@ -1143,9 +1169,10 @@ input[placeholder="搭贈"]::placeholder {
     }
 }
 
-/* 07-1. 已選商品卡片文字與輸入框垂直置中。 */
+/* 07-9. 已選商品卡片文字與輸入框垂直置中（高風險）
+   下方規則是 Phase 7 後保留下來的細部修正，用於長品名與小輸入框對齊。 */
 
-/* 長品名縮小字體，避免擠壓數量 / 搭贈欄位。 */
+/* 長品名字級調整：避免擠壓數量 / 搭贈欄位。 */
 .selected-product-card-name.selected-product-card-name--long {
     font-size: 14px !important;
     line-height: 1.16 !important;
@@ -1156,8 +1183,8 @@ input[placeholder="搭贈"]::placeholder {
     line-height: 1.14 !important;
 }
 
-/* 07-3. 已選商品列內的數量 / 搭贈輸入框垂直置中。
-   高風險：只鎖定含 .selected-product-card-name 的列，避免影響商品搜尋與其他表單 input。
+/* 07-10. 已選商品列內的數量 / 搭贈輸入框垂直置中（高風險）
+   只鎖定含 .selected-product-card-name 的列，避免影響商品搜尋與其他表單 input。
    不建議改成全站 div[data-testid="stTextInput"] 規則。 */
 div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"],
 div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"] > div,
@@ -1205,7 +1232,8 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[plac
     }
 }
 
-/* 07-2. 已選商品卡片高度微調：避免第二行品名被遮住。 */
+/* 07-11. 已選商品卡片高度微調（高風險）
+   目的：避免第二行品名被遮住，同時保留數量 / 搭贈輸入框可點擊性。 */
 
 /* 已選商品卡片本體：小幅增加上下內距，讓兩行品名有空間。 */
 div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
@@ -1225,7 +1253,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
     align-items: center !important;
 }
 
-/* 商品名稱：不再強求縮字，改成保留兩行高度，避免第二行被遮住。 */
+/* 商品名稱高度：保留兩行高度，避免第二行被遮住。 */
 .selected-product-card-name {
     min-height: 44px !important;
     max-height: 46px !important;
@@ -1237,7 +1265,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
     padding-bottom: 0 !important;
 }
 
-/* 手機版再給一點點高度，因為商品名稱較容易換成兩行。 */
+/* 手機版高度補強：手機寬度較窄，商品名稱更容易換成兩行。 */
 @media (max-width: 768px) {
     div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
         padding: 0.38rem 0.46rem !important;
@@ -1258,7 +1286,9 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
     }
 }
 
-/* 08-1. 手機版篩選區間距整理。 */
+/* 08-3. 手機版篩選區間距整理（高風險）
+   範圍：expander 內容區、checkbox row gap、Streamlit column 內層 gap。
+   注意：只整理間距，不改 label 高度與 padding，避免影響手機版可點擊性。 */
 @media (max-width: 768px) {
     /* 篩選 expander 內容區：微調上下內距，讓展開後的空白更一致。 */
     div[data-testid="stExpander"] div[data-testid="stExpanderDetails"] {
