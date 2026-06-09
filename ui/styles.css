@@ -290,6 +290,10 @@ h1, h2, h3, .stMarkdown p, label, span {
 
 /* =========================================================
    03. 共用表單、輸入框與按鈕基礎樣式
+   
+   高風險提醒：input / BaseWeb input 會同時影響商品搜尋、
+   數量 / 搭贈輸入框、手機版高度與 Streamlit 原生外層容器。
+   後續不要直接刪除 !important 或改全站 input 高度。
    ========================================================= */
 
 /* 共用白色卡片容器：Streamlit 表單與 border container。 */
@@ -312,7 +316,8 @@ input, textarea, select {
     -webkit-text-fill-color: var(--text-main) !important;
 }
 
-/* Streamlit / BaseWeb 輸入框外層。 */
+/* 03-1. Streamlit / BaseWeb 輸入框外層。
+   高風險：此段會影響 st.text_input、st.number_input、selectbox 等外層樣式。 */
 div[data-baseweb="input"],
 div[data-baseweb="select"],
 div[data-baseweb="base-input"] {
@@ -615,7 +620,9 @@ hr {
         width: 100% !important;
     }
 
-    /* 手機版輸入框與按鈕高度：全站規則，保留目前穩定高度設定。 */
+    /* 04-1. 手機版輸入框與按鈕高度。
+       高風險：此段是全站手機版高度基準，會影響商品搜尋與一般表單。
+       若要調整數量 / 搭贈小輸入框，請改 07 區塊的專屬 selector，不要直接改此段。 */
     div[data-baseweb="input"],
     div[data-baseweb="select"],
     div[data-baseweb="base-input"],
@@ -979,7 +986,9 @@ div[data-testid="stHorizontalBlock"]:has(input[placeholder="數量"]) > div[data
     grid-column: 3 !important;
 }
 
-/* 數量 / 搭贈輸入框：同步固定外層與 input 本體，避免被全站 input 規則撐高。 */
+/* 07-2. 數量 / 搭贈輸入框：同步固定外層與 input 本體。
+   高風險：此段用來壓住全站 input 與 BaseWeb 外層高度，避免小輸入框被撐高。
+   修改後必測已選商品卡片、手機版可點擊性與 placeholder 垂直置中。 */
 div[data-testid="stTextInput"]:has(input[placeholder="數量"]),
 div[data-testid="stTextInput"]:has(input[placeholder="搭贈"]),
 div[data-testid="stTextInput"]:has(input[placeholder="數量"]) > div,
@@ -1147,7 +1156,9 @@ input[placeholder="搭贈"]::placeholder {
     line-height: 1.14 !important;
 }
 
-/* 只鎖定已選商品列內的數量 / 搭贈輸入框，避免影響商品搜尋與其他表單 input。 */
+/* 07-3. 已選商品列內的數量 / 搭贈輸入框垂直置中。
+   高風險：只鎖定含 .selected-product-card-name 的列，避免影響商品搜尋與其他表單 input。
+   不建議改成全站 div[data-testid="stTextInput"] 規則。 */
 div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"],
 div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-testid="stTextInput"] > div,
 div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) div[data-baseweb="input"],
