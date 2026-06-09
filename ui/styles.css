@@ -1,3 +1,22 @@
+/* =========================================================
+   Phase 9.2 CSS 結構地圖
+   01. 全站變數、背景與主容器
+   02. Sidebar 與主要頁面卡片
+   03. 共用表單、輸入框與按鈕
+   04. 手機版基礎響應式
+   05. 商品篩選、expander 與 checkbox
+   06. 精簡區塊標題與狀態列
+   07. 已選商品卡片與數量 / 搭贈輸入框
+   08. 手機版篩選兩欄與間距
+   09. 手機版購物車 data_editor
+
+   Phase 9.2 Step 2 僅整理區塊標題與閱讀結構：
+   不改 selector、不改屬性值、不刪 !important、不移動規則順序。
+   ========================================================= */
+
+/* =========================================================
+   01. 全站變數、背景與主容器
+   ========================================================= */
 :root {
     --app-bg: #f6f7f9;
     --surface: #ffffff;
@@ -28,8 +47,7 @@
     padding-bottom: 6.5rem;
 }
 
-/* Phase 9.1：降低 expander 展開後第一次滾動被瀏覽器 scroll anchoring 拉回的機率。
-   只影響瀏覽器捲動定位，不改版面尺寸、顏色、間距或 Streamlit 元件結構。 */
+/* 01-1. Scroll anchoring 修正：降低 expander 展開後第一次滾動回彈。 */
 .main .block-container,
 div[data-testid="stExpander"],
 div[data-testid="stExpander"] div[data-testid="stExpanderDetails"],
@@ -41,6 +59,9 @@ h1, h2, h3, .stMarkdown p, label, span {
     color: var(--text-main);
 }
 
+/* =========================================================
+   02. Sidebar 與主要頁面卡片
+   ========================================================= */
 [data-testid="stSidebar"] {
     background: #ffffff;
     border-right: 1px solid var(--border);
@@ -268,8 +289,7 @@ h1, h2, h3, .stMarkdown p, label, span {
 }
 
 /* =========================================================
-   共用表單、輸入框與按鈕基礎樣式
-   Phase 9 註解整理：本區為全站規則，只更新註解，不改 selector / 樣式值。
+   03. 共用表單、輸入框與按鈕基礎樣式
    ========================================================= */
 
 /* 共用白色卡片容器：Streamlit 表單與 border container。 */
@@ -404,9 +424,6 @@ div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
     white-space: nowrap;
 }
 
-.sticky-cart-muted {
-    display: none;
-}
 
 hr {
     margin-top: 0.75rem;
@@ -532,6 +549,9 @@ hr {
     line-height: 1.5;
 }
 
+/* =========================================================
+   04. 手機版基礎響應式
+   ========================================================= */
 @media (max-width: 768px) {
     .main .block-container {
         padding: 0.85rem 0.85rem 6.25rem 0.85rem;
@@ -649,9 +669,8 @@ hr {
 }
 
 /* =========================================================
-   商品篩選與商品選擇區
+   05. 商品篩選、expander 與 checkbox
    範圍：品牌 / 品類 / 商品 checkbox、expander、篩選摘要、確認篩選按鈕。
-   注意：checkbox 與 expander selector 維持原作用範圍，不改視覺行為。
    ========================================================= */
 
 .filter-group-title {
@@ -838,7 +857,7 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
 }
 
 /* =========================================================
-   精簡區塊標題與狀態列
+   06. 精簡區塊標題與狀態列
    ========================================================= */
 .inline-section-heading {
     display: flex;
@@ -878,9 +897,8 @@ div[data-testid="stMarkdown"]:has(.confirm-filter-button-anchor) + div[data-test
 }
 
 /* =========================================================
-   已選商品卡片數量輸入區
+   07. 已選商品卡片與數量 / 搭贈輸入框
    目的：維持「商品名稱｜數量｜搭贈」同列排列。
-   對應 order_page.py：.selected-products-card-note / .selected-product-card-row / .selected-product-card-name
    ========================================================= */
 .selected-products-card-note {
     font-size: 0.72rem;
@@ -1048,9 +1066,9 @@ input[placeholder="搭贈"]::placeholder {
 
 
 /* =========================================================
-   手機版篩選 checkbox 兩欄排列
+   08. 手機版篩選 checkbox 兩欄排列
    原則：保留 st.columns() 桌面多欄；手機版只在 expander 內把
-   checkbox row 改成 CSS grid 兩欄，避開全站 column 單欄限制。
+   checkbox row 改成 CSS grid 兩欄。
    ========================================================= */
 .filter-grid-scope {
     height: 0 !important;
@@ -1124,10 +1142,7 @@ input[placeholder="搭贈"]::placeholder {
     }
 }
 
-/* =========================================================
-   已選商品卡片文字與輸入框垂直置中
-   原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
-   ========================================================= */
+/* 07-1. 已選商品卡片文字與輸入框垂直置中。 */
 
 /* 長品名縮小字體，避免擠壓數量 / 搭贈欄位。 */
 .selected-product-card-name.selected-product-card-name--long {
@@ -1187,11 +1202,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) input[plac
     }
 }
 
-/* =========================================================
-   已選商品卡片高度微調
-   目的：避免第二行品名被遮住。
-   原則：只針對已選商品卡片，不調整篩選 checkbox、商品選擇 checkbox、購物車表格。
-   ========================================================= */
+/* 07-2. 已選商品卡片高度微調：避免第二行品名被遮住。 */
 
 /* 已選商品卡片本體：小幅增加上下內距，讓兩行品名有空間。 */
 div[data-testid="stVerticalBlockBorderWrapper"]:has(input[placeholder="數量"]) > div {
@@ -1244,11 +1255,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
     }
 }
 
-/* =========================================================
-   手機版篩選區間距整理
-   原則：只整理手機版篩選 / 商品選擇 expander 內距與 checkbox 間距，
-         不調整 checkbox 高度、不調整已選商品卡片、不改 Python 邏輯。
-   ========================================================= */
+/* 08-1. 手機版篩選區間距整理。 */
 @media (max-width: 768px) {
     /* 篩選 expander 內容區：微調上下內距，讓展開後的空白更一致。 */
     div[data-testid="stExpander"] div[data-testid="stExpanderDetails"] {
@@ -1289,9 +1296,8 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
 }
 
 /* =========================================================
-   手機版購物車確認區欄寬強化
-   原則：只針對購物車確認區 data_editor，保留左側列操作欄，
-         讓商品 / 訂購 / 搭贈三欄盡量落在手機螢幕範圍內。
+   09. 手機版購物車確認區 data_editor 欄寬強化
+   原則：只針對購物車確認區 data_editor，保留左側列操作欄。
    ========================================================= */
 @media (max-width: 768px) {
     /* 購物車表格外層：限制在手機容器寬度內，避免整個表格撐出畫面。 */
