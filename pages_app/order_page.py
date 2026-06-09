@@ -445,22 +445,56 @@ def _normalize_cart_records_for_compare(cart_records: list[dict]) -> list[dict]:
     return normalized_records
 
 
-def _has_cart_records_changed(cleaned_cart_records: list[dict], current_cart_records: list[dict]) -> bool:
-    """判斷清理後的購物車資料是否真的改變，避免空白列被忽略後仍無限 rerun。"""
-    cleaned_normalized = _normalize_cart_records_for_compare(cleaned_cart_records)
+def _has_cart_records_changed(updated_cart_records: list[dict], current_cart_records: list[dict]) -> bool:
+    """判斷購物車資料是否真的改變，避免 data_editor 暫存狀態造成重複 rerun。"""
+    updated_normalized = _normalize_cart_records_for_compare(updated_cart_records)
     current_normalized = _normalize_cart_records_for_compare(current_cart_records)
-    return cleaned_normalized != current_normalized
+    return updated_normalized != current_normalized
 
 
-def _prepare_cart_editor_update(edited_cart: pd.DataFrame) -> tuple[list[dict], str]:
-    """整理購物車表格修改結果，回傳新的購物車資料與必要提示文字。"""
-    cleaned_cart_records, removed_blank_rows = _sanitize_cart_editor_records(edited_cart)
+def _build_cart_records_from_editor(
+    edited_cart: pd.DataFrame,
+    current_cart_records: list[dict],
+) -> tuple[list[dict], int]:
+    """依購物車確認表格結果更新數量，保留原始商品資料並忽略誤新增空白列。"""
+    if edited_cart is None:
+        return list(current_cart_records), 0
 
-    notice = ""
-    if removed_blank_rows > 0:
-        notice = "已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。"
+    edited_rows = edited_cart.to_dict("records")
+    if not edited_rows:
+        return [], 0
 
-    return cleaned_cart_records, notice
+    updated_records: list[dict] = []
+    removed_blank_rows = 0
+
+    for index, edited_row in enumerate(edited_rows):
+        product_name = edited_row.get("產品名稱")
+
+        if not _is_valid_cart_product_value(product_name):
+            removed_blank_rows += 1
+            continue
+
+        # 以原本購物車順序為主，避免 data_editor 只回傳顯示欄位時遺失產品編號、品牌、品類等隱藏資料。
+        if index >= len(current_cart_records):
+            removed_blank_rows += 1
+            continue
+
+        current_item = current_cart_records[index]
+        current_product_name = current_item.get("產品名稱")
+        if str(product_name).strip() != str(current_product_name).strip():
+            removed_blank_rows += 1
+            continue
+
+        updated_item = dict(current_item)
+        updated_item["訂購數量"] = _normalize_non_negative_quantity(
+            edited_row.get("訂購數量", current_item.get("訂購數量", 0))
+        )
+        updated_item["搭贈數量"] = _normalize_non_negative_quantity(
+            edited_row.get("搭贈數量", current_item.get("搭贈數量", 0))
+        )
+        updated_records.append(updated_item)
+
+    return updated_records, removed_blank_rows
 
 
 def _get_final_order_labels(selected_sales_name: str | None, selected_cust_name: str | None) -> tuple[str, str]:
@@ -913,25 +947,27 @@ def render_order_page(conn, df_customers, df_products, df_salespeople, global_pr
                 use_container_width=True,
                 hide_index=True,
                 # Phase 9.1：購物車確認區只允許確認與修改既有商品，不在此區新增商品。
-                # 若要新增商品，請回到上方商品選擇區，避免 data_editor 空白新增列造成重複 rerun。
+                # 若要新增商品，請回到上方商品選擇區。
                 num_rows="fixed",
-                key=f"final_cart_editor_fixed_{st.session_state.cart_editor_reset_trigger}"
+                key="final_cart_editor_p9_1_fixed"
             )
 
-            cleaned_cart_records, cart_editor_notice = _prepare_cart_editor_update(edited_cart)
-            if _has_cart_records_changed(cleaned_cart_records, st.session_state.cart_list):
-                st.session_state.cart_list = cleaned_cart_records
+            updated_cart_records, removed_blank_rows = _build_cart_records_from_editor(
+                edited_cart,
+                st.session_state.cart_list,
+            )
 
-                if cart_editor_notice:
-                    st.session_state.cart_editor_notice = cart_editor_notice
+            if _has_cart_records_changed(updated_cart_records, st.session_state.cart_list):
+                st.session_state.cart_list = updated_cart_records
+
+                if removed_blank_rows > 0:
+                    st.session_state.cart_editor_notice = "已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。"
 
                 # data_editor 修改後立即重新整理一次，避免摘要與「送出前確認」仍顯示舊合計。
-                # 同時更新 key，清掉 data_editor 內部暫存的空白新增列，避免誤新增空白列後重複 rerun。
-                st.session_state.cart_editor_reset_trigger += 1
                 st.rerun()
-            elif cart_editor_notice:
-                # 若只是誤新增空白列，清理後資料與目前購物車相同，不再 rerun，避免進入無限重整。
-                st.warning(cart_editor_notice)
+            elif removed_blank_rows > 0:
+                # 若只是誤新增空白列，資料沒有實際改變，不 rerun，避免進入無限重整。
+                st.warning("已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。")
 
             final_sales_label, final_cust_label = _get_final_order_labels(selected_sales_name, selected_cust_name)
             st.markdown(f"""
