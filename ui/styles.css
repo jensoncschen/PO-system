@@ -463,13 +463,6 @@ hr {
     margin: 0.35rem 0 0.55rem;
 }
 
-.operation-card {
-    background: #ffffff;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 1rem;
-    height: 100%;
-}
 
 .operation-title {
     color: var(--text-main);
@@ -572,14 +565,38 @@ hr {
         padding: 0.48rem 0.65rem;
     }
 
+    /* Phase 9.2 Step 6A：集中管理基礎版面與標題區的手機版覆蓋。 */
+    .hero-card {
+        padding: 1rem;
+        border-radius: 20px;
+    }
+
+    .page-title {
+        font-size: 1.7rem;
+    }
+
+    .page-subtitle {
+        font-size: 0.92rem;
+    }
+
     .section-header {
         gap: 0.55rem;
+        align-items: flex-start;
+        margin-top: 1rem;
     }
 
     .section-index {
         width: 32px;
         height: 32px;
         border-radius: 11px;
+    }
+
+    .section-title-text {
+        font-size: 1.08rem;
+    }
+
+    .section-tag {
+        display: none;
     }
 
     /* 手機版大多數欄位維持單欄；移除 !important，讓特定小型元件可用專屬規則覆蓋。 */
@@ -624,32 +641,6 @@ hr {
         min-height: 48px;
         padding: 0.65rem 0.9rem;
         border-radius: 16px;
-    }
-
-    .hero-card {
-        padding: 1rem;
-        border-radius: 20px;
-    }
-
-    .page-title {
-        font-size: 1.7rem;
-    }
-
-    .page-subtitle {
-        font-size: 0.92rem;
-    }
-
-    .section-header {
-        align-items: flex-start;
-        margin-top: 1rem;
-    }
-
-    .section-title-text {
-        font-size: 1.08rem;
-    }
-
-    .section-tag {
-        display: none;
     }
 
     .cart-summary {
