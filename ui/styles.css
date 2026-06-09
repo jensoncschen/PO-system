@@ -393,6 +393,7 @@ div[data-testid="stDownloadButton"] button[kind="primary"]:hover {
     border-radius: 16px;
 }
 
+/* 03-1. 手機版底部購物車提示列 */
 .sticky-cart-bar {
     position: fixed;
     left: 50%;
@@ -643,6 +644,12 @@ hr {
         border-radius: 16px;
     }
 
+    .sticky-cart-content {
+        justify-content: center;
+        font-size: 0.9rem;
+        line-height: 1.25;
+    }
+
     .cart-summary {
         grid-template-columns: 1fr;
     }
@@ -650,12 +657,6 @@ hr {
     div[data-testid="stDataFrame"],
     div[data-testid="stDataEditor"] {
         font-size: 0.84rem;
-    }
-
-    .sticky-cart-content {
-        justify-content: center;
-        font-size: 0.9rem;
-        line-height: 1.25;
     }
 }
 
@@ -1288,10 +1289,13 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
 
 /* =========================================================
    09. 手機版購物車確認區 data_editor 欄寬強化
-   原則：只針對購物車確認區 data_editor，保留左側列操作欄。
+   高風險區塊：此區鎖定 Streamlit st.data_editor / stDataFrame 內部結構。
+   維護原則：只針對購物車確認區，不影響其他 data_editor。
+   注意：左側列操作欄需保留刪除功能，不可隱藏。
+   Phase 9.2 Step 6D 僅補強註解，不改 selector、不改屬性值。
    ========================================================= */
 @media (max-width: 768px) {
-    /* 購物車表格外層：限制在手機容器寬度內，避免整個表格撐出畫面。 */
+    /* 09-1. 外層寬度限制：避免手機版表格撐出畫面。 */
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"],
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] {
         width: 100% !important;
@@ -1300,7 +1304,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
         font-size: 0.82rem !important;
     }
 
-    /* Streamlit data editor 內層常有固定最小寬度；在購物車區域內盡量限制為容器寬。 */
+    /* 09-2. 內層寬度限制：Streamlit data editor 內層常有固定最小寬度。 */
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"] > div,
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] > div {
         width: 100% !important;
@@ -1308,7 +1312,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
         overflow-x: hidden !important;
     }
 
-    /* data editor 工具列圖示不要撐太寬；保留功能但縮小間距。 */
+    /* 09-3. 工具列按鈕寬度：保留功能，只縮小手機版佔位。 */
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataFrame"] button,
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) div[data-testid="stDataEditor"] button {
         min-width: 32px !important;
@@ -1317,7 +1321,7 @@ div[data-testid="stHorizontalBlock"]:has(.selected-product-card-name) > div[data
         padding-right: 0 !important;
     }
 
-    /* 左側列操作欄需要保留刪除功能，不隱藏；只嘗試縮小其最小寬度。 */
+    /* 09-4. 左側列操作欄：保留刪除功能，只縮小欄寬，不可 display:none。 */
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) [role="rowheader"],
     div[data-testid="stVerticalBlock"]:has(.cart-editor-mobile-scope) [aria-colindex="1"] {
         width: 30px !important;
