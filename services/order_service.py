@@ -1,78 +1,971 @@
+import hashlib
+import time
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
 
+from services.order_service import submit_new_order
+from ui.components import render_page_header, render_section_header, render_sticky_cart_bar
+from utils.formatters import safe_html, safe_int
 
-def get_sales_id_3digits(sales_name, df_sales):
-    """取得業務編號，並轉成 3 碼格式。"""
-    if not sales_name:
-        return "000"
 
-    sales_row = df_sales[df_sales["業務名稱"] == sales_name]
-    if sales_row.empty:
-        return "000"
+MAX_PRODUCT_OPTIONS = 50
 
-    raw_val = sales_row.iloc[0]["業務編號"]
+
+def _normalize_search_text(value) -> str:
+    """將搜尋字串統一整理成小寫文字，避免空值或 NaN 影響比對。"""
+    if value is None:
+        return ""
     try:
-        return f"{int(float(raw_val)):03d}"
+        if pd.isna(value):
+            return ""
     except Exception:
-        return str(raw_val).strip().zfill(3)[-3:]
+        pass
+    return str(value).strip().lower()
 
 
-def submit_new_order(cart_list, sales_name, cust_name, order_date, conn, df_sales, df_cust):
-    """將購物車內容寫入 Google Sheets 訂單紀錄。"""
-    s_id_3digits = get_sales_id_3digits(sales_name, df_sales)
-    s_id_2digits_for_billno = s_id_3digits[-2:]
-    date_str_8 = order_date.strftime("%Y%m%d")
-    prefix = f"{s_id_2digits_for_billno}{date_str_8}"
+def _search_products(df_products: pd.DataFrame, search_text: str) -> pd.DataFrame:
+    """依多欄位與多關鍵字搜尋商品，並依符合程度排序。"""
+    clean_input = _normalize_search_text(search_text)
+    if not clean_input:
+        return df_products.copy()
 
-    cust_row = df_cust[df_cust["客戶名稱"] == cust_name]
-    c_id = cust_row.iloc[0]["客戶編號"] if not cust_row.empty else "Unknown"
+    keywords = [keyword for keyword in clean_input.split() if keyword]
+    if not keywords:
+        return df_products.copy()
 
-    # 結帳時即時讀取最新訂單紀錄，避免多人下單時序號重複。
-    with st.spinner("正在取得最新訂單序號..."):
-        current_history = conn.read(worksheet="訂單紀錄", ttl=0)
+    scored_rows: list[tuple[int, int]] = []
 
-    if "BillNo" not in current_history.columns:
-        current_history["BillNo"] = ""
-    current_history["BillNo"] = current_history["BillNo"].astype(str).str.replace("'", "", regex=False)
+    for row in df_products.itertuples(index=True):
+        row_index = row.Index
+        score = 0
 
-    existing_ids = current_history["BillNo"].astype(str).tolist()
-    matching_ids = [oid for oid in existing_ids if oid.startswith(prefix) and len(oid) == 13]
-    if matching_ids:
-        seqs = [int(oid[-3:]) for oid in matching_ids if oid[-3:].isdigit()]
-        next_seq = max(seqs) + 1 if seqs else 1
-    else:
-        next_seq = 1
+        product_name = _normalize_search_text(getattr(row, "產品名稱", ""))
+        barcode = _normalize_search_text(getattr(row, "國際條碼", ""))
+        brand = _normalize_search_text(getattr(row, "品牌", ""))
+        category = _normalize_search_text(getattr(row, "品類", ""))
+        product_code = _normalize_search_text(getattr(row, "產品編號", ""))
 
-    raw_bill_no = f"{prefix}{str(next_seq).zfill(3)}"
-    final_bill_no = f"'{raw_bill_no}"
-    final_person_id = f"'{s_id_3digits}"
+        searchable_text = " ".join([product_name, barcode, brand, category, product_code])
 
-    new_rows = []
+        exact_match = False
+        if barcode and barcode == clean_input:
+            score += 1000
+            exact_match = True
+        if product_code and product_code == clean_input:
+            score += 900
+            exact_match = True
+        if product_name and product_name == clean_input:
+            score += 700
+            exact_match = True
+        elif product_name and clean_input in product_name:
+            score += 400
+            exact_match = True
+
+        matched_all_keywords = all(keyword in searchable_text for keyword in keywords)
+        if matched_all_keywords:
+            score += 200
+
+        if not exact_match and not matched_all_keywords:
+            continue
+
+        for keyword in keywords:
+            if keyword in product_name:
+                score += 80
+            if keyword in barcode:
+                score += 70
+            if keyword in product_code:
+                score += 60
+            if keyword in brand:
+                score += 35
+            if keyword in category:
+                score += 30
+
+        if score > 0:
+            scored_rows.append((row_index, score))
+
+    if not scored_rows:
+        return df_products.iloc[0:0].copy()
+
+    score_df = pd.DataFrame(scored_rows, columns=["_row_index", "_search_score"])
+    score_df["_original_order"] = range(len(score_df))
+
+    result = df_products.loc[score_df["_row_index"]].copy()
+    result["_search_score"] = score_df["_search_score"].to_numpy()
+    result["_original_order"] = score_df["_original_order"].to_numpy()
+    result = result.sort_values(["_search_score", "_original_order"], ascending=[False, True])
+    return result.drop(columns=["_search_score", "_original_order"])
+
+
+def _limit_product_options(product_options: list[str], max_count: int = MAX_PRODUCT_OPTIONS) -> tuple[list[str], int, bool]:
+    """限制商品 checkbox 顯示數量，避免一次渲染過多商品造成手機操作壓力。"""
+    total_count = len(product_options)
+    if total_count <= max_count:
+        return product_options, total_count, False
+    return product_options[:max_count], total_count, True
+
+
+def _make_filter_key(prefix: str, value: str) -> str:
+    """產生穩定的篩選 key，避免品牌或品類含特殊字元時影響 session_state。"""
+    digest = hashlib.md5(str(value).encode("utf-8")).hexdigest()[:10]
+    return f"{prefix}_{digest}"
+
+
+def _get_unique_options(series: pd.Series) -> list[str]:
+    """取得乾淨且穩定排序的篩選選項。"""
+    values = series.dropna().astype(str).str.strip()
+    values = [value for value in values.unique().tolist() if value and value.lower() not in ["nan", "none"]]
+    return sorted(values)
+
+
+def _is_valid_cart_product_value(value) -> bool:
+    """判斷購物車列是否保有原始商品資料，避免 data_editor 誤新增空白列造成送出失敗。"""
+    if value is None:
+        return False
+    try:
+        if pd.isna(value):
+            return False
+    except Exception:
+        pass
+
+    text_value = str(value).strip()
+    return bool(text_value) and text_value.lower() not in ["nan", "none", "n/a"]
+
+
+def _validate_cart_before_submission(cart_list: list[dict]) -> tuple[bool, str]:
+    """送出訂單前做最小防呆，避免空訂單或商品資料不完整寫入。"""
+    if not cart_list:
+        return False, "購物車目前是空的，請先加入商品。"
+
+    total_quantity = 0
+    total_gift = 0
+
     for item in cart_list:
-        if item["訂購數量"] > 0:
-            new_rows.append({
-                "BillDate": date_str_8,
-                "BillNo": final_bill_no,
-                "PersonID": final_person_id,
-                "PersonName": sales_name,
-                "CustID": c_id,
-                "ProdID": item["產品編號"],
-                "ProdName": item["產品名稱"],
-                "Quantity": item["訂購數量"],
-            })
-        if item["搭贈數量"] > 0:
-            new_rows.append({
-                "BillDate": date_str_8,
-                "BillNo": final_bill_no,
-                "PersonID": final_person_id,
-                "PersonName": sales_name,
-                "CustID": c_id,
-                "ProdID": item["產品編號"],
-                "ProdName": f"{item['產品名稱']} (搭贈)",
-                "Quantity": item["搭贈數量"],
-            })
+        if not _is_valid_cart_product_value(item.get("產品編號")) or not _is_valid_cart_product_value(item.get("產品名稱")):
+            return False, "購物車中有商品資料不完整，請刪除異常列後重新加入商品。"
 
-    updated_history = pd.concat([current_history, pd.DataFrame(new_rows)], ignore_index=True)
-    conn.update(worksheet="訂單紀錄", data=updated_history)
-    return raw_bill_no
+        total_quantity += max(safe_int(item.get("訂購數量", 0)), 0)
+        total_gift += max(safe_int(item.get("搭贈數量", 0)), 0)
+
+    if total_quantity <= 0 and total_gift <= 0:
+        return False, "購物車商品的訂購與搭贈數量皆為 0，請先輸入數量後再送出。"
+
+    return True, ""
+
+def _render_checkbox_grid(
+    title: str,
+    options: list[str],
+    key_prefix: str,
+    columns: int = 4,
+    on_change=None,
+    on_change_args: tuple = (),
+    grid_variant: str = "filter",
+) -> list[str]:
+    """以方塊勾選方式呈現複選篩選。
+
+    使用 Streamlit 原生欄位建立桌面版響應式排列。
+    Phase 7 Step 2A-2：保留 st.columns()，但每組改為 4 欄，讓手機兩欄排列可連續填滿。
+    """
+    safe_variant = "product" if grid_variant == "product" else "filter"
+    st.markdown(
+        f"<div class='filter-grid-scope filter-grid-scope--{safe_variant}' aria-hidden='true'>.</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(f"<div class='filter-group-title'>{safe_html(title)}</div>", unsafe_allow_html=True)
+
+    if not options:
+        st.markdown("<div class='filter-empty'>目前沒有可篩選的選項</div>", unsafe_allow_html=True)
+        return []
+
+    selected_values: list[str] = []
+    column_count = max(1, min(columns, len(options)))
+
+    for start in range(0, len(options), column_count):
+        row_options = options[start:start + column_count]
+        cols = st.columns(column_count, gap="small")
+        for col, option in zip(cols, row_options):
+            checkbox_key = _make_filter_key(key_prefix, option)
+            with col:
+                checked = st.checkbox(
+                    option,
+                    key=checkbox_key,
+                    on_change=on_change,
+                    args=on_change_args,
+                )
+                if checked:
+                    selected_values.append(option)
+
+    return selected_values
+
+
+def _get_selected_values(options: list[str], key_prefix: str) -> list[str]:
+    """依 checkbox key 讀取目前已選項目，用於在 expander 標題顯示狀態數量。"""
+    selected_values: list[str] = []
+    for option in options:
+        checkbox_key = _make_filter_key(key_prefix, option)
+        if st.session_state.get(checkbox_key):
+            selected_values.append(option)
+    return selected_values
+
+
+def _ensure_product_filter_flow_state() -> None:
+    """初始化商品篩選流程狀態，讓確認篩選後再展開商品選擇。"""
+    default_states = {
+        "brand_filter_expanded": False,
+        "category_filter_expanded": False,
+        "product_select_expanded": False,
+    }
+    for key, default_value in default_states.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
+
+
+def _ensure_product_filter_reset_trigger() -> None:
+    """初始化篩選 checkbox 重置計數器，用新 key 安全清空品牌 / 品類選項。"""
+    if "product_filter_reset_trigger" not in st.session_state:
+        st.session_state.product_filter_reset_trigger = 0
+
+
+def _get_product_filter_suffix() -> str:
+    """取得品牌 / 品類篩選 checkbox 使用的 key 後綴。"""
+    _ensure_product_filter_reset_trigger()
+    return f"_{st.session_state.product_filter_reset_trigger}"
+
+
+def _confirm_product_filters() -> None:
+    """確認品牌與品類篩選後，收合篩選區並展開商品選擇區。"""
+    _ensure_product_filter_flow_state()
+    st.session_state.brand_filter_expanded = False
+    st.session_state.category_filter_expanded = False
+    st.session_state.product_select_expanded = True
+
+
+def _reset_product_filter_flow() -> None:
+    """將商品篩選與商品選擇區回到預設收合狀態。"""
+    _ensure_product_filter_flow_state()
+    st.session_state.brand_filter_expanded = False
+    st.session_state.category_filter_expanded = False
+    st.session_state.product_select_expanded = False
+
+
+def _keep_filter_expander_open(expander_name: str) -> None:
+    """checkbox 變更時維持所在篩選區展開，避免 Streamlit rerun 後自動收合。"""
+    _ensure_product_filter_flow_state()
+    if expander_name == "brand":
+        st.session_state.brand_filter_expanded = True
+    elif expander_name == "category":
+        st.session_state.category_filter_expanded = True
+
+
+def _render_inline_heading(title: str, helper_text: str = "") -> None:
+    """顯示精簡的區塊標題，將輔助說明併到同一行。"""
+    helper_html = f"<span>{safe_html(helper_text)}</span>" if helper_text else ""
+    st.markdown(
+        f"<div class='inline-section-heading'><strong>{safe_html(title)}</strong>{helper_html}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _reset_product_filter_selection() -> None:
+    """安全清除品牌 / 品類篩選選項，避免直接修改已建立的 checkbox widget state。"""
+    _ensure_product_filter_reset_trigger()
+    st.session_state.product_filter_reset_trigger += 1
+    _reset_product_filter_flow()
+
+
+def _ensure_order_page_session_state() -> None:
+    """初始化下單頁必要狀態，避免 render 主流程分散處理 session_state 預設值。"""
+    if "cart_list" not in st.session_state:
+        st.session_state.cart_list = []
+    if "input_reset_trigger" not in st.session_state:
+        st.session_state.input_reset_trigger = 0
+    if "form_reset_trigger" not in st.session_state:
+        st.session_state.form_reset_trigger = 0
+    _ensure_product_filter_flow_state()
+    _ensure_product_filter_reset_trigger()
+
+
+def _reset_order_page_after_successful_submission() -> None:
+    """送出訂單成功後集中重置下單頁狀態。"""
+    st.session_state.cart_list = []
+    st.session_state.input_reset_trigger += 1
+    st.session_state.form_reset_trigger += 1
+    _reset_product_filter_selection()
+
+
+def _clear_session_state_keys(keys: list[str]) -> None:
+    """集中清除指定 session_state key，避免主流程出現重複刪除細節。"""
+    for key in keys:
+        if key in st.session_state:
+            del st.session_state[key]
+
+
+def _render_compact_quantity_input_css() -> None:
+    """已選商品卡片樣式已移至 ui/styles.css，保留函式避免影響呼叫流程。"""
+    return
+
+
+def _prepare_quantity_text_state(product_name: str) -> None:
+    """讓文字輸入框以空白起始，並用 placeholder 提示欄位用途。"""
+    for prefix in ["q", "g"]:
+        key = f"{prefix}_{product_name}"
+        if key not in st.session_state:
+            st.session_state[key] = ""
+        elif not isinstance(st.session_state[key], str):
+            numeric_value = safe_int(st.session_state[key])
+            st.session_state[key] = "" if numeric_value == 0 else str(numeric_value)
+        elif st.session_state[key].strip() in ["0", "0.0"]:
+            st.session_state[key] = ""
+
+
+def _render_selected_product_inputs(selected_products: list[str], product_key_prefix: str) -> None:
+    """用商品卡片呈現已選商品與數量欄位，讓手機版可單擊直接輸入。"""
+    _render_compact_quantity_input_css()
+
+    st.markdown(
+        "<div class='selected-products-card-note'>數量空白會視為 0。</div>",
+        unsafe_allow_html=True,
+    )
+
+    for product_name in selected_products:
+        _prepare_quantity_text_state(product_name)
+
+        with st.container(border=True):
+            name_col, qty_col, gift_col = st.columns([1, 0.18, 0.18], gap="small")
+
+            with name_col:
+                name_length = len(str(product_name))
+                name_size_class = ""
+                if name_length >= 36:
+                    name_size_class = " selected-product-card-name--xlong"
+                elif name_length >= 24:
+                    name_size_class = " selected-product-card-name--long"
+
+                st.markdown(
+                    f"<div class='selected-product-card-row selected-product-card-name{name_size_class}'>{safe_html(product_name)}</div>",
+                    unsafe_allow_html=True,
+                )
+
+            with qty_col:
+                st.text_input(
+                    "訂購",
+                    key=f"q_{product_name}",
+                    label_visibility="collapsed",
+                    placeholder="數量",
+                    max_chars=4,
+                )
+            with gift_col:
+                st.text_input(
+                    "搭贈",
+                    key=f"g_{product_name}",
+                    label_visibility="collapsed",
+                    placeholder="搭贈",
+                    max_chars=4,
+                )
+
+
+def _get_product_options(df_products_filtered: pd.DataFrame) -> list[str]:
+    """取得商品清單，保留目前資料順序並去除重複商品名稱。"""
+    product_names: list[str] = []
+    seen_names: set[str] = set()
+
+    if "產品名稱" not in df_products_filtered.columns:
+        return product_names
+
+    for raw_name in df_products_filtered["產品名稱"].dropna().tolist():
+        product_name = str(raw_name).strip()
+        if not product_name or product_name.lower() in ["nan", "none"]:
+            continue
+        if product_name in seen_names:
+            continue
+        seen_names.add(product_name)
+        product_names.append(product_name)
+
+    return product_names
+
+
+def _get_cart_summary(cart_list: list[dict]) -> tuple[int, int, int]:
+    """計算購物車項目數、訂購總數與搭贈總數。"""
+    cart_count = len(cart_list)
+    total_quantity = sum(safe_int(item.get("訂購數量", 0)) for item in cart_list)
+    total_gift = sum(safe_int(item.get("搭贈數量", 0)) for item in cart_list)
+    return cart_count, total_quantity, total_gift
+
+
+def _build_cart_dataframe(cart_list: list[dict]) -> pd.DataFrame:
+    """將購物車清單轉成表格，集中管理購物車確認區資料來源。"""
+    return pd.DataFrame(cart_list)
+
+
+def _normalize_cart_records_for_compare(cart_records: list[dict]) -> list[dict]:
+    """將購物車資料轉成穩定格式，避免 data_editor 型別差異造成重複 rerun。"""
+    normalized_records: list[dict] = []
+
+    for item in cart_records:
+        normalized_item = dict(item)
+        normalized_item["訂購數量"] = safe_int(normalized_item.get("訂購數量", 0))
+        normalized_item["搭贈數量"] = safe_int(normalized_item.get("搭贈數量", 0))
+        normalized_records.append(normalized_item)
+
+    return normalized_records
+
+
+def _has_cart_records_changed(updated_cart_records: list[dict], current_cart_records: list[dict]) -> bool:
+    """判斷購物車資料是否真的改變，避免 data_editor 暫存狀態造成重複 rerun。"""
+    updated_normalized = _normalize_cart_records_for_compare(updated_cart_records)
+    current_normalized = _normalize_cart_records_for_compare(current_cart_records)
+    return updated_normalized != current_normalized
+
+
+def _build_cart_records_from_editor(
+    edited_cart: pd.DataFrame,
+    current_cart_records: list[dict],
+) -> tuple[list[dict], int]:
+    """依購物車確認表格結果更新數量，保留原始商品資料並忽略誤新增空白列。"""
+    if edited_cart is None:
+        return list(current_cart_records), 0
+
+    edited_rows = edited_cart.to_dict("records")
+    if not edited_rows:
+        return [], 0
+
+    updated_records: list[dict] = []
+    removed_blank_rows = 0
+
+    for index, edited_row in enumerate(edited_rows):
+        product_name = edited_row.get("產品名稱")
+
+        if not _is_valid_cart_product_value(product_name):
+            removed_blank_rows += 1
+            continue
+
+        # 以原本購物車順序為主，避免 data_editor 只回傳顯示欄位時遺失產品編號、品牌、品類等隱藏資料。
+        if index >= len(current_cart_records):
+            removed_blank_rows += 1
+            continue
+
+        current_item = current_cart_records[index]
+        current_product_name = current_item.get("產品名稱")
+        if str(product_name).strip() != str(current_product_name).strip():
+            removed_blank_rows += 1
+            continue
+
+        updated_item = dict(current_item)
+        updated_item["訂購數量"] = _normalize_non_negative_quantity(
+            edited_row.get("訂購數量", current_item.get("訂購數量", 0))
+        )
+        updated_item["搭贈數量"] = _normalize_non_negative_quantity(
+            edited_row.get("搭贈數量", current_item.get("搭贈數量", 0))
+        )
+        updated_records.append(updated_item)
+
+    return updated_records, removed_blank_rows
+
+
+def _get_final_order_labels(selected_sales_name: str | None, selected_cust_name: str | None) -> tuple[str, str]:
+    """取得送出前確認區顯示用的業務與客戶文字。"""
+    final_sales_label = safe_html(selected_sales_name) if selected_sales_name else "尚未選擇業務"
+    final_cust_label = safe_html(selected_cust_name) if selected_cust_name else "尚未選擇客戶"
+    return final_sales_label, final_cust_label
+
+
+def _filter_products_by_values(df_products: pd.DataFrame, column_name: str, selected_values: list[str]) -> pd.DataFrame:
+    """依指定欄位篩選商品；未選擇時保留原資料。"""
+    if not selected_values or column_name not in df_products.columns:
+        return df_products.copy()
+    return df_products[df_products[column_name].astype(str).isin(selected_values)]
+
+
+def _build_selected_filter_parts(selected_brand_filters: list[str], selected_category_filters: list[str]) -> list[str]:
+    """組合目前已套用的品牌 / 品類篩選文字。"""
+    selected_filter_parts: list[str] = []
+    if selected_brand_filters:
+        selected_filter_parts.append("品牌：" + "、".join(selected_brand_filters))
+    if selected_category_filters:
+        selected_filter_parts.append("品類：" + "、".join(selected_category_filters))
+    return selected_filter_parts
+
+
+def _get_filter_expander_label(step_no: int, title: str, selected_count: int, note: str = "") -> str:
+    """產生品牌 / 品類篩選 expander 標題文字，避免 render 區塊混入字串組合細節。"""
+    note_text = f"{note}｜" if note else ""
+    return f"{step_no}. {title}（{note_text}已選 {selected_count}）"
+
+
+def _get_product_expander_label(total_count: int, visible_count: int, selected_count: int) -> str:
+    """產生商品選擇 expander 標題文字。"""
+    return f"3. 選擇商品（符合 {total_count}｜顯示 {visible_count}｜已選 {selected_count}）"
+
+
+def _should_expand_product_selector(search_text: str, product_select_expanded: bool, selected_product_count: int) -> bool:
+    """判斷商品選擇區是否應展開，保留搜尋或已有選取時自動展開的既有行為。"""
+    return bool(search_text or product_select_expanded or selected_product_count > 0)
+
+
+def _get_filter_summary_html(
+    has_search_text: bool,
+    result_count: int,
+    selected_filter_parts: list[str],
+    selected_brand_count: int,
+    selected_category_count: int,
+) -> str:
+    """產生商品篩選結果提示 HTML，集中管理搜尋優先與未篩選提示文字。"""
+    if has_search_text:
+        if selected_filter_parts:
+            return (
+                "<div class='filter-summary filter-summary-search'>"
+                f"搜尋結果｜符合 {result_count} 項｜篩選暫不套用"
+                "</div>"
+            )
+        return f"<div class='filter-summary'>搜尋結果｜符合 {result_count} 項</div>"
+
+    if selected_filter_parts:
+        return (
+            "<div class='filter-summary'>"
+            f"品牌 {selected_brand_count}｜品類 {selected_category_count}｜符合 {result_count} 項"
+            "</div>"
+        )
+
+    return f"<div class='filter-summary filter-summary-muted'>未套用篩選｜共 {result_count} 項</div>"
+
+
+def _build_cart_item(
+    selected_sales_name: str,
+    selected_cust_name: str,
+    product_name: str,
+    product_info: dict,
+    quantity: int,
+    gift_quantity: int,
+) -> dict:
+    """依目前選擇的訂單資訊與商品資料建立購物車列。"""
+    return {
+        "業務名稱": selected_sales_name,
+        "客戶名稱": selected_cust_name,
+        "產品編號": product_info.get("產品編號"),
+        "產品名稱": product_name,
+        "品牌": product_info.get("品牌", ""),
+        "品類": product_info.get("品類", ""),
+        "訂購數量": quantity,
+        "搭贈數量": gift_quantity,
+    }
+
+
+def _has_required_order_info(selected_sales_name: str | None, selected_cust_name: str | None) -> bool:
+    """確認建立訂單或加入購物車前，必要的業務與客戶資訊已選擇。"""
+    return bool(selected_sales_name and selected_cust_name)
+
+
+def _normalize_non_negative_quantity(value) -> int:
+    """將數量欄位轉為非負整數，避免負數進入購物車或送出流程。"""
+    return max(safe_int(value), 0)
+
+
+def _get_quantity_input_keys(product_name: str) -> list[str]:
+    """取得單一商品的數量 / 搭贈輸入欄位 key。"""
+    return [f"q_{product_name}", f"g_{product_name}"]
+
+
+def _get_selected_product_quantities(product_name: str, state) -> tuple[int, int]:
+    """從 session_state 讀取已選商品的訂購與搭贈數量。"""
+    quantity = _normalize_non_negative_quantity(state.get(f"q_{product_name}"))
+    gift_quantity = _normalize_non_negative_quantity(state.get(f"g_{product_name}"))
+    return quantity, gift_quantity
+
+
+def _build_cart_items_from_selected_products(
+    selected_products: list[str],
+    selected_sales_name: str,
+    selected_cust_name: str,
+    global_prod_dict: dict,
+    state,
+) -> tuple[list[dict], list[str], list[str]]:
+    """整理已選商品輸入結果，回傳可加入購物車的資料、需清空的 key 與異常商品。"""
+    cart_items: list[dict] = []
+    keys_to_clear: list[str] = []
+    invalid_product_names: list[str] = []
+
+    for product_name in selected_products:
+        quantity, gift_quantity = _get_selected_product_quantities(product_name, state)
+
+        if quantity > 0 or gift_quantity > 0:
+            product_info = global_prod_dict.get(product_name, {})
+            product_id = product_info.get("產品編號")
+
+            if not _is_valid_cart_product_value(product_id):
+                invalid_product_names.append(product_name)
+            else:
+                cart_items.append(_build_cart_item(
+                    selected_sales_name,
+                    selected_cust_name,
+                    product_name,
+                    product_info,
+                    quantity,
+                    gift_quantity,
+                ))
+
+        keys_to_clear.extend(_get_quantity_input_keys(product_name))
+
+    return cart_items, keys_to_clear, invalid_product_names
+
+
+def render_order_page(conn, df_customers, df_products, df_salespeople, global_prod_dict) -> None:
+    # 0. 頁面標題與基礎狀態初始化
+    render_page_header(
+        "快速下單",
+        "手機優先的訂單建立流程。單手操作、先加商品、最後一次確認送出。",
+        ["1 訂單資訊", "2 新增商品", "3 購物車確認"],
+    )
+
+    _ensure_order_page_session_state()
+
+    form_suffix = f"_{st.session_state.form_reset_trigger}"
+
+    # 1. 訂單資訊區：選擇業務、客戶與日期
+    render_section_header(
+        "1",
+        "訂單資訊",
+        "先確認業務、客戶與日期。這三項會帶入本次訂單。",
+        "必填",
+    )
+
+    with st.container(border=True):
+        c1, c2, c3 = st.columns([1.25, 1.75, 1], gap="medium")
+        with c1:
+            sales_list = df_salespeople["業務名稱"].unique().tolist()
+            selected_sales_name = st.selectbox(
+                "業務", sales_list, index=None, placeholder="選擇業務", key=f"sales_sb{form_suffix}"
+            )
+        with c2:
+            current_cust = []
+            if selected_sales_name:
+                current_cust = df_customers[df_customers["業務名稱"]==selected_sales_name]["客戶名稱"].unique().tolist()
+            selected_cust_name = st.selectbox(
+                "客戶", current_cust, index=None, placeholder="選擇客戶", key=f"cust_sb{form_suffix}"
+            )
+        with c3:
+            order_date = st.date_input("日期", datetime.now())
+
+    # 2. 送出訂單動作：集中處理送出前檢查、寫入與成功後重置
+    #    此函式只由底部「送出訂單」按鈕呼叫，避免主流程中重複寫送出邏輯。
+    def trigger_order_submission():
+        if not _has_required_order_info(selected_sales_name, selected_cust_name):
+            st.error("請確認已選擇業務與客戶。")
+            return
+
+        is_valid_cart, validation_message = _validate_cart_before_submission(st.session_state.cart_list)
+        if not is_valid_cart:
+            st.warning(validation_message)
+            return
+
+        with st.spinner("正在寫入雲端..."):
+            try:
+                generated_bill_no = submit_new_order(
+                    st.session_state.cart_list, 
+                    selected_sales_name, 
+                    selected_cust_name, 
+                    order_date, 
+                    conn, 
+                    df_salespeople, 
+                    df_customers
+                )
+            except Exception as exc:
+                st.error(f"訂單送出失敗，購物車已保留。錯誤原因：{exc}")
+                return
+
+            _reset_order_page_after_successful_submission()
+            st.cache_data.clear()
+            st.success(f"訂單 {generated_bill_no} 建立成功。")
+            time.sleep(1.2)
+            st.rerun()
+
+    # 3. 手機版底部購物車提示列：只在購物車有商品時顯示
+    cart_count, total_quantity, total_gift = _get_cart_summary(st.session_state.cart_list)
+    if cart_count > 0:
+        render_sticky_cart_bar(cart_count, total_quantity, total_gift)
+
+    # 4. 新增商品區：搜尋、篩選、選取商品與輸入數量
+    render_section_header(
+        "2",
+        "新增商品",
+        "先用條碼或名稱搜尋；需要瀏覽時再用品牌與品類縮小範圍。",
+        "可重複加入",
+    )
+
+    input_suffix = f"_{st.session_state.input_reset_trigger}"
+    filter_suffix = _get_product_filter_suffix()
+    brand_filter_key_prefix = f"filter_brand{filter_suffix}"
+    category_filter_key_prefix = f"filter_category{filter_suffix}"
+
+    with st.container(border=True):
+        # 4-1. 商品搜尋：搜尋優先於品牌 / 品類篩選
+        st.markdown("<div class='mini-label'>SEARCH</div>", unsafe_allow_html=True)
+        _render_inline_heading("商品搜尋", "條碼或商品名稱")
+        barcode_input = st.text_input(
+            "條碼或商品名稱", 
+            placeholder="掃描條碼，或輸入商品名稱關鍵字",
+            key=f"barcode_scan{input_suffix}"
+        )
+
+        # 4-2. 商品篩選：品牌與品類皆未勾選時視為不限
+        _render_inline_heading("商品篩選", "搜尋優先｜未勾選不限")
+
+        brand_options = _get_unique_options(df_products["品牌"])
+        selected_brand_count = len(_get_selected_values(brand_options, brand_filter_key_prefix))
+
+        brand_expander_label = _get_filter_expander_label(1, "品牌篩選", selected_brand_count)
+        with st.expander(brand_expander_label, expanded=st.session_state.brand_filter_expanded):
+            selected_brand_filters = _render_checkbox_grid(
+                "品牌",
+                brand_options,
+                brand_filter_key_prefix,
+                columns=4,
+                on_change=_keep_filter_expander_open,
+                on_change_args=("brand",),
+            )
+
+        df_after_brand_filter = _filter_products_by_values(df_products, "品牌", selected_brand_filters)
+
+        category_options = _get_unique_options(df_after_brand_filter["品類"])
+        selected_category_count = len(_get_selected_values(category_options, category_filter_key_prefix))
+        category_expander_label = _get_filter_expander_label(2, "品類篩選", selected_category_count, "依品牌顯示")
+        with st.expander(category_expander_label, expanded=st.session_state.category_filter_expanded):
+            selected_category_filters = _render_checkbox_grid(
+                "品類",
+                category_options,
+                category_filter_key_prefix,
+                columns=4,
+                on_change=_keep_filter_expander_open,
+                on_change_args=("category",),
+            )
+
+        selected_brand_count = len(selected_brand_filters)
+        selected_category_count = len(selected_category_filters)
+
+        # 4-3. 篩選確認 / 清除：只控制篩選流程，不直接改商品 checkbox 狀態
+        st.markdown("<div class='confirm-filter-button-anchor'></div>", unsafe_allow_html=True)
+        st.button(
+            "確認篩選",
+            type="primary",
+            use_container_width=True,
+            key=f"confirm_product_filters{input_suffix}",
+            on_click=_confirm_product_filters,
+        )
+
+        if selected_brand_count or selected_category_count:
+            st.button(
+                "清除篩選",
+                use_container_width=True,
+                key="clear_product_filters",
+                on_click=_reset_product_filter_selection,
+            )
+
+        df_step1 = _filter_products_by_values(df_after_brand_filter, "品類", selected_category_filters)
+        selected_filter_parts = _build_selected_filter_parts(selected_brand_filters, selected_category_filters)
+
+        # 4-4. 產生商品候選清單：有搜尋時用搜尋結果，否則用品牌 / 品類篩選結果
+        if barcode_input:
+            clean_input = barcode_input.strip()
+            df_step2 = _search_products(df_products, clean_input)
+
+            if df_step2.empty:
+                st.error(f"找不到包含「{safe_html(clean_input)}」的商品資料。可搜尋產品名稱、條碼、品牌、品類或產品編號。")
+
+            st.markdown(
+                _get_filter_summary_html(
+                    True,
+                    len(df_step2),
+                    selected_filter_parts,
+                    selected_brand_count,
+                    selected_category_count,
+                ),
+                unsafe_allow_html=True,
+            )
+        else:
+            df_step2 = df_step1.copy()
+            st.markdown(
+                _get_filter_summary_html(
+                    False,
+                    len(df_step2),
+                    selected_filter_parts,
+                    selected_brand_count,
+                    selected_category_count,
+                ),
+                unsafe_allow_html=True,
+            )
+
+        if df_step2.empty and not barcode_input:
+            st.warning("目前篩選條件沒有符合的商品，請調整品牌或品類。")
+
+        # 4-5. 商品選擇區：顯示符合條件的商品 checkbox
+        all_product_options = _get_product_options(df_step2)
+        product_options, total_product_count, is_product_limited = _limit_product_options(all_product_options)
+        product_key_prefix = f"select_product{input_suffix}"
+
+        if is_product_limited:
+            st.info(
+                f"符合 {total_product_count} 項，目前只顯示前 {len(product_options)} 項。請輸入更多關鍵字縮小範圍。"
+            )
+
+        # 條碼或關鍵字搜尋只找到單一商品時，自動勾選，延續原本 multiselect 的預設選取體驗。
+        if barcode_input and len(product_options) == 1:
+            single_product_key = _make_filter_key(product_key_prefix, product_options[0])
+            if single_product_key not in st.session_state:
+                st.session_state[single_product_key] = True
+
+        selected_product_count = len(_get_selected_values(product_options, product_key_prefix))
+        product_expander_label = _get_product_expander_label(
+            total_product_count,
+            len(product_options),
+            selected_product_count,
+        )
+        product_expander_expanded = _should_expand_product_selector(
+            barcode_input,
+            st.session_state.product_select_expanded,
+            selected_product_count,
+        )
+
+        with st.expander(product_expander_label, expanded=product_expander_expanded):
+            selected_products_batch = _render_checkbox_grid("商品", product_options, product_key_prefix, columns=4, grid_variant="product")
+
+        # 4-6. 已選商品輸入區與加入購物車：只處理本次選取商品
+        if selected_products_batch:
+            st.markdown(f"<div class='product-count-chip'>已選 {len(selected_products_batch)} 項</div>", unsafe_allow_html=True)
+
+            _render_selected_product_inputs(selected_products_batch, product_key_prefix)
+
+            submitted = st.button("加入購物車", type="primary", use_container_width=True, key=f"add_selected_products{input_suffix}")
+
+            if submitted:
+                if not _has_required_order_info(selected_sales_name, selected_cust_name):
+                    st.error("請先在訂單資訊區選擇業務與客戶。")
+                else:
+                    cart_items_to_add, keys_to_clear, invalid_product_names = _build_cart_items_from_selected_products(
+                        selected_products_batch,
+                        selected_sales_name,
+                        selected_cust_name,
+                        global_prod_dict,
+                        st.session_state,
+                    )
+
+                    for product_name in invalid_product_names:
+                        st.error(f"商品資料不完整，未加入購物車：{product_name}")
+
+                    if cart_items_to_add:
+                        for cart_item in cart_items_to_add:
+                            st.session_state.cart_list.insert(0, cart_item)
+
+                        _clear_session_state_keys(keys_to_clear)
+
+                        # 透過更新 input_reset_trigger 讓商品選取 checkbox 使用新的 key，
+                        # 避免在同一輪渲染中直接改已建立的 checkbox state 而觸發 StreamlitAPIException。
+                        st.session_state.input_reset_trigger += 1
+                        _reset_product_filter_flow()
+                        st.toast(f"成功加入 {len(cart_items_to_add)} 項商品")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.warning("所有商品的數量皆未輸入，未加入任何項目。")
+
+    # 5. 購物車確認區：確認、修改數量、清空或送出訂單
+    render_section_header(
+        "3",
+        "購物車",
+        "送出前請確認商品、訂購數與搭贈數。表格內可直接修改數量。",
+        "最後確認",
+    )
+
+    with st.container(border=True):
+        if len(st.session_state.cart_list) > 0:
+            # 5-1. 顯示購物車摘要與提示訊息
+            cart_notice = st.session_state.pop("cart_editor_notice", "")
+            if cart_notice:
+                st.warning(cart_notice)
+
+            cart_df = _build_cart_dataframe(st.session_state.cart_list)
+            cart_count, total_quantity, total_gift = _get_cart_summary(st.session_state.cart_list)
+            st.markdown(f"""
+                <div class='cart-summary'>
+                    <div class='summary-card'>
+                        <div class='summary-label'>商品項目</div>
+                        <div class='summary-value'>{cart_count}</div>
+                    </div>
+                    <div class='summary-card'>
+                        <div class='summary-label'>訂購數量</div>
+                        <div class='summary-value'>{total_quantity}</div>
+                    </div>
+                    <div class='summary-card'>
+                        <div class='summary-label'>搭贈數量</div>
+                        <div class='summary-value'>{total_gift}</div>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(
+                "<div class='mobile-edit-note'>請在下方表格確認商品與數量；需要修改時可直接調整數字，刪除商品可使用表格列操作。</div>",
+                unsafe_allow_html=True
+            )
+
+            st.markdown("<div class='cart-editor-mobile-scope'></div>", unsafe_allow_html=True)
+
+            # 5-2. 購物車表格：只允許修改既有商品數量，不在此區新增商品
+            edited_cart = st.data_editor(
+                cart_df,
+                column_config={
+                    # Phase 7 Step 3B：手機版購物車確認區欄寬強化
+                    # 商品欄改用固定像素寬度，避免把「訂購 / 搭贈」推到手機螢幕外。
+                    # 左側列操作欄保留，讓使用者仍可刪除品項。
+                    "產品名稱": st.column_config.TextColumn("商品", disabled=True, width=150),
+                    "訂購數量": st.column_config.NumberColumn("訂購", min_value=0, step=1, width=58),
+                    "搭贈數量": st.column_config.NumberColumn("搭贈", min_value=0, step=1, width=58),
+                },
+                column_order=["產品名稱", "訂購數量", "搭贈數量"],
+                use_container_width=True,
+                hide_index=True,
+                # Phase 9.1：購物車確認區只允許確認與修改既有商品，不在此區新增商品。
+                # 若要新增商品，請回到上方商品選擇區。
+                num_rows="fixed",
+                key="final_cart_editor_p9_1_fixed"
+            )
+
+            # 5-3. 表格回寫：只在商品數量真的變更時更新 cart_list
+            updated_cart_records, removed_blank_rows = _build_cart_records_from_editor(
+                edited_cart,
+                st.session_state.cart_list,
+            )
+
+            if _has_cart_records_changed(updated_cart_records, st.session_state.cart_list):
+                st.session_state.cart_list = updated_cart_records
+
+                if removed_blank_rows > 0:
+                    st.session_state.cart_editor_notice = "已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。"
+
+                # data_editor 修改後立即重新整理一次，避免摘要與「送出前確認」仍顯示舊合計。
+                st.rerun()
+            elif removed_blank_rows > 0:
+                # 若只是誤新增空白列，資料沒有實際改變，不 rerun，避免進入無限重整。
+                st.warning("已忽略購物車表格中誤新增的空白列；若要新增商品，請回到上方新增商品區。")
+
+            # 5-4. 送出前確認與底部操作按鈕
+            final_sales_label, final_cust_label = _get_final_order_labels(selected_sales_name, selected_cust_name)
+            st.markdown(f"""
+                <div class='cart-final-panel'>
+                    <div class='cart-final-title'>送出前確認</div>
+                    <div class='cart-final-value'>{final_sales_label} → {final_cust_label}</div>
+                    <div class='cart-final-title' style='margin-top:0.45rem;'>本次合計</div>
+                    <div class='cart-final-value'>{cart_count} 項商品｜訂購 {total_quantity}｜搭贈 {total_gift}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("")
+            col_clear, col_submit = st.columns([1, 2], gap="medium")
+            with col_clear:
+                if st.button("清空購物車", use_container_width=True, key="clear_cart_main_btn"):
+                    st.session_state.cart_list = []
+                    st.rerun()
+            with col_submit:
+                if st.button("送出訂單", type="primary", use_container_width=True, key="bottom_checkout_btn"):
+                    trigger_order_submission()
+        else:
+            st.info("購物車目前是空的。請先在新增商品區加入商品。")
+
